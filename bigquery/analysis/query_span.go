@@ -380,6 +380,9 @@ type spanWalker struct {
 	// operator, and the FROM clause an unaliased subquery of it sits in, read
 	// them. A reader takes it right after visitBody.
 	outRanges []*relation
+	// pipeColumns holds, folded, the names of the columns a pipe operator's
+	// expressions read (see requirePipeColumn); nil outside a pipe operator.
+	pipeColumns map[string]bool
 	// fixpoints counts the recursive-CTE fixpoints started, so
 	// recursiveFixpoint can tell whether a recursive arm holds another one.
 	fixpoints int
@@ -911,6 +914,16 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	resolvePipe := q.Pipe != nil && !w.tablesOnly && !pipeKeepsProjection(q.Pipe)
 	results := w.visitBody(q.Body)
 	ranges := w.outRanges
+	if resolvePipe && isValueTableQuery(q.Body) {
+		w.failClosed(fmt.Errorf("a pipe operator over a SELECT AS STRUCT or AS VALUE query, whose single value column this walker does not represent (fail closed)"))
+	}
+	if sel, ok := q.Body.(*ast.SelectStmt); ok && resolvePipe {
+		for _, src := range sel.From {
+			if sourceReshapes(src) {
+				w.failClosed(fmt.Errorf("a pipe operator over a PIVOT or UNPIVOT source, whose output columns this walker does not derive (fail closed)"))
+			}
+		}
+	}
 
 	// A pipe suffix transforms the query's output. One that keeps the
 	// projection (WHERE, ORDER BY, LIMIT ...) leaves the head's results; one
@@ -1258,10 +1271,13 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.leaves = &leafSet{}
 	prevUnresolved := w.fromUnresolved
 	w.fromUnresolved = false
+	prevCols := w.pipeColumns
+	w.pipeColumns = nil
 	defer func() {
 		w.fromAliases = prevFrom
 		w.leaves = prevLeaves
 		w.fromUnresolved = prevUnresolved
+		w.pipeColumns = prevCols
 	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
@@ -1697,6 +1713,9 @@ func (w *spanWalker) unnestElementColumns(array ast.Node) []projColumn {
 func (w *spanWalker) finishUnnestRelation(cols []projColumn, alias string, withOffset bool, offsetAlias string) *relation {
 	if alias != "" && len(cols) == 1 {
 		cols[0].name = alias
+	}
+	for i := range cols {
+		cols[i].valueElem = true
 	}
 	if withOffset {
 		name := offsetAlias
@@ -2322,6 +2341,9 @@ type exprWalk struct {
 	onColumn  func(ColumnRef)
 	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
 	followSub bool
+	// onSubquery, when set, is called for each subquery or graph subquery the
+	// expression holds, followed or not.
+	onSubquery func()
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -2469,6 +2491,9 @@ func (ew *exprWalk) walk(node ast.Node) {
 	// --- Graph subqueries and graph expressions (parser-gql) ---
 	case *ast.GraphSubqueryExpr, *ast.GraphExistsExpr, *ast.GraphCallOp:
 		// A graph subquery is a boundary: the names it invents are not columns.
+		if ew.onSubquery != nil {
+			ew.onSubquery()
+		}
 		ew.walkGraph(node)
 	case *ast.GraphPredicate:
 		// A standalone graph predicate is an ordinary relational comparison —
@@ -2512,6 +2537,9 @@ func (ew *exprWalk) emitParts(parts []string) {
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
 func (ew *exprWalk) followSubquery(query ast.Node) {
+	if ew.onSubquery != nil {
+		ew.onSubquery()
+	}
 	if !ew.followSub || query == nil {
 		return
 	}

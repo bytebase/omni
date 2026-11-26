@@ -34,7 +34,6 @@ var diffSyncLosses = map[string]string{
 	"MariaDB index forms/new":                                                               lossIgnored,
 	"MariaDB views/new":                                                                     lossView,
 	"MariaDB vector index/new":                                                              lossVector,
-	"MariaDB compressed columns/new":                                                        gapCompressed,
 	"MariaDB routines/new":                                                                  lossAggregate,
 }
 

@@ -132,6 +132,28 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"SELECT x FROM t |> CALL f()",
 			"SELECT x FROM t |> NATURAL JOIN (SELECT 1 AS x)",
 			"SELECT x, y FROM t |> SET x = 1, x = 2 |> SELECT x |> RENAME z AS w",
+			// Name matching that keeps only the shared columns.
+			"SELECT x, y FROM t |> INNER UNION ALL BY NAME (SELECT x FROM u)",
+			"SELECT x, y FROM t |> UNION ALL CORRESPONDING (SELECT x FROM u)",
+			// A PIVOT source's output is not its input's columns.
+			"SELECT 0 AS p |> CROSS JOIN (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b'))",
+			"FROM (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b')) |> SELECT *",
+			// A star expands a struct element's fields.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT *",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> AS z |> SELECT z.*",
+			// A struct element's field read by its name alone.
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> SELECT y",
+			"SELECT secret FROM t |> CROSS JOIN UNNEST([STRUCT(0 AS x, secret AS y)]) AS e |> EXTEND y.z AS q",
+			// A value table is one struct column.
+			"SELECT AS STRUCT public, secret FROM t |> UNION ALL (SELECT AS STRUCT public, secret FROM u)",
+			"(SELECT AS VALUE STRUCT(public, secret) FROM t) |> SELECT *",
+			"SELECT x FROM t |> JOIN (SELECT AS STRUCT public, secret FROM u) AS s ON true",
+			"SELECT x FROM t |> UNION ALL (SELECT AS STRUCT secret FROM u)",
+			// A subquery's lineage is not resolved.
+			"SELECT 0 AS p |> EXTEND (SELECT secret FROM t LIMIT 1) AS s",
+			"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s",
+			"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)",
+			"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY (SELECT 1)",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
@@ -243,6 +265,8 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		{"FROM t AS a |> SET x = y |> SELECT a", [][]string{append([]string{"a"}, all...)}},
 		{"FROM t |> SELECT x AS a |> SELECT a", [][]string{{"a", "t.x"}}},
 		{"FROM t |> AS a |> SELECT a", [][]string{append([]string{"a"}, all...)}},
+		{"FROM t |> AS a |> SELECT TO_JSON_STRING(a) AS j", [][]string{append([]string{"j"}, all...)}},
+		{"FROM (SELECT x, secret FROM t) AS a |> EXTEND TO_JSON_STRING(a) AS j", [][]string{{"x", "t.x"}, {"secret", "t.secret"}, {"j", "t.secret", "t.x"}}},
 	}
 	for _, tc := range tests {
 		span := resolvePin(t, bigqueryResolveOptions(), tc.sql, "ds1", schemas)

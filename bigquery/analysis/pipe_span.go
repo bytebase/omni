@@ -79,6 +79,9 @@ func (w *spanWalker) pipeOperator(op ast.Node, in *pipeTable) *pipeTable {
 		if n.Select == nil || n.Select.As != ast.SelectAsNone {
 			return w.pipeFailClosed("a pipe SELECT AS STRUCT or AS VALUE")
 		}
+		if w.starOverValueElem(n.Select.Items, cols) {
+			return w.pipeFailClosed("a pipe SELECT star over an UNNEST element, which expands a struct element's fields,")
+		}
 		return &pipeTable{cols: w.resolveSelectProjection(n.Select, []*relation{{columns: cols}})}
 	case *ast.PipeExtend:
 		w.visitPipeOp(op)
@@ -106,6 +109,32 @@ func (w *spanWalker) pipeOperator(op ast.Node, in *pipeTable) *pipeTable {
 	return w.pipeFailClosed(fmt.Sprintf("the pipe operator %T", op))
 }
 
+// starOverValueElem reports whether a star item of items expands an UNNEST
+// element column: a bare star over cols, or `rel.*` over a range variable
+// holding one.
+func (w *spanWalker) starOverValueElem(items []*ast.SelectItem, cols []projColumn) bool {
+	for _, item := range items {
+		if item == nil || !item.Star {
+			continue
+		}
+		over := cols
+		if item.Expr != nil {
+			over = nil
+			if parts := exprToParts(item.Expr); len(parts) == 1 {
+				if rel := w.leaves.find(parts[0]); rel != nil {
+					over = rel.columns
+				}
+			}
+		}
+		for _, c := range over {
+			if c.valueElem {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // pipeFailClosed fails the span closed for a pipe operator omni does not
 // resolve and returns the nil table that stops the resolution.
 func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
@@ -118,9 +147,14 @@ func (w *spanWalker) pipeFailClosed(what string) *pipeTable {
 // returns the function that restores the previous scope.
 func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	prevLeaves, prevFrom, prevUnresolved := w.leaves, w.fromAliases, w.fromUnresolved
+	prevCols := w.pipeColumns
 	w.leaves = &leafSet{}
 	w.fromAliases = map[string]bool{}
 	w.fromUnresolved = false
+	w.pipeColumns = map[string]bool{}
+	for _, c := range t.cols {
+		w.pipeColumns[foldKey(c.name)] = true
+	}
 	w.leaves.add(&relation{columns: t.cols})
 	for _, rel := range t.ranges {
 		w.leaves.add(rel)
@@ -128,6 +162,7 @@ func (w *spanWalker) enterPipeScope(t *pipeTable) func() {
 	}
 	return func() {
 		w.leaves, w.fromAliases, w.fromUnresolved = prevLeaves, prevFrom, prevUnresolved
+		w.pipeColumns = prevCols
 	}
 }
 
@@ -352,6 +387,16 @@ func (w *spanWalker) pipeJoin(in *pipeTable, join *ast.JoinExpr) *pipeTable {
 	}
 	known := len(w.leaves.rels)
 	rel := w.buildFromItem(join.Right)
+	if te, ok := join.Right.(*ast.TableExpr); ok && te != nil && te.Subquery != nil && isValueTableQuery(te.Subquery) {
+		w.recordSourceTVFArgs(join.Right)
+		w.walkPredicate(join.On)
+		return w.pipeFailClosed("a pipe JOIN to a SELECT AS STRUCT or AS VALUE subquery")
+	}
+	if sourceReshapes(join.Right) {
+		w.recordSourceTVFArgs(join.Right)
+		w.walkPredicate(join.On)
+		return w.pipeFailClosed("a pipe JOIN to a PIVOT or UNPIVOT source")
+	}
 	w.recordSourceTVFArgs(join.Right)
 	w.walkPredicate(join.On)
 	for _, col := range join.Using {
@@ -406,14 +451,21 @@ func (w *spanWalker) pipeSetOperation(cols []projColumn, n *ast.PipeSetOperation
 		}
 		return w.pipeFailClosed("a pipe set operation")
 	}
-	if set.OuterMode != "" && !strings.EqualFold(set.OuterMode, "INNER") {
+	// An outer or INNER mode, and a CORRESPONDING without STRICT, keep a
+	// subset or a union of the inputs' names that mergeByName does not
+	// compute (`|> INNER UNION ALL BY NAME` keeps only the shared columns).
+	if set.OuterMode != "" || (set.Corresponding && !set.Strict) {
 		for _, rhs := range n.Right {
 			w.visitPipeOperand(rhs)
 		}
-		return w.pipeFailClosed("an outer pipe set operation")
+		return w.pipeFailClosed("a pipe set operation that matches a subset of the inputs' names")
 	}
 	m := setOpMerger{cols: cols}
 	for _, rhs := range n.Right {
+		if isValueTableQuery(rhs) {
+			w.visitPipeOperand(rhs)
+			return w.pipeFailClosed("a pipe set operation with a SELECT AS STRUCT or AS VALUE operand")
+		}
 		right := w.visitBody(rhs)
 		if set.ByName || set.Corresponding {
 			m.mergeByName(right, set.MatchColumns)
@@ -433,4 +485,44 @@ func containsColumnFold(cols []projColumn, name string) bool {
 		}
 	}
 	return false
+}
+
+// sourceReshapes reports whether a FROM source carries a PIVOT or UNPIVOT,
+// whose output columns buildFromItem does not derive: it returns the
+// source's columns before the operator.
+func sourceReshapes(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.TableExpr:
+		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
+	case *ast.UnnestExpr:
+		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
+	case *ast.JoinExpr:
+		return n != nil && (sourceReshapes(n.Left) || sourceReshapes(n.Right))
+	}
+	return false
+}
+
+// isValueTableQuery reports whether a query body returns a value table: a
+// SELECT AS STRUCT or AS VALUE (through parentheses, and a set operation's
+// first operand). Its rows are one value, not the select list's columns that
+// visitBody returns.
+func isValueTableQuery(node ast.Node) bool {
+	for {
+		switch n := node.(type) {
+		case *ast.SelectStmt:
+			return n != nil && n.As != ast.SelectAsNone
+		case *ast.QueryStmt:
+			if n == nil {
+				return false
+			}
+			node = n.Body
+		case *ast.SetOperation:
+			if n == nil {
+				return false
+			}
+			node = n.Left
+		default:
+			return false
+		}
+	}
 }

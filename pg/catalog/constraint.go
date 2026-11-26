@@ -176,12 +176,8 @@ func (c *Catalog) addIndexBackedConstraint(schema *Schema, rel *Relation, def Co
 		}
 	}
 
+	// resolveIndexConstraintAttnums checked the tablespace of a new index.
 	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
-	if existingIdx == nil {
-		if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
-			return err
-		}
-	}
 
 	isPrimary := typ == ConstraintPK
 	if isPrimary && c.Version() >= PG18 {
@@ -274,6 +270,31 @@ func (c *Catalog) resolveIndexConstraintAttnums(schema *Schema, rel *Relation, d
 				return nil, nil, errDuplicateColumn(name)
 			}
 			seen[name] = true
+		}
+		// A primary key's columns are found first: transformIndexConstraint
+		// queues SET NOT NULL on each, and that pass runs before DefineIndex.
+		// pg: src/backend/parser/parse_utilcmd.c:2577 (REL_17_12) — transformIndexConstraint
+		var attnums []int16
+		if def.Type == ConstraintPK {
+			var err error
+			if attnums, err = c.resolveColumnNames(rel, def.Columns); err != nil {
+				return nil, nil, err
+			}
+		}
+		// DefineIndex checks the tablespace and the storage parameters before
+		// ComputeIndexAttrs resolves the key columns and before
+		// index_check_primary_key refuses a second primary key: ALTER TABLE a
+		// ADD PRIMARY KEY(a) WITH (a) on a table with one is 22023.
+		// pg: src/backend/commands/indexcmds.c:776 (REL_17_12) — DefineIndex
+		// pg: src/backend/commands/indexcmds.c:903 (REL_17_12) — DefineIndex
+		if err := c.checkIndexTablespace(c.effectiveIndexTablespace(def.IndexSpace, rel), rel); err != nil {
+			return nil, nil, err
+		}
+		if err := c.validateRelOptions(def.Options, 'i', "btree"); err != nil {
+			return nil, nil, err
+		}
+		if attnums != nil {
+			return attnums, nil, nil
 		}
 		attnums, err := c.resolveColumnNames(rel, def.Columns)
 		return attnums, nil, err
@@ -719,11 +740,6 @@ func opClassRefsFrom(opClasses []string) []opClassRef {
 }
 
 func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def ConstraintDef) error {
-	attnums, err := c.resolveColumnNames(rel, def.Columns)
-	if err != nil {
-		return err
-	}
-	var includeAttnums []int16
 	if len(def.IncludeColumns) > 0 {
 		seenInc := make(map[string]bool, len(def.IncludeColumns))
 		for _, incName := range def.IncludeColumns {
@@ -732,13 +748,37 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 			}
 			seenInc[incName] = true
 		}
-		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
+	}
+
+	// transformIndexStmt coerces the WHERE predicate to boolean before
+	// DefineIndex runs: ALTER TABLE a ADD EXCLUDE (a WITH ~) WHERE (a), where
+	// a is a whole-row reference, is 42804 before the operator is looked up.
+	// pg: src/backend/parser/parse_utilcmd.c:2842 (REL_17_12) — transformIndexStmt
+	var analyzedWhere AnalyzedExpr
+	if def.WhereClause != nil {
+		analyzed, err := c.AnalyzeStandaloneExpr(def.WhereClause, rel)
 		if err != nil {
 			return err
 		}
+		if !c.installingSnapshot {
+			if analyzed, err = c.coerceToBoolean(analyzed, "WHERE"); err != nil {
+				return err
+			}
+		}
+		analyzedWhere = analyzed
+	}
+
+	// DefineIndex checks the tablespace, then the access method, then the
+	// predicate and the storage parameters, and only then ComputeIndexAttrs
+	// resolves the columns and the exclusion operators.
+	// pg: src/backend/commands/indexcmds.c:776 (REL_17_12) — DefineIndex
+	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
+	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
+		return err
 	}
 
 	// Determine access method (default GiST for exclusion constraints).
+	// pg: src/backend/commands/indexcmds.c:835 (REL_17_12) — DefineIndex
 	accessMethod := def.AccessMethod
 	if accessMethod == "" {
 		accessMethod = "gist"
@@ -767,9 +807,28 @@ func (c *Catalog) addExcludeConstraint(schema *Schema, rel *Relation, def Constr
 		}
 	}
 
-	effectiveTablespace := c.effectiveIndexTablespace(def.IndexSpace, rel)
-	if err := c.checkIndexTablespace(effectiveTablespace, rel); err != nil {
+	// pg: src/backend/commands/indexcmds.c:895 (REL_17_12) — DefineIndex
+	if analyzedWhere != nil && !c.installingSnapshot {
+		if err := c.checkIndexExprImmutable(analyzedWhere); err != nil {
+			return &Error{Code: CodeInvalidObjectDefinition,
+				Message: "functions in index predicate must be marked IMMUTABLE"}
+		}
+	}
+	// pg: src/backend/commands/indexcmds.c:903 (REL_17_12) — DefineIndex
+	if err := c.validateRelOptions(def.Options, 'i', accessMethod); err != nil {
 		return err
+	}
+
+	attnums, err := c.resolveColumnNames(rel, def.Columns)
+	if err != nil {
+		return err
+	}
+	var includeAttnums []int16
+	if len(def.IncludeColumns) > 0 {
+		includeAttnums, err = c.resolveColumnNames(rel, def.IncludeColumns)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Validate exclusion operator classes and operators before registering the

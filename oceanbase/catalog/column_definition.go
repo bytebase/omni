@@ -14,9 +14,11 @@ import (
 // TestOracle_OceanBaseColumnDefinition holds them to the engine.
 
 // checkColumnDefinition refuses what OceanBase refuses in a column definition by
-// itself: a literal default the type cannot hold (1067), a column in an expression
-// default (1235), an SRID on a type that is not spatial (1221), and a column CHECK
-// that is a bare column, not a condition (3812).
+// itself: a character set SHOW CHARACTER SET does not list (1115), a literal
+// default the type cannot hold (1067), a column in an expression default (1235),
+// an SRID on a type that is not spatial (1221), and a column CHECK that is a bare
+// column, not a condition (3812). The character set answers before a duplicate
+// name (1060) and before ALTER TABLE learns its table is a view (1347).
 func checkColumnDefinition(colDef *nodes.ColumnDef) error {
 	return checkColumnDefinitionMode(colDef, false)
 }
@@ -24,6 +26,11 @@ func checkColumnDefinition(colDef *nodes.ColumnDef) error {
 func checkColumnDefinitionMode(colDef *nodes.ColumnDef, isView bool) error {
 	if colDef == nil || colDef.TypeName == nil {
 		return nil
+	}
+	if cs := colDef.TypeName.Charset; cs != "" {
+		if err := checkCharsetName(normalizeCharsetName(cs)); err != nil {
+			return err
+		}
 	}
 	defaults := []nodes.ExprNode{colDef.DefaultValue}
 	references := false

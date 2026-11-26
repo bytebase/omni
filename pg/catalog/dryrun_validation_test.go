@@ -269,7 +269,7 @@ func TestDryRunValidation_CreateTable(t *testing.T) {
 		dryRunExpectError(t,
 			"CREATE TABLE parent(id int)",
 			"CREATE TABLE child() INHERITS (parent, parent)",
-			CodeDuplicateObject, "")
+			CodeDuplicateTable, "")
 	})
 
 	t.Run("InheritColumnTypeMismatch", func(t *testing.T) {

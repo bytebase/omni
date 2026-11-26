@@ -43,18 +43,23 @@ func TestWalkSimulation(t *testing.T) {
 		{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), 0.988},
 		{"pg18_queries", filepath.Join("..", "catalog", "testdata", "pg18", "queries", "simulate.tsv"), 0.988},
 		// Functions, procedures, triggers, event triggers, CALL and DO on
-		// programs@objects, quoted type names on programs@quoted, and ALTER
-		// COLUMN TYPE ... USING on programs@retype and programs@generated.
-		// pg/catalog checks a routine's body; what is left is a missing name
-		// in one (42P01, 42703, 42704, 42883), a missing column type such as
-		// a quoted "integer" (42704), a retyped column, default or USING
-		// result that does not cast to the new type (42804, 42846, 22P02),
-		// what a USING expression may not hold (42703, 42704, 0A000, 42803,
-		// 42P20, 42P02, 42611 on a generated column), dependencies on a
-		// dropped table or column (2BP01), and what a catalog loaded from a
-		// snapshot does not hold: a procedure's identity, an event trigger.
-		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.427},
-		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.427},
+		// programs@objects, quoted type names on programs@quoted, ALTER
+		// COLUMN TYPE ... USING on programs@retype and programs@generated,
+		// and identity columns' types on programs@identity. What the walk
+		// misses is what the sync does not list: a type, such as a quoted
+		// "integer", which a domain may supply (42704); a role, language or
+		// event trigger (42704, 42710, 2BP01, 0A000); a relation, column or
+		// function a body names, which a catalog loaded from a snapshot
+		// takes as present (42P01, 42703, 42883); a cast a retype, a
+		// return or a call may use (42804, 42846, 42P13, and a CALL's 42809
+		// on an argument of a known type); a function called in attribute
+		// notation (NEW.f for f(NEW)) or a domain in a schema named as a
+		// table (a.b%TYPE), for a qualified column (42703). Left too are a
+		// built-in name a user routine may shadow (42803, 42P20), PL/pgSQL
+		// condition names, which share 42704, and what the catalog raises
+		// 0A000 or 22023 for.
+		{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), 0.543},
+		{"pg18_programs", filepath.Join("..", "catalog", "testdata", "pg18", "programs", "simulate.tsv"), 0.543},
 	} {
 		t.Run(suite.name, func(t *testing.T) {
 			res := walktest.CheckSimulation(t, walktest.Simulation{

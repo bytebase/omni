@@ -66,7 +66,7 @@ func (p *Parser) parseCreateDatabaseStmt(start int) (*nodes.CreateDatabaseStmt, 
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/alter-database.html
 //
-//	ALTER {DATABASE | SCHEMA} [db_name]
+//	ALTER {DATABASE | SCHEMA} [db_name] [SET]
 //	    alter_option ...
 func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, error) {
 	p.advance() // consume DATABASE or SCHEMA
@@ -94,6 +94,10 @@ func (p *Parser) parseAlterDatabaseStmt(start int) (*nodes.AlterDatabaseStmt, er
 		}
 		stmt.Name = name
 	}
+	// alter_database_stmt is `alter_with_opt_hint database_key
+	// opt_database_name opt_set database_option_list` (line 5170): one SET may
+	// stand before the options, `ALTER DATABASE d SET CHARSET utf8`.
+	p.match(kwSET)
 
 	// Options
 	for {

@@ -102,6 +102,7 @@ ok:46196032938c	ok:46196032938c	engine	programs@objects	program:function-plpgsql
 42P01	42P01	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE r missing_t%ROWTYPE; BEGIN RETURN 1; END $$
 ok:dd3b322552a6	ok:dd3b322552a6	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.amount%TYPE; BEGIN RETURN 1; END $$
 42703	42703	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.nope%TYPE; BEGIN RETURN 1; END $$
+ok:bd0dc68f557a	ok:bd0dc68f557a	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE x orders.ctid%TYPE; BEGIN RETURN 1; END $$
 22005	22005	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ DECLARE c CONSTANT int := 1; BEGIN c := 2; RETURN c; END $$
 42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS void LANGUAGE plpgsql AS $$ BEGIN RETURN 1; END $$
 42804	42804	engine	programs@objects	program:function-plpgsql	CREATE FUNCTION f() RETURNS int LANGUAGE plpgsql AS $$ BEGIN RETURN NEXT 1; END $$
@@ -343,3 +344,10 @@ ok:3cf47a7b54ff	ok:3cf47a7b54ff	engine	programs@generated	program:alter-using	AL
 ok:3cf47a7b54ff	ok:3cf47a7b54ff	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d TYPE int USING length(d), ALTER COLUMN d DROP DEFAULT
 42804	42804	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d SET DEFAULT 1, ALTER COLUMN d TYPE int USING length(d)
 ok:22b921940d58	ok:22b921940d58	engine	programs@generated	program:alter-using	ALTER TABLE gen ALTER COLUMN d DROP DEFAULT, ALTER COLUMN d SET DEFAULT 2
+ok:688430c46727	ok:688430c46727	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE bigint
+ok:4efc2588c7f0	ok:4efc2588c7f0	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE smallint
+ok:39535d714c7b	ok:39535d714c7b	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN b TYPE bigint
+ok:ab19986696bb	ok:ab19986696bb	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN c TYPE int
+22023	22023	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE numeric
+22023	22023	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE text
+ok:688430c46727	ok:688430c46727	engine	programs@identity	program:alter-identity	ALTER TABLE ident ALTER COLUMN id TYPE bigint USING id * 2

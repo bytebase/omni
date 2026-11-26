@@ -796,9 +796,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 				return foreignKeyConstraintNameExists(tbl.Database, nil, name)
 			})
 		}
-		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
-			return errFKDupName(tbl.Name)
-		}
 		refDBName := ""
 		refTable := ""
 		if con.RefTable != nil {
@@ -822,6 +819,12 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd) error
 			if err := c.validateSingleFK(db, tbl, fkCon); err != nil {
 				return err
 			}
+		}
+		// The key is checked before its name: on a table whose foreign key is
+		// named a, ADD CONSTRAINT a FOREIGN KEY (a) REFERENCES a (a), whose
+		// referenced column has no index, is 1215 and not 1022.
+		if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
+			return errFKDupName(tbl.Name)
 		}
 		tbl.Constraints = append(tbl.Constraints, fkCon)
 		// No index is made for it: see the foreign keys of CREATE TABLE.

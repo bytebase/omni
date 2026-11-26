@@ -46,8 +46,8 @@ func (p *Parser) parseCreateCatalog() (ast.Node, error) {
 		stmt.IfNotExists = true
 	}
 
-	// Catalog name — single identifier
-	name, nameLoc, err := p.parseIdentifier()
+	// catalogName=identifierOrString (StarRocks.g4:761): a name or a string.
+	name, nameLoc, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, err
 	}
@@ -142,8 +142,8 @@ func (p *Parser) parseDropCatalog() (ast.Node, error) {
 		stmt.IfExists = true
 	}
 
-	// Catalog name — single identifier
-	name, nameLoc, err := p.parseIdentifier()
+	// catalogName=identifierOrString (StarRocks.g4:769): a name or a string.
+	name, nameLoc, err := p.parseIdentifierOrString()
 	if err != nil {
 		return nil, err
 	}

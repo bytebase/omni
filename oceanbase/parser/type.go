@@ -197,7 +197,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwVARCHAR, kwVARCHARACTER:
 		dt.Name = "VARCHAR"
@@ -205,7 +207,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTEXT:
 		dt.Name = "TEXT"
@@ -213,12 +217,16 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTINYTEXT:
 		dt.Name = "TINYTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwMEDIUMTEXT:
 		// MEDIUMTEXT VARCHAR is MEDIUMTEXT and MEDIUMTEXT VARBINARY MEDIUMBLOB, the
@@ -234,13 +242,17 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			dt.Name = "MEDIUMBLOB"
 		}
 		if dt.Name == "MEDIUMTEXT" {
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		}
 
 	case kwLONGTEXT:
 		dt.Name = "LONGTEXT"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// Date/time types
 	case kwDATE:
@@ -287,22 +299,30 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwTINYBLOB:
 		dt.Name = "TINYBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwMEDIUMBLOB:
 		dt.Name = "MEDIUMBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwLONGBLOB:
 		dt.Name = "LONGBLOB"
 		p.advance()
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// Binary types
 	case kwBINARY:
@@ -336,7 +356,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// SET type (the SQL SET data type, not the SET statement keyword)
 	case kwSET:
@@ -355,7 +377,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 		dt.EnumValues = vals
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// JSON type
 	case kwJSON:
@@ -398,7 +422,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 					return nil, err
 				}
 			}
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
 			dt.Name = "VARCHAR"
 			dt.Charset = "utf8mb3"
@@ -406,7 +432,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
 			}
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		} else {
 			return nil, &ParseError{
 				Message:  "expected CHAR or VARCHAR after NATIONAL",
@@ -433,7 +461,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	// NVARCHAR → VARCHAR with utf8mb3 charset
 	case kwNVARCHAR:
@@ -443,7 +473,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
-		p.parseCharsetCollate(dt)
+		if err := p.parseCharsetCollate(dt); err != nil {
+			return nil, err
+		}
 
 	case kwINT1:
 		dt.Name = "TINYINT"
@@ -512,13 +544,17 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		case p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER:
 			p.advance()
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		case p.cur.Type == kwVARBINARY:
 			p.advance()
 			dt.Name = "MEDIUMBLOB"
 		default:
 			dt.Name = "MEDIUMTEXT"
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		}
 
 	case kwARRAY:
@@ -551,7 +587,9 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		case p.isBareWord("STRING"):
 			dt.Name = "MEDIUMTEXT"
 			p.advance()
-			p.parseCharsetCollate(dt)
+			if err := p.parseCharsetCollate(dt); err != nil {
+				return nil, err
+			}
 		}
 		if dt.Name != "" {
 			break
@@ -744,7 +782,7 @@ func (p *Parser) parseUnsignedZerofill(dt *nodes.DataType) {
 // and answers 1064 at BINARY for VARCHAR(10) CHARACTER SET ascii BINARY, VARCHAR(10)
 // COLLATE utf8mb4_bin BINARY and VARCHAR(10) BINARY BINARY: a BINARY left unread here is
 // no column attribute either. TestTypeBinaryFormsOceanBaseOracle holds each to the engine.
-func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
+func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 	// BINARY: the charset's _bin collation, CHAR(10) BINARY being CHAR(10) COLLATE
 	// {charset}_bin.
 	if p.cur.Type == kwBINARY {
@@ -753,8 +791,11 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 	}
 
 	// CHARACTER SET charset_name | CHARSET charset_name
+	var err error
 	if _, ok := p.match(kwCHARSET); ok {
-		dt.Charset = p.parseTypeCharsetOrCollationName()
+		if dt.Charset, err = p.parseTypeCharsetOrCollationName(); err != nil {
+			return err
+		}
 	} else if (p.cur.Type == kwCHARACTER || p.cur.Type == kwCHAR) && p.peekNext().Type == kwSET {
 		// CHARACTER SET x, and MySQL's two-word CHAR SET x, which is what
 		// `long char set utf8` carries. Neither token is consumed unless SET
@@ -762,27 +803,34 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) {
 		// name left off, and MySQL rejects `long character`.
 		p.advance()
 		p.advance()
-		dt.Charset = p.parseTypeCharsetOrCollationName()
+		if dt.Charset, err = p.parseTypeCharsetOrCollationName(); err != nil {
+			return err
+		}
 	}
 
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
-		dt.Collate = p.parseTypeCharsetOrCollationName()
+		if dt.Collate, err = p.parseTypeCharsetOrCollationName(); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // parseTypeCharsetOrCollationName reads the name a column type's CHARACTER SET
-// or COLLATE carries, when one is there: an identifier, a string literal, or the
-// reserved word BINARY. OceanBase 4.3.5 parses `CHAR CHARSET 'binary'`, `CHAR
-// CHARACTER SET "utf8mb4"` and `TEXT COLLATE 'utf8mb4_bin'`.
+// or COLLATE carries: an identifier, a string literal, or the reserved word
+// BINARY. OceanBase 4.3.5 parses `CHAR CHARSET 'binary'`, `CHAR CHARACTER SET
+// "utf8mb4"` and `TEXT COLLATE 'utf8mb4_bin'`. The name is required: opt_charset
+// is `charset_key charset_name`, so `VARCHAR(1) CHARSET` is a 1064.
 //
-// Ref: charset_name (NAME_OB | STRING_VALUE | BINARY) and collation_name
-// (NAME_OB | STRING_VALUE) in OceanBase 4.3.5 sql_parser_mysql_mode.y.
-func (p *Parser) parseTypeCharsetOrCollationName() string {
+// Ref: opt_charset (line 7494), charset_name (NAME_OB | STRING_VALUE | BINARY)
+// and collation_name (NAME_OB | STRING_VALUE) in OceanBase 4.3.5
+// sql_parser_mysql_mode.y.
+func (p *Parser) parseTypeCharsetOrCollationName() (string, error) {
 	if p.cur.Type == tokSCONST || p.isIdentToken() || p.cur.Type == kwBINARY {
-		return p.advance().Str
+		return p.advance().Str, nil
 	}
-	return ""
+	return "", p.syntaxErrorAtCur()
 }
 
 // parseStringValueList parses a parenthesized list of string literals: ('a', 'b', 'c')
