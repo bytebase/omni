@@ -85,6 +85,9 @@ func TestLeakPin_ExpressionSubqueryLineage(t *testing.T) {
 		{"SELECT ARRAY(SELECT AS STRUCT * FROM users UNION ALL SELECT * FROM users)", []string{"users.id", "users.ssn"}},
 		{"SELECT t.x FROM (SELECT ARRAY(SELECT ssn FROM users) AS x) t", []string{"users.ssn"}},
 		{"SELECT e.card FROM users u, UNNEST(ARRAY(SELECT AS STRUCT card FROM orders WHERE user_id = u.id)) AS e", []string{"orders.card"}},
+		{"SELECT WITH(x AS 1, (SELECT ssn FROM users)) AS s", []string{"users.ssn"}},
+		{"SELECT WITH(x AS 1, y AS (SELECT ssn FROM users), y) AS s", []string{"users.ssn"}},
+		{"SELECT (SELECT AS STRUCT * FROM users).ssn AS s", []string{"users.id", "users.ssn"}},
 		{"SELECT EXISTS (SELECT ssn FROM users) FROM orders", []string{}},
 		{"SELECT (SELECT COUNT(*) FROM users)", []string{}},
 	} {

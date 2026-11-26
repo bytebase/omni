@@ -2758,7 +2758,9 @@ func (ew *exprWalk) walkBoundBody(bound []string, body ast.Node) {
 			names[strings.ToLower(b)] = true
 		}
 	}
-	inner := &exprWalk{w: ew.w, followSub: ew.followSub}
+	// A subquery's value is not a bound name, so its projection still reaches
+	// the caller.
+	inner := &exprWalk{w: ew.w, followSub: ew.followSub, onSubquery: ew.onSubquery}
 	if ew.onColumn != nil {
 		outer := ew.onColumn
 		inner.onColumn = func(ref ColumnRef) {
