@@ -441,3 +441,8 @@ func TestExecRound22(t *testing.T) {
 	_, err = execLast(t, "CREATE SEQUENCE sq; CREATE FUNCTION f(n INT8 DEFAULT nextval('sq')) RETURNS INT8 LANGUAGE SQL AS $$ SELECT n $$; ALTER SEQUENCE sq RENAME TO sq2")
 	require.Error(t, err)
 }
+
+func TestExecRound23(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f(x mood DEFAULT 'sad'::mood) RETURNS STRING LANGUAGE SQL AS $$ SELECT x::STRING $$; ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+}

@@ -1535,7 +1535,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		// enum's is refused, as is a view's query, which the catalog does
 		// not rewrite.
 		typ := typeName(s.Name, name)
-		if err := c.viewTypeUser(typ, "renaming a value of"); err != nil {
+		if err := c.viewTypeUser(s.Name, name, "renaming a value of"); err != nil {
 			return err
 		}
 
@@ -1595,7 +1595,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 		if user := c.labelUser(typeName(s.Name, name), string(cmd.Val)); user != "" {
 			return refuse(codeDependentObjects, "could not remove enum value %q as it is being used in a default expression of %q", cmd.Val, user)
 		}
-		if err := c.viewTypeUser(typeName(s.Name, name), "removing a value of"); err != nil {
+		if err := c.viewTypeUser(s.Name, name, "removing a value of"); err != nil {
 			return err
 		}
 		enum.Values = slices.Delete(enum.Values, at, at+1)
@@ -2131,10 +2131,16 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	return users
 }
 
-// viewTypeUser refuses changing a type a view's query or an index's
-// expression names, which the catalog does not rewrite.
-func (c *Catalog) viewTypeUser(typ, what string) error {
+// viewTypeUser refuses changing a type a view's query, an index's
+// expression or a routine names, which the catalog does not rewrite.
+func (c *Catalog) viewTypeUser(schema, name, what string) error {
+	typ := typeName(schema, name)
 	for _, s := range c.l.meta.Schemas {
+		for _, function := range s.Functions {
+			if routineNamesType(function.Definition, typ, name) {
+				return &Error{Message: fmt.Sprintf("%s type %q, which routine %q names, is not supported", what, typ, function.Name)}
+			}
+		}
 		for _, table := range s.Tables {
 			for _, index := range table.Indexes {
 				if indexNamesType(index.Definition, typ) {
