@@ -42,7 +42,7 @@ func TestParseValidStatements(t *testing.T) {
 		{"create_mat_view_engine", "CREATE MATERIALIZED VIEW mv ENGINE = MergeTree ORDER BY a POPULATE AS SELECT 1 AS a"},
 		{"create_dictionary", "CREATE DICTIONARY d (id UInt64, val String DEFAULT '' HIERARCHICAL) PRIMARY KEY id SOURCE(CLICKHOUSE(HOST 'localhost' PORT 9000)) LIFETIME(MIN 0 MAX 300) LAYOUT(FLAT())"},
 		{"create_function", "CREATE OR REPLACE FUNCTION add_one AS x -> x + 1"},
-		{"alter_table", "ALTER TABLE db.t ON CLUSTER c ADD COLUMN IF NOT EXISTS c String AFTER b, MODIFY COLUMN c LowCardinality(String), RENAME COLUMN c TO d, DROP INDEX IF EXISTS idx, DELETE WHERE a = 0, UPDATE a = 1 WHERE a = 2, MODIFY TTL ts + INTERVAL 7 DAY, MOVE PARTITION '202601' TO DISK 'cold'"},
+		{"alter_table", "ALTER TABLE db.t ON CLUSTER c ADD COLUMN IF NOT EXISTS c String AFTER b, MODIFY COLUMN c LowCardinality(String), RENAME COLUMN c TO d, DROP INDEX IF EXISTS idx, DELETE WHERE a = 0, UPDATE a = 1 WHERE a = 2, MOVE PARTITION '202601' TO DISK 'cold', MODIFY TTL ts + INTERVAL 7 DAY"},
 		{"drop_detach_truncate_rename_exchange", "DROP TABLE IF EXISTS db.t ON CLUSTER c NO DELAY"},
 		{"detach_table", "DETACH TABLE db.t PERMANENTLY"},
 		{"truncate_table", "TRUNCATE TEMPORARY TABLE IF EXISTS t"},
@@ -456,21 +456,30 @@ func TestParseTTLASTAndCommaDisambiguation(t *testing.T) {
 		t.Errorf("ttl2 = %+v, want Action=\"TO VOLUME\" Destination=\"ice\"", ttl2)
 	}
 
-	// Rollup TTL followed by another ALTER clause (comma is ALTER separator, not SET separator).
-	s3, err := Parse("ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), DELETE WHERE k = 1")
+	// After a rollup TTL's SET list, a comma not followed by `name =` starts
+	// another TTL rule, and ClickHouse reads even DELETE WHERE k = 1 as one: a
+	// TTL on the identifier DELETE with a WHERE. Only MODIFY, REMOVE or
+	// MATERIALIZE TTL ends the list.
+	s3, err := Parse("ALTER TABLE t MODIFY TTL ts + INTERVAL 1 DAY GROUP BY k SET v = sum(v), DELETE WHERE k = 1, MODIFY TTL ts")
 	if err != nil {
-		t.Fatalf("Parse rollup TTL + DELETE ALTER clause failed: %v", err)
+		t.Fatalf("Parse rollup TTL + DELETE TTL rule failed: %v", err)
 	}
 	at3 := s3[0].(*AlterTableStmt)
 	if len(at3.Clauses) != 2 {
 		t.Fatalf("got %d ALTER clauses, want 2", len(at3.Clauses))
 	}
+	if len(at3.Clauses[0].TTL) != 2 {
+		t.Fatalf("got %d TTL rules, want 2", len(at3.Clauses[0].TTL))
+	}
 	r3 := at3.Clauses[0].TTL[0]
 	if r3.Action != "GROUP BY" || r3.GroupBy == nil || len(r3.GroupBy.Exprs) != 1 || len(r3.Set) != 1 || r3.Set[0].Column != "v" {
 		t.Errorf("rollup TTL = %+v", r3)
 	}
-	if at3.Clauses[1].Action != "DELETE" || at3.Clauses[1].Where == nil {
-		t.Errorf("second ALTER clause = %+v, want DELETE with Where", at3.Clauses[1])
+	if d3 := at3.Clauses[0].TTL[1]; d3.Action != "" || d3.Where == nil {
+		t.Errorf("second TTL rule = %+v, want no action with Where", d3)
+	}
+	if at3.Clauses[1].Action != "MODIFY TTL" {
+		t.Errorf("second ALTER clause = %+v, want MODIFY TTL", at3.Clauses[1])
 	}
 
 	// Rollup TTL with multiple SET assignments followed by another TTL rule.
@@ -1345,6 +1354,52 @@ func TestParseDataTypeArguments(t *testing.T) {
 	for _, sql := range reject {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) accepted, want a syntax error", sql)
+		}
+	}
+}
+
+// TestParseProjectionListsAndTTLListBoundary holds a projection's GROUP BY
+// and ORDER BY to plain expression lists, and an ALTER's MODIFY TTL list to
+// ending only before MODIFY, REMOVE or MATERIALIZE TTL. Each verdict is
+// ClickHouse 26.8.38.9's EXPLAIN AST answer.
+func TestParseProjectionListsAndTTLListBoundary(t *testing.T) {
+	accepts := []string{
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE())",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ROLLUP(a), CUBE())",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY ALL, a)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY a.*)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY CUBE() ORDER BY a)",
+		"CREATE TABLE t (a Int8, PROJECTION p (SELECT * GROUP BY CUBE())) ENGINE a",
+		"ALTER TABLE a MODIFY TTL 1e1, DELETE",
+		"ALTER TABLE a MODIFY TTL 1, DELETE WHERE 1, 2",
+		"ALTER TABLE a MODIFY TTL a WHERE 1",
+		"CREATE TABLE a (b Int8) ENGINE a TTL a WHERE 1",
+		"ALTER TABLE a MODIFY TTL 1, MODIFY TTL 2, 3",
+		"ALTER TABLE a MODIFY TTL 1, REMOVE TTL, FREEZE",
+		"ALTER TABLE a MODIFY TTL 1, MATERIALIZE TTL, FREEZE",
+		"ALTER TABLE a MATERIALIZE TTL IN PARTITION ID '1'",
+	}
+	for _, sql := range accepts {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+	rejects := []string{
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY GROUPING SETS((a)))",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY a AS b)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY a b)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * GROUP BY a,)",
+		"ALTER TABLE a ADD PROJECTION a(SELECT * ORDER BY a AS b)",
+		"ALTER TABLE a MODIFY TTL 1, DROP COLUMN a",
+		"ALTER TABLE a MODIFY TTL 1, MODIFY ORDER BY a",
+		"ALTER TABLE a MODIFY TTL 1, FREEZE, DROP COLUMN a",
+		"ALTER TABLE a MODIFY TTL a TO DISK 'x' WHERE 1",
+		"ALTER TABLE a MATERIALIZE TTL IF EXISTS",
+		"ALTER TABLE a MATERIALIZE TTL a",
+	}
+	for _, sql := range rejects {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want error", sql)
 		}
 	}
 }
