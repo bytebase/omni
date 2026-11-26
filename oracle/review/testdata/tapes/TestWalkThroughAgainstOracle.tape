@@ -4141,6 +4141,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -9865,6 +9869,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -11423,6 +11431,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -16561,6 +16573,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -20769,7 +20785,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_9000055PK_P
+| SYS_C_SNAP$_9000057PK_P
 : string
 | ID
 : string
@@ -20782,6 +20798,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -20792,7 +20812,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000055PK_P
+| SYS_C_SNAP$_9000057PK_P
 : string
 | P
 : null
@@ -20869,7 +20889,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000055PK_P
+| SYS_C_SNAP$_9000057PK_P
 : string
 | NORMAL
 : string
@@ -28479,6 +28499,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -30196,6 +30220,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -38199,6 +38227,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -41732,6 +41764,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -45962,6 +45998,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -58441,6 +58481,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -64343,6 +64387,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -67546,7 +67594,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_9000054PK_P
+| SYS_C_SNAP$_9000056PK_P
 : string
 | ID
 : string
@@ -67559,6 +67607,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -67569,7 +67621,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000054PK_P
+| SYS_C_SNAP$_9000056PK_P
 : string
 | P
 : null
@@ -67646,7 +67698,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000054PK_P
+| SYS_C_SNAP$_9000056PK_P
 : string
 | NORMAL
 : string
@@ -71330,6 +71382,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -79303,6 +79359,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -85629,6 +85689,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -88319,6 +88383,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -93737,6 +93805,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -99170,6 +99242,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -101923,7 +101999,7 @@
 | 0
 < row
 : string
-| SYS_C_SNAP$_9000053PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | ID
 : string
@@ -101936,6 +102012,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -101946,7 +102026,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000053PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | P
 : null
@@ -102023,7 +102103,7 @@
 : string
 | MV
 : string
-| SYS_C_SNAP$_9000053PK_P
+| SYS_C_SNAP$_9000055PK_P
 : string
 | NORMAL
 : string
@@ -104515,6 +104595,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -107572,6 +107656,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -110680,6 +110768,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -112316,6 +112408,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -113937,6 +114033,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -117275,6 +117375,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -120425,6 +120529,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -126762,14 +126870,14 @@
 | 0
 < row
 : string
-| SYS_FK0000092659N00002$
+| SYS_FK9000000053N00001$
 : string
 | NESTED_TABLE_ID
 : string
 | 0
 < row
 : string
-| SYS_FK0000092663N00002$
+| SYS_FK9000000054N00001$
 : string
 | NESTED_TABLE_ID
 : string
@@ -126781,6 +126889,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -126874,7 +126986,7 @@
 : string
 | CHILD
 : string
-| SYS_FK0000092659N00002$
+| SYS_FK9000000053N00001$
 : string
 | NORMAL
 : string
@@ -126885,7 +126997,7 @@
 : string
 | CHILD2
 : string
-| SYS_FK0000092663N00002$
+| SYS_FK9000000054N00001$
 : string
 | NORMAL
 : string
@@ -131063,6 +131175,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -138005,6 +138121,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -139717,6 +139837,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -141341,6 +141465,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -143548,6 +143676,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -146451,6 +146583,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -151231,6 +151367,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -153513,6 +153653,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -155776,6 +155920,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -157952,6 +158100,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -162472,6 +162624,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -166930,6 +167086,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -173703,6 +173863,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -180668,6 +180832,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -188507,6 +188675,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -197682,6 +197854,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -200402,6 +200578,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -203110,6 +203290,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -205926,6 +206110,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -214663,6 +214851,10 @@
 : string
 | 0
 > query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
+> query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
 < column "TABLE_NAME" "NCHAR" "string"
@@ -221087,6 +221279,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
@@ -228932,6 +229128,10 @@
 | CODE
 : string
 | 0
+> query
+| SELECT index_name FROM dba_indexes WHERE owner = 'SHOP' AND visibility = 'INVISIBLE' ORDER BY 1
+< result
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 | SELECT table_name, constraint_name, constraint_type, search_condition_vc FROM dba_constraints WHERE owner = 'SHOP' ORDER BY 1, 2
 < result
