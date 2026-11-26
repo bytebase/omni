@@ -1342,7 +1342,10 @@ func hasName(names []string, n string) bool {
 // insertCounts fails an INSERT whose column list names fewer or more
 // columns than its VALUES rows or its query give (109, 110, 120, 121).
 func (b *builder) insertCounts(v *ast.InsertStmt) bool {
-	if v.Cols == nil || len(v.Cols.Items) == 0 || v.DefaultValues {
+	if v.Cols == nil || len(v.Cols.Items) == 0 {
+		return !v.DefaultValues && b.insertWidth(v)
+	}
+	if v.DefaultValues {
 		return false
 	}
 	n := len(v.Cols.Items)
@@ -1372,6 +1375,58 @@ func (b *builder) insertCounts(v *ast.InsertStmt) bool {
 	}
 	b.fail(rangeOf(v.Loc), review.UnsupportedForm, "SQL Server doesn't accept an `INSERT` that lists "+count(n, "column")+" and "+count(got, "value")+".")
 	return true
+}
+
+// insertWidth fails an INSERT without a column list whose VALUES rows
+// give fewer or more values than the synced table takes (213): its
+// columns but an identity column, which the sync may not mark. It judges
+// only a table whose columns are all of built-in types other than xml,
+// which a column set may hide sparse columns behind, and timestamp, with
+// no column that may be a hidden period, ledger, or graph column.
+func (b *builder) insertWidth(v *ast.InsertStmt) bool {
+	src, ok := v.Source.(*ast.ValuesClause)
+	tr, isRef := v.Relation.(*ast.TableRef)
+	if !ok || src.Rows == nil || !isRef || b.inModule {
+		return false
+	}
+	if _, local := localTarget(tr, v.WithClause, nil); local {
+		return false
+	}
+	r, ok := b.ref(tr, false)
+	if !ok {
+		return false
+	}
+	st := b.syncedTable(r)
+	if st == nil || st.ledger || st.edge || !st.noPeriod || len(st.names) == 0 {
+		return false
+	}
+	for _, c := range st.names {
+		switch typ := st.colTypes[c]; {
+		case typ == "", typ == "xml", typ == "timestamp", typ == "rowversion", !isBuiltinSystemType(typ),
+			strings.HasPrefix(c, "$"), strings.HasPrefix(strings.ToLower(c), "graph_id_"):
+			return false
+		}
+	}
+	hi := len(st.names) - len(st.identity)
+	lo := hi
+	if len(st.identity) == 0 {
+		lo = hi - 1
+	}
+	for _, row := range src.Rows.Items {
+		l, ok := row.(*ast.List)
+		if !ok {
+			return false
+		}
+		if n := len(l.Items); n < lo || n > hi {
+			takes := count(hi, "value")
+			if lo != hi {
+				takes = strconv.Itoa(lo) + " or " + strconv.Itoa(hi) + " values"
+			}
+			b.fail(rangeOf(v.Loc), review.UnsupportedForm, "SQL Server doesn't accept an `INSERT` of "+count(n, "value")+" into "+review.Code(r.written)+", which takes "+takes+".")
+			return true
+		}
+	}
+	return false
 }
 
 // selectWidth returns how many columns a query returns, false when the
