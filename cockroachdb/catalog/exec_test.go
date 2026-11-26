@@ -509,3 +509,16 @@ func TestExecRound30(t *testing.T) {
 	_, err = execLast(t, "CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT *, a FROM t")
 	require.Equal(t, "42701", code(err))
 }
+
+func TestExecRound31(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (coalesce(m, m) = 'sad')); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE MATERIALIZED VIEW v AS SELECT 1 AS a; CREATE INDEX ix ON v ((CASE WHEN a > 0 THEN 'sad'::mood ELSE 'happy'::mood END)); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.Error(t, err)
+	c, err := execLast(t, "CREATE MATERIALIZED VIEW v AS SELECT 1 AS a; CREATE INDEX ix ON v (a) WHERE v.a > 0; ALTER MATERIALIZED VIEW v RENAME TO u")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].MaterializedViews[0].Indexes[0].Definition, "u.a > 0")
+	// A relabeled comparison with an enum column is resolved.
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood CHECK (m = 'sad')); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+}

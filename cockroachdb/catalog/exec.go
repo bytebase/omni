@@ -1602,7 +1602,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 				}
 				if column.Type == typ || column.Type == typ+"[]" {
 					column.Default = relabel(column.Default)
-					if expr, err := parser.ParseExpr(column.Default); err == nil && column.Default != "" && uncastLabel(expr, from) && stuck == nil {
+					if expr, err := parser.ParseExpr(column.Default); err == nil && column.Default != "" && uncastLabel(expr, from, typ, nil) && stuck == nil {
 						stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which the default of column %q holds uncast, is not supported", from, column.Name)}
 					}
 				} else if namesType(column.Default, typ) {
@@ -1619,7 +1619,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			// a form relabelIn does not know: refused.
 			relabelRead := func(text string) string {
 				out := relabel(text)
-				if expr, err := parser.ParseExpr(out); err == nil && (uncastLabel(expr, from) || arrayLiteral(out, typ, from)) && stuck == nil {
+				if expr, err := parser.ParseExpr(out); err == nil && (uncastLabel(expr, from, typ, enumColumns) || arrayLiteral(out, typ, from)) && stuck == nil {
 					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an expression of table %q holds uncast, is not supported", from, table.Name)}
 				}
 				return out
@@ -2170,13 +2170,24 @@ func arrayLiteral(text, typ, label string) bool {
 // uncastLabel reports whether an expression holds a label as a bare string
 // other than as a comparison's operand, where its type is not the catalog's
 // to tell.
-func uncastLabel(expr tree.Expr, label string) bool {
+func uncastLabel(expr tree.Expr, label, typ string, enumColumns []string) bool {
+	// A comparison's operand is the other side's type: a label compared
+	// with what reads the enum, other than an enum column relabelIn
+	// rewrote beside it, is the enum's and unresolved.
+	enumish := func(e tree.Expr) bool {
+		return namesType(tree.AsString(e), typ) || slices.ContainsFunc(enumColumns, func(col string) bool { return exprReads(e, col) })
+	}
 	operands := map[tree.Expr]bool{}
 	found := false
 	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
 		switch x := e.(type) {
 		case *tree.ComparisonExpr:
-			operands[unparen(x.Left)], operands[unparen(x.Right)] = true, true
+			if !enumish(x.Right) {
+				operands[unparen(x.Left)] = true
+			}
+			if !enumish(x.Left) {
+				operands[unparen(x.Right)] = true
+			}
 		case *tree.CastExpr, *tree.AnnotateTypeExpr:
 			return false, e, nil
 		case *tree.StrVal:
@@ -2285,6 +2296,11 @@ func (c *Catalog) viewTypeUser(schema, name, what string) error {
 		for _, v := range s.MaterializedViews {
 			if viewNamesType(v.Definition, typ) {
 				return &Error{Message: fmt.Sprintf("%s type %q, which materialized view %q names, is not supported", what, typ, v.Name)}
+			}
+			for _, index := range v.Indexes {
+				if indexNamesType(index.Definition, typ) {
+					return &Error{Message: fmt.Sprintf("%s type %q, which index %q names, is not supported", what, typ, index.Name)}
+				}
 			}
 		}
 	}
@@ -2904,6 +2920,9 @@ func (c *Catalog) moveRelation(s *metadatapb.SchemaMetadata, name string, kind r
 		view.Name = to
 		target.MaterializedViews = append(target.MaterializedViews, view)
 		reindex(view.Indexes, target.Name, to, "", "")
+		for _, index := range view.Indexes {
+			requalifyIndex(index, name, to)
+		}
 	case relSequence:
 		sequence := findSequence(s, name)
 		s.Sequences = slices.DeleteFunc(s.Sequences, func(x *metadatapb.SequenceMetadata) bool { return x == sequence })
