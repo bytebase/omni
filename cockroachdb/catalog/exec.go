@@ -1167,6 +1167,9 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 	if err := c.l.load(n); err != nil {
 		return err
 	}
+	if err := c.viewColumnCount(s, name, n); err != nil {
+		return err
+	}
 	// A star is expanded once loaded: its names count too.
 	var names []string
 	if v := findView(s, name); v != nil && !n.Materialized {
@@ -1308,6 +1311,32 @@ func (c *Catalog) reaches(schema, name, targetSchema, target string) bool {
 		return false
 	}
 	return walk(schema, name)
+}
+
+// viewColumnCount refuses a column list whose length is not the expanded
+// query's.
+func (c *Catalog) viewColumnCount(s *metadatapb.SchemaMetadata, name string, n *tree.CreateView) error {
+	if len(n.ColumnNames) == 0 {
+		return nil
+	}
+	definition := ""
+	if v := findView(s, name); v != nil && !n.Materialized {
+		definition = v.Definition
+	} else if v := findMaterializedView(s, name); v != nil {
+		definition = v.Definition
+	}
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return nil
+	}
+	query, ok := stmt.AST.(*tree.Select)
+	if !ok {
+		return nil
+	}
+	if output := outputNames(query); output != nil && len(output) != len(n.ColumnNames) {
+		return refuse("42601", "CREATE VIEW specifies %d column names, but data source has %d column", len(n.ColumnNames), len(output))
+	}
+	return nil
 }
 
 // uniqueColumns refuses a view whose columns repeat a name.
@@ -1627,7 +1656,7 @@ func (c *Catalog) alterType(n *tree.AlterType) error {
 			// a form relabelIn does not know: refused.
 			relabelRead := func(text string) string {
 				out := relabel(text)
-				if expr, err := parser.ParseExpr(out); err == nil && (uncastLabel(expr, from, typ, enumColumns) || arrayLiteral(out, typ, from)) && stuck == nil {
+				if expr, err := parser.ParseExpr(out); err == nil && (uncastLabel(expr, from, typ, enumColumns) || arrayLiteral(out, typ, from) || arrayText(expr, from)) && stuck == nil {
 					stuck = &Error{Message: fmt.Sprintf("renaming enum value %q, which an expression of table %q holds uncast, is not supported", from, table.Name)}
 				}
 				return out
@@ -2134,7 +2163,7 @@ func (c *Catalog) labelUser(typ, label string) string {
 		for _, text := range texts {
 			if user == "" && text != "" {
 				expr, err := parser.ParseExpr(text)
-				if err == nil && (readsLabel(expr, label) || arrayLiteral(text, typ, label) || bareArrayLiteral(text, label)) {
+				if err == nil && (readsLabel(expr, label) || arrayLiteral(text, typ, label) || arrayText(expr, label)) {
 					user = table.Name
 				}
 			}
@@ -2168,6 +2197,19 @@ func arrayLiteral(text, typ, label string) bool {
 		array, ok := ref.(*tree.ArrayTypeReference)
 		str, isStr := unparen(inner).(*tree.StrVal)
 		if ok && isStr && schemaQualified(array.ElementType).SQLString() == typ && strings.Contains(str.RawString(), label) {
+			found = true
+		}
+		return true, e, nil
+	})
+	return found
+}
+
+// arrayText reports whether an expression holds a string, anywhere, whose
+// array text may hold a label (m <> '{sad}').
+func arrayText(expr tree.Expr, label string) bool {
+	found := false
+	_, _ = tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
+		if str, ok := e.(*tree.StrVal); ok && strings.HasPrefix(str.RawString(), "{") && strings.Contains(str.RawString(), label) {
 			found = true
 		}
 		return true, e, nil
