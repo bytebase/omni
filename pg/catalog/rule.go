@@ -5534,6 +5534,24 @@ func resolveScopeColumn(rel *Relation, se ruleScopeEntry, colName string) (int16
 	return 0, false
 }
 
+// resolveColumnRef resolves a column reference's name in a scope entry, as
+// resolveScopeColumn does, or to one of the relation's system columns.
+//
+// pg: src/backend/parser/parse_relation.c — scanNSItemForColumn
+func resolveColumnRef(rel *Relation, se ruleScopeEntry, colName string) (int16, bool) {
+	if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
+		return attNum, true
+	}
+	if hasSystemColumn(rel, colName) {
+		for i, sc := range systemColumns {
+			if sc.name == colName {
+				return int16(-(i + 1)), true
+			}
+		}
+	}
+	return 0, false
+}
+
 func recordAllRelColumnDeps(c *Catalog, b *ruleBindings, relOID uint32) {
 	rel := c.relationByOID[relOID]
 	if rel == nil {
@@ -5623,7 +5641,7 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 					}
 					seenRel[se.relOID] = true
 					if rel := c.relationByOID[se.relOID]; rel != nil {
-						if attNum, ok := resolveScopeColumn(rel, se, colName); ok {
+						if attNum, ok := resolveColumnRef(rel, se, colName); ok {
 							matchedOID = se.relOID
 							matchedAtt = attNum
 							matchedSE = se
@@ -5786,7 +5804,7 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 					recordAllRelColumnDeps(c, b, se.relOID)
 					return nil
 				}
-				attNum, exists := resolveScopeColumn(rel, se, colName)
+				attNum, exists := resolveColumnRef(rel, se, colName)
 				if !exists {
 					if !c.snapshot {
 						return errUndefinedColumn(colName)
@@ -5896,7 +5914,7 @@ func (c *Catalog) bindRuleExpr(b *ruleBindings, n nodes.Node, ctx *ruleEvalConte
 				recordAllRelColumnDeps(c, b, se.relOID)
 				return nil
 			}
-			attNum, exists := resolveScopeColumn(rel, se, colName)
+			attNum, exists := resolveColumnRef(rel, se, colName)
 			if !exists {
 				if !c.snapshot {
 					return errUndefinedColumn(colName)
