@@ -719,7 +719,9 @@ func TestGetQuerySpan_SetOpMergesBothArms(t *testing.T) {
 
 // TestGetQuerySpan_ScalarSubqueryInSelectList pins the SELECT-list
 // scalar-subquery lineage: the output column reads the subquery's columns.
-// The subquery's tables and correlation predicates are still discovered.
+// An unqualified one may also be the enclosing query's, so it is kept
+// unqualified too. The subquery's tables and correlation predicates are still
+// discovered.
 func TestGetQuerySpan_ScalarSubqueryInSelectList(t *testing.T) {
 	sql := "SELECT (SELECT NAME FROM people), ID FROM people"
 	span, err := GetQuerySpan(sql)
@@ -729,8 +731,8 @@ func TestGetQuerySpan_ScalarSubqueryInSelectList(t *testing.T) {
 	if len(span.Results) != 2 {
 		t.Fatalf("got %d results, want 2", len(span.Results))
 	}
-	if got := resultSourceColumns(span.Results[0]); !eqStrings(got, []string{"people.NAME"}) {
-		t.Errorf("scalar-subquery result sources = %v, want [people.NAME]", got)
+	if got := resultSourceColumns(span.Results[0]); !eqStrings(got, []string{"NAME", "people.NAME"}) {
+		t.Errorf("scalar-subquery result sources = %v, want [NAME people.NAME]", got)
 	}
 	// The sibling bare column resolves normally.
 	if got := resultSourceColumns(span.Results[1]); !eqStrings(got, []string{"people.ID"}) {

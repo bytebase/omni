@@ -370,6 +370,10 @@ type spanWalker struct {
 	// visited, so the select item holding a scalar or ARRAY subquery reads the
 	// subquery's columns (subquerySources).
 	subqueryCols map[ast.Node][]projColumn
+	// enclosing holds the FROM scopes of the queries around the expression
+	// subquery being walked, innermost last, where a correlated column the
+	// subquery reads resolves (enclosingQualified, enclosingCandidates).
+	enclosing []*leafSet
 }
 
 // failClosed records a fail-closed condition (first one wins).
@@ -2421,7 +2425,9 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	// A subquery in an expression position is walked for its tables and
 	// predicates, and its projection is kept for the expression's lineage
 	// (subquerySources).
+	ew.w.enclosing = append(ew.w.enclosing, ew.w.leaves)
 	cols := ew.w.visitBody(query)
+	ew.w.enclosing = ew.w.enclosing[:len(ew.w.enclosing)-1]
 	if !ew.w.tablesOnly {
 		if ew.w.subqueryCols == nil {
 			ew.w.subqueryCols = map[ast.Node][]projColumn{}
