@@ -60,29 +60,44 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		return err
 	}
 
-	// Validate relation kind: indexes allowed on tables, partitioned tables, and matviews.
-	// PostgreSQL runs transformIndexStmt (analyzing expression elements and WHERE
-	// predicate) before DefineIndex rejects non-indexable relations with columns
-	// such as views, foreign tables, and composite types.
-	// pg: src/backend/parser/parse_utilcmd.c — transformIndexStmt
-	// pg: src/backend/commands/indexcmds.c — DefineIndex (relkind check)
-	if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
-		if rel.RelKind == 'v' || rel.RelKind == 'f' || rel.RelKind == 'c' {
-			if stmt.IndexParams != nil {
-				for _, item := range stmt.IndexParams.Items {
-					if elem, ok := item.(*nodes.IndexElem); ok && elem.Name == "" && elem.Expr != nil {
-						if _, aErr := c.AnalyzeStandaloneExpr(elem.Expr, rel); aErr != nil {
-							return aErr
-						}
-					}
-				}
+	// transformIndexStmt transforms the WHERE predicate, coercing it to
+	// boolean, and then the expression elements, all before DefineIndex
+	// checks the relation kind, the tablespace, the access method, the
+	// storage parameters and the key columns: CREATE INDEX ON a(a) WHERE a,
+	// where a is a whole-row reference to a table without a column a, is
+	// 42804, not 42703.
+	// pg: src/backend/parser/parse_utilcmd.c:2842 (REL_17_12) — transformIndexStmt
+	var analyzedWhere AnalyzedExpr
+	if stmt.WhereClause != nil {
+		analyzed, aErr := c.AnalyzeStandaloneExpr(stmt.WhereClause, rel)
+		if aErr != nil {
+			return aErr
+		}
+		if !c.installingSnapshot {
+			coerced, cerr := c.coerceToBoolean(analyzed, "WHERE")
+			if cerr != nil {
+				return cerr
 			}
-			if stmt.WhereClause != nil {
-				if _, aErr := c.AnalyzeStandaloneExpr(stmt.WhereClause, rel); aErr != nil {
+			analyzed = coerced
+		}
+		analyzedWhere = analyzed
+	}
+	analyzedElems := make(map[*nodes.IndexElem]AnalyzedExpr)
+	if stmt.IndexParams != nil {
+		for _, item := range stmt.IndexParams.Items {
+			if elem, ok := item.(*nodes.IndexElem); ok && elem.Name == "" && elem.Expr != nil {
+				analyzed, aErr := c.AnalyzeStandaloneExpr(elem.Expr, rel)
+				if aErr != nil {
 					return aErr
 				}
+				analyzedElems[elem] = analyzed
 			}
 		}
+	}
+
+	// Validate relation kind: indexes allowed on tables, partitioned tables, and matviews.
+	// pg: src/backend/commands/indexcmds.c — DefineIndex (relkind check)
+	if rel.RelKind != 'r' && rel.RelKind != 'p' && rel.RelKind != 'm' {
 		return errWrongObjectType(rv.Relname, "a table or materialized view")
 	}
 
@@ -160,6 +175,15 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 			Message: fmt.Sprintf("cannot use more than %d columns in an index", INDEX_MAX_KEYS)}
 	}
 
+	// DefineIndex runs CheckPredicate before index_reloptions.
+	// pg: src/backend/commands/indexcmds.c:895 (REL_17_12) — DefineIndex
+	if analyzedWhere != nil && !c.installingSnapshot {
+		if err := c.checkIndexExprImmutable(analyzedWhere); err != nil {
+			return &Error{Code: CodeInvalidObjectDefinition,
+				Message: "functions in index predicate must be marked IMMUTABLE"}
+		}
+	}
+	// pg: src/backend/commands/indexcmds.c:903 (REL_17_12) — DefineIndex
 	if err := c.validateRelOptions(stmt.Options, 'i', accessMethod); err != nil {
 		return err
 	}
@@ -194,10 +218,7 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 					}
 					rawColNames = append(rawColNames, cname)
 				} else {
-					analyzed, aErr := c.AnalyzeStandaloneExpr(elem.Expr, rel)
-					if aErr != nil {
-						return aErr
-					}
+					analyzed := analyzedElems[elem]
 					// Parenthesized simple column reference ((col)) is treated by
 					// PostgreSQL's ComputeIndexAttrs as a plain attribute reference,
 					// not an expression column. Whole-row Vars (AttNum == 0) remain
@@ -416,28 +437,11 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		}
 	}
 
-	// Analyze and deparse WHERE clause.
+	// Deparse the WHERE clause analyzed above.
 	whereClause := ""
-	var analyzedWhere AnalyzedExpr
-	if stmt.WhereClause != nil {
-		analyzed, aErr := c.AnalyzeStandaloneExpr(stmt.WhereClause, rel)
-		if aErr != nil {
-			return aErr
-		}
-		if !c.installingSnapshot {
-			coerced, cerr := c.coerceToBoolean(analyzed, "WHERE")
-			if cerr != nil {
-				return cerr
-			}
-			if err := c.checkIndexExprImmutable(coerced); err != nil {
-				return &Error{Code: CodeInvalidObjectDefinition,
-					Message: "functions in index predicate must be marked IMMUTABLE"}
-			}
-			analyzed = coerced
-		}
+	if analyzedWhere != nil {
 		rte := c.buildRelationRTE(rel)
-		whereClause = c.DeparseExpr(analyzed, []*RangeTableEntry{rte}, true)
-		analyzedWhere = analyzed
+		whereClause = c.DeparseExpr(analyzedWhere, []*RangeTableEntry{rte}, true)
 	}
 
 	// Auto-generate name if empty (ChooseRelationName over all chosen column names).
