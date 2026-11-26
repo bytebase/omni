@@ -73,6 +73,12 @@ func (n *namer) call(fn string, args ...parser.Expr) string {
 }
 
 func (n *namer) list(args []parser.Expr) string {
+	return strings.Join(n.args(args), ", ")
+}
+
+// args names a call's arguments, a star or COLUMNS('re') as the columns it
+// expands to.
+func (n *namer) args(args []parser.Expr) []string {
 	var parts []string
 	for _, a := range args {
 		if re, ok := columnsMatcher(a); ok && n.sc != nil {
@@ -82,9 +88,16 @@ func (n *namer) list(args []parser.Expr) string {
 			}
 			continue
 		}
+		if s, ok := a.(*parser.StarExpr); ok && n.sc != nil {
+			// So is a star.
+			for _, c := range n.r.star(s, n.sc, nil) {
+				parts = append(parts, c.name)
+			}
+			continue
+		}
 		parts = append(parts, n.name(a))
 	}
-	return strings.Join(parts, ", ")
+	return parts
 }
 
 func (n *namer) name(e parser.Expr) string {
@@ -129,6 +142,12 @@ func (n *namer) name(e parser.Expr) string {
 		n.r.subqueries++
 		return "_subquery_" + strconv.Itoa(n.r.subqueries)
 	case *parser.FuncCallExpr:
+		if strings.EqualFold(x.Name, "tuple") && len(x.Params) == 0 && x.Over == nil {
+			// ClickHouse writes a tuple of more than one element as (a, b).
+			if args := n.args(x.Args); len(args) > 1 {
+				return "(" + strings.Join(args, ", ") + ")"
+			}
+		}
 		return n.funcName(x)
 	case *parser.CastExpr:
 		if x.Type == nil {
@@ -233,10 +252,8 @@ func chain(e parser.Expr, op string) []parser.Expr {
 func (n *namer) funcName(f *parser.FuncCallExpr) string {
 	name := f.Name
 	args := f.Args
-	if len(args) == 1 {
-		if s, ok := args[0].(*parser.StarExpr); ok && len(s.Qualifier) == 0 && strings.EqualFold(name, "count") {
-			args = nil
-		}
+	if countStar(f) {
+		args = nil
 	}
 	if f.Distinct {
 		name += "Distinct"

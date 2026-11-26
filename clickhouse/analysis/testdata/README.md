@@ -37,8 +37,9 @@ possibly more.
   afresh for each query, so a column read from it is `~`; the CTE's arms
   name the tables it reads.
 - **tables.** query_log's `system.one`, which a query without `FROM` reads,
-  its `_table_function.*` entries, and a recursive CTE's temporary table are
-  dropped: none is a table the query names.
+  and a recursive CTE's temporary table are dropped: neither is a table the
+  query names. A table function is listed as `_table_function.<name>`,
+  which does not say what it reads (`merge` reads tables), so it is `~`.
 
 The conversation with ClickHouse is on `tapes/TestQuerySpanFidelity.tape`
 (see `clickhouse/internal/testcontainer/span.go`), so the test starts no
@@ -62,3 +63,6 @@ queries that hold the text.
   left table's column, and omni names both tables' columns. An equi-join's
   two columns hold the same values, so a masking policy on either needs the
   result column.
+- `SELECT *` over `merge()` of tables whose columns differ: ClickHouse orders
+  the merged columns its own way, and omni lists the first table's columns,
+  then each later table's new ones. Each column's lineage is the same.

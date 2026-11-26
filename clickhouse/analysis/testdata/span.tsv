@@ -177,6 +177,12 @@ shop.items	shop.items	engine	shop	shop	tables	SELECT (price + 1) * qty FROM item
 error:UNKNOWN_IDENTIFIER	error:UNKNOWN_IDENTIFIER	engine	shop	shop	results	SELECT tuple(id, sku).1 FROM items
 error:UNKNOWN_IDENTIFIER	error:UNKNOWN_IDENTIFIER	engine	shop	shop	lineage	SELECT tuple(id, sku).1 FROM items
 error:UNKNOWN_IDENTIFIER	error:UNKNOWN_IDENTIFIER	engine	shop	shop	tables	SELECT tuple(id, sku).1 FROM items
+(id, name, email, country, created)	(id, name, email, country, created)	engine	shop	shop	results	SELECT tuple(*) FROM customers
+shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	engine	shop	shop	lineage	SELECT tuple(*) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT tuple(*) FROM customers
+(id, name, email, country, created)	(id, name, email, country, created)	engine	shop	shop	results	SELECT tuple(customers.*) FROM customers
+shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	shop.customers.country shop.customers.created shop.customers.email shop.customers.id shop.customers.name	engine	shop	shop	lineage	SELECT tuple(customers.*) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	SELECT tuple(customers.*) FROM customers
 count(), sum(amount)	count(), sum(amount)	engine	shop	shop	results	SELECT count(), sum(amount) FROM orders
 - | shop.orders.amount	- | shop.orders.amount	engine	shop	shop	lineage	SELECT count(), sum(amount) FROM orders
 shop.orders	shop.orders	engine	shop	shop	tables	SELECT count(), sum(amount) FROM orders
@@ -384,6 +390,9 @@ shop.orders	shop.orders	engine	shop	shop	tables	WITH (SELECT max(amount) FROM or
 n, email	n, email	engine	shop	shop	results	WITH upper(name) AS n SELECT n, email FROM customers
 shop.customers.name | shop.customers.email	shop.customers.name | shop.customers.email	engine	shop	shop	lineage	WITH upper(name) AS n SELECT n, email FROM customers
 shop.customers	shop.customers	engine	shop	shop	tables	WITH upper(name) AS n SELECT n, email FROM customers
+f(name)	f(name)	engine	shop	shop	results	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
+shop.customers.email shop.customers.name	shop.customers.email shop.customers.name	engine	shop	shop	lineage	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
+shop.customers	shop.customers	engine	shop	shop	tables	WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
 name	name	engine	shop	shop	results	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 shop.customers.name shop.items.sku	shop.customers.name shop.items.sku	engine	shop	shop	lineage	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 shop.customers, shop.items	shop.customers, shop.items	engine	shop	shop	tables	WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
@@ -408,6 +417,9 @@ shop.customers	shop.customers	engine	shop	shop	tables	WITH 3 AS k SELECT n FROM 
 n	n	engine	shop	shop	results	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 -	~	engine	shop	shop	lineage	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 -	-	engine	shop	shop	tables	WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+b	b	engine	shop	shop	results	WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
+shop.customers.email shop.customers.id	shop.customers.email ~	engine	shop	shop	lineage	WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
+shop.customers	shop.customers	engine	shop	shop	tables	WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
 id, parent	id, parent	engine	shop	shop	results	WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
 shop.orders.id | shop.orders.customer_id	shop.orders.id | shop.orders.customer_id ~	engine	shop	shop	lineage	WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
 shop.orders	shop.orders	engine	shop	shop	tables	WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
@@ -704,16 +716,22 @@ shop.customers.name	shop.customers.name	engine	shop	shop	lineage	SELECT TOP 3 na
 shop.customers	shop.customers	engine	shop	shop	tables	SELECT TOP 3 name FROM customers
 number	number	engine	shop	shop	results	SELECT number FROM numbers(10)
 -	~	engine	shop	shop	lineage	SELECT number FROM numbers(10)
--	-	engine	shop	shop	tables	SELECT number FROM numbers(10)
+-	~	engine	shop	shop	tables	SELECT number FROM numbers(10)
 n	n	engine	shop	shop	results	SELECT number * 2 AS n FROM numbers(3)
 -	~	engine	shop	shop	lineage	SELECT number * 2 AS n FROM numbers(3)
--	-	engine	shop	shop	tables	SELECT number * 2 AS n FROM numbers(3)
+-	~	engine	shop	shop	tables	SELECT number * 2 AS n FROM numbers(3)
 number	number	engine	shop	shop	results	SELECT * FROM numbers(2)
 -	~	engine	shop	shop	lineage	SELECT * FROM numbers(2)
--	-	engine	shop	shop	tables	SELECT * FROM numbers(2)
+-	~	engine	shop	shop	tables	SELECT * FROM numbers(2)
 name, number	name, number	engine	shop	shop	results	SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
 shop.customers.name | -	shop.customers.name | ~	engine	shop	shop	lineage	SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
-shop.customers	shop.customers	engine	shop	shop	tables	SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
+shop.customers	shop.customers, ~	engine	shop	shop	tables	SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
+email	email	engine	shop	shop	results	SELECT email FROM merge('shop', '^customers$')
+shop.customers.email	~	engine	shop	shop	lineage	SELECT email FROM merge('shop', '^customers$')
+shop.customers	~	engine	shop	shop	tables	SELECT email FROM merge('shop', '^customers$')
+id, name, email, country, created, customer_id, amount, status, tags	id, customer_id, amount, status, tags, name, email, country, created	engine	shop	shop	results	SELECT * FROM merge('^(orders|customers)$')
+shop.customers.id shop.orders.id | shop.customers.name | shop.customers.email | shop.customers.country | shop.customers.created shop.orders.created | shop.orders.customer_id | shop.orders.amount | shop.orders.status | shop.orders.tags	~ | ~ | ~ | ~ | ~ | ~ | ~ | ~ | ~	engine	shop	shop	lineage	SELECT * FROM merge('^(orders|customers)$')
+shop.customers, shop.orders	~	engine	shop	shop	tables	SELECT * FROM merge('^(orders|customers)$')
 name	name	engine	shop	shop	results	SELECT name FROM system.tables
 system.tables.name	system.tables.name	engine	shop	shop	lineage	SELECT name FROM system.tables
 system.tables	system.tables	engine	shop	shop	tables	SELECT name FROM system.tables

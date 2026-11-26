@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
@@ -62,6 +63,13 @@ type Database interface {
 // left table only when the query joins once (single_join_prefer_left_table)
 // and refuses the name otherwise (AMBIGUOUS_IDENTIFIER).
 var ErrAmbiguousColumn = errors.New("ambiguous column")
+
+// TableLister is a Database that names its tables and views, which
+// merge('db', 're') reads. A database that does not list them fails a
+// query that calls merge rather than omit what it reads.
+type TableLister interface {
+	TableNames() []string
+}
 
 // systemDatabases hold the server's own tables, which a sync does not
 // store: a table there is read with columns the metadata does not list.
@@ -228,6 +236,8 @@ type cteBinding struct {
 	resolved bool
 	// resolving marks a recursive CTE whose query is being resolved.
 	resolving bool
+	// working is a recursive CTE's columns so far, which its own rows have.
+	working []spanColumn
 }
 
 type spanResolver struct {
@@ -543,6 +553,9 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 		if col, ok := tableFunctionColumns[strings.ToLower(t.Func.Name)]; ok {
 			return &relation{name: name, columns: []spanColumn{{name: col, sources: SourceColumnSet{}, plain: true}}}
 		}
+		if strings.EqualFold(t.Func.Name, "merge") {
+			return r.merge(t.Func, name)
+		}
 		return &relation{name: name, open: true}
 	case t.Table == "":
 		// A query parameter names the table: nothing to resolve.
@@ -555,9 +568,12 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 				name = t.Table
 			}
 			if cte.resolving {
-				// A recursive CTE's own rows: what they read is what the
-				// CTE's other arms read.
-				return &relation{name: name, open: true}
+				// A recursive CTE's own rows: the columns of the rows
+				// before, which r.cte iterates to a fixed point.
+				if cte.working == nil {
+					return &relation{name: name, open: true}
+				}
+				return derived(name, renamed(cte.working, t.ColumnAliases))
 			}
 			return derived(name, renamed(r.cte(cte), t.ColumnAliases))
 		}
@@ -607,9 +623,91 @@ func (r *spanResolver) cte(c *cteBinding) []spanColumn {
 	if !c.resolved {
 		c.resolved, c.resolving = true, true
 		c.columns = r.query(c.query, c.scope, c.ctes)
+		if c.ctes == c {
+			// A recursive CTE's rows feed its next iteration, which may
+			// move a value to another column: iterate until no column
+			// reads more.
+			for i := 0; i < 32; i++ {
+				c.working = c.columns
+				next := r.query(c.query, c.scope, c.ctes)
+				grew := false
+				merged := make([]spanColumn, len(c.columns))
+				copy(merged, c.columns)
+				for j := range merged {
+					if j < len(next) && len(union(merged[j].sources, next[j].sources)) > len(merged[j].sources) {
+						merged[j].sources, grew = union(merged[j].sources, next[j].sources), true
+					}
+				}
+				c.columns = merged
+				if !grew {
+					break
+				}
+			}
+		}
 		c.resolving = false
 	}
 	return c.columns
+}
+
+// merge resolves merge('db', 're') and merge('re'): the tables of a
+// database whose names match, read as one; a column reads that column of
+// each of them.
+func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
+	var args []string
+	for _, a := range f.Args {
+		lit, ok := a.(*parser.LiteralExpr)
+		if !ok || lit.Kind != "STRING" {
+			r.err = errors.Join(r.err, errors.New("merge() with a database or pattern that is not a string literal"))
+			return nil
+		}
+		args = append(args, lit.Val)
+	}
+	database := r.database
+	switch len(args) {
+	case 1:
+	case 2:
+		database = args[0]
+		args = args[1:]
+	default:
+		r.err = errors.Join(r.err, errors.New("merge() takes a database and a pattern"))
+		return nil
+	}
+	re, err := regexp.Compile(args[0])
+	if err != nil {
+		r.err = errors.Join(r.err, fmt.Errorf("merge(): %w", err))
+		return nil
+	}
+	var db Database
+	if r.opts.Catalog.GetDatabase != nil {
+		if db, err = r.opts.Catalog.GetDatabase(database); err != nil {
+			r.err = errors.Join(r.err, err)
+			return nil
+		}
+	}
+	lister, ok := db.(TableLister)
+	if !ok {
+		r.err = errors.Join(r.err, fmt.Errorf("merge() reads the tables of %s that match %q, which the catalog does not list", database, args[0]))
+		return nil
+	}
+	rel := &relation{name: name}
+	for _, table := range lister.TableNames() {
+		if !re.MatchString(table) {
+			continue
+		}
+		cols, _, ok := r.relation(database, table)
+		if !ok {
+			continue
+		}
+		for _, c := range cols {
+			i := slices.IndexFunc(rel.columns, func(o spanColumn) bool { return o.name == c.name })
+			if i < 0 {
+				rel.columns = append(rel.columns, spanColumn{name: c.name, sources: c.sources, plain: true})
+				continue
+			}
+			rel.columns[i].sources = union(rel.columns[i].sources, c.sources)
+		}
+	}
+	return rel
 }
 
 func derived(name string, cols []spanColumn) *relation {
@@ -951,9 +1049,23 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		}
 		return r.expr(n.Body, inner, ctes)
 	case *parser.StarExpr:
-		// count(*) and the like read no column.
+		// A star in an expression is every column it expands to.
+		for _, c := range r.star(n, sc, ctes) {
+			out = union(out, c.sources)
+		}
 		return out
 	case *parser.FuncCallExpr:
+		if countStar(n) {
+			// count(*) reads no column.
+			return out
+		}
+		if lambda := r.lambdaAlias(n.Name, sc); lambda != nil {
+			// A WITH-bound lambda called by its alias reads what its body
+			// reads besides its arguments.
+			r.resolving[lambda] = true
+			out = r.expr(lambda, sc, ctes)
+			delete(r.resolving, lambda)
+		}
 		if re, ok := columnsMatcher(n); ok {
 			// COLUMNS('re') in an expression is the columns it matches.
 			for _, c := range r.matching(re, sc) {
@@ -961,7 +1073,7 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 			}
 			return out
 		}
-		out = union(r.exprs(n.Params, sc, ctes), r.exprs(n.Args, sc, ctes))
+		out = union(out, union(r.exprs(n.Params, sc, ctes), r.exprs(n.Args, sc, ctes)))
 		over := n.Over
 		if n.OverName != "" {
 			over = sc.window(n.OverName)
@@ -996,6 +1108,28 @@ func (sc *spanScope) window(name string) *parser.WindowSpec {
 	for s := sc; s != nil; s = s.parent {
 		if w, ok := s.windows[name]; ok {
 			return w
+		}
+	}
+	return nil
+}
+
+// countStar reports whether f is count(*).
+func countStar(f *parser.FuncCallExpr) bool {
+	if len(f.Args) != 1 || !strings.EqualFold(f.Name, "count") {
+		return false
+	}
+	s, ok := f.Args[0].(*parser.StarExpr)
+	return ok && len(s.Qualifier) == 0
+}
+
+// lambdaAlias is the lambda an alias in scope binds name to, or nil.
+func (r *spanResolver) lambdaAlias(name string, sc *spanScope) *parser.LambdaExpr {
+	for s := sc; s != nil; s = s.parent {
+		if e, ok := s.aliases[name]; ok {
+			if l, ok := e.(*parser.LambdaExpr); ok && !r.resolving[l] {
+				return l
+			}
+			return nil
 		}
 	}
 	return nil

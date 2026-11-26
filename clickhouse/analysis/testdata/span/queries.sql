@@ -66,6 +66,8 @@ SELECT multiIf(qty > 10, 'many', qty > 1, 'some', 'one') FROM items
 SELECT round(price * qty, 2) AS total FROM items
 SELECT (price + 1) * qty FROM items
 SELECT tuple(id, sku).1 FROM items
+SELECT tuple(*) FROM customers
+SELECT tuple(customers.*) FROM customers
 
 -- Aggregates and grouping.
 SELECT count(), sum(amount) FROM orders
@@ -143,6 +145,7 @@ WITH 10 AS threshold SELECT threshold, id FROM orders
 WITH amount * 2 AS doubled SELECT doubled FROM orders
 WITH (SELECT max(amount) FROM orders) AS top SELECT id, top FROM orders
 WITH upper(name) AS n SELECT n, email FROM customers
+WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 WITH customers AS (SELECT order_id AS id FROM items) SELECT id FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT count() FROM c WHERE name != ''
@@ -151,6 +154,7 @@ WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
 WITH 1 AS x SELECT * FROM (SELECT x)
 WITH 3 AS k SELECT n FROM (SELECT id * k AS n FROM customers)
 WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
+WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
 WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
 
 -- Set operations.
@@ -271,6 +275,8 @@ SELECT number FROM numbers(10)
 SELECT number * 2 AS n FROM numbers(3)
 SELECT * FROM numbers(2)
 SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
+SELECT email FROM merge('shop', '^customers$')
+SELECT * FROM merge('^(orders|customers)$')
 SELECT name FROM system.tables
 SELECT database, name FROM system.tables WHERE database = 'shop'
 SELECT name, type FROM system.columns WHERE table = 'customers'

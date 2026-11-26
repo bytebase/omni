@@ -313,6 +313,16 @@
 | {"error":"UNKNOWN_IDENTIFIER"}
 > raw
 | span shop
+| SELECT tuple(*) FROM customers
+< raw
+| {"columns":["(id, name, email, country, created)"],"lineage":[["shop.customers.country","shop.customers.created","shop.customers.email","shop.customers.id","shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| SELECT tuple(customers.*) FROM customers
+< raw
+| {"columns":["(id, name, email, country, created)"],"lineage":[["shop.customers.country","shop.customers.created","shop.customers.email","shop.customers.id","shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT count(), sum(amount) FROM orders
 < raw
 | {"columns":["count()","sum(amount)"],"lineage":[null,["shop.orders.amount"]],"tables":["shop.orders"]}
@@ -658,6 +668,11 @@
 | {"columns":["n","email"],"lineage":[["shop.customers.name"],["shop.customers.email"]],"tables":["shop.customers"]}
 > raw
 | span shop
+| WITH x -> concat(x, email) AS f SELECT f(name) FROM customers
+< raw
+| {"columns":["f(name)"],"lineage":[["shop.customers.email","shop.customers.name"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name","shop.items.sku"]],"tables":["shop.customers","shop.items"]}
@@ -696,6 +711,11 @@
 | WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 < raw
 | {"columns":["n"],"lineage":[["~"]]}
+> raw
+| span shop
+| WITH RECURSIVE r AS (SELECT toString(id) AS a, email AS b, toUInt64(0) AS n FROM customers UNION ALL SELECT a, a AS b, n + 1 FROM r WHERE n < 1) SELECT b FROM r
+< raw
+| {"columns":["b"],"lineage":[["shop.customers.email","~"]],"tables":["shop.customers"]}
 > raw
 | span shop
 | WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
@@ -1190,22 +1210,32 @@
 | span shop
 | SELECT number FROM numbers(10)
 < raw
-| {"columns":["number"],"lineage":[["~"]]}
+| {"columns":["number"],"lineage":[["~"]],"tables":["~"]}
 > raw
 | span shop
 | SELECT number * 2 AS n FROM numbers(3)
 < raw
-| {"columns":["n"],"lineage":[["~"]]}
+| {"columns":["n"],"lineage":[["~"]],"tables":["~"]}
 > raw
 | span shop
 | SELECT * FROM numbers(2)
 < raw
-| {"columns":["number"],"lineage":[["~"]]}
+| {"columns":["number"],"lineage":[["~"]],"tables":["~"]}
 > raw
 | span shop
 | SELECT c.name, n.number FROM customers AS c, numbers(2) AS n
 < raw
-| {"columns":["name","number"],"lineage":[["shop.customers.name"],["~"]],"tables":["shop.customers"]}
+| {"columns":["name","number"],"lineage":[["shop.customers.name"],["~"]],"tables":["~","shop.customers"]}
+> raw
+| span shop
+| SELECT email FROM merge('shop', '^customers$')
+< raw
+| {"columns":["email"],"lineage":[["~"]],"tables":["~"]}
+> raw
+| span shop
+| SELECT * FROM merge('^(orders|customers)$')
+< raw
+| {"columns":["id","customer_id","amount","status","tags","name","email","country","created"],"lineage":[["~"],["~"],["~"],["~"],["~"],["~"],["~"],["~"],["~"]],"tables":["~"]}
 > raw
 | span shop
 | SELECT name FROM system.tables

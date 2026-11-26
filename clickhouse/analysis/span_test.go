@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -140,6 +141,19 @@ type spanDatabase struct {
 
 func (d spanDatabase) GetTable(name string) *metadata.TableMetadata { return d.tables[name] }
 func (d spanDatabase) GetView(name string) *metadata.ViewMetadata   { return d.views[name] }
+
+// TableNames lists the tables and views, as a sync's metadata does.
+func (d spanDatabase) TableNames() []string {
+	var out []string
+	for name := range d.tables {
+		out = append(out, name)
+	}
+	for name := range d.views {
+		out = append(out, name)
+	}
+	slices.Sort(out)
+	return out
+}
 
 // engineSpan is ClickHouse's answer: the result set's column names, the
 // analyzer's lineage of each, and query_log's tables.

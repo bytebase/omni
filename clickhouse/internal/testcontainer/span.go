@@ -261,15 +261,22 @@ func (l *spanLive) span(ctx context.Context, database, statement string) (SpanAn
 	if err := db.QueryRowContext(ctx, "SELECT tables FROM system.query_log WHERE query_id = ? AND type = 'QueryFinish'", id).Scan(&tables); err != nil {
 		return a, fmt.Errorf("query_log of %s: %w", id, err)
 	}
+	function := false
 	for _, t := range tables {
-		// A query without FROM reads system.one, a table function is listed
-		// as one of _table_function's, and a recursive CTE's working table
-		// is a temporary table with a name made up for the query: none is a
-		// table the query names.
-		if t == "system.one" || strings.HasPrefix(t, "_table_function.") || strings.HasPrefix(t, temporaryTables) {
-			continue
+		// A query without FROM reads system.one, and a recursive CTE's
+		// working table is a temporary table with a name made up for the
+		// query: neither is a table the query names. A table function is
+		// listed as one of _table_function's, which does not say which
+		// tables it reads (merge reads some): those are unstated.
+		switch {
+		case t == "system.one" || strings.HasPrefix(t, temporaryTables):
+		case strings.HasPrefix(t, "_table_function."):
+			if !function {
+				a.Tables, function = append(a.Tables, "~"), true
+			}
+		default:
+			a.Tables = append(a.Tables, t)
 		}
-		a.Tables = append(a.Tables, t)
 	}
 	return a, nil
 }
