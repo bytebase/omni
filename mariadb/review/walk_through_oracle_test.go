@@ -685,7 +685,8 @@ var walkCodes = []struct {
 	{func(m, _ string) bool {
 		return (strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ")) && strings.HasSuffix(m, " already exists.")
 	}, []string{"1304"}},
-	{func(m, _ string) bool { return strings.HasPrefix(m, "Procedure ") || strings.HasPrefix(m, "Function ") }, []string{"1305"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Procedure ") }, []string{"1305"}},
+	{func(m, _ string) bool { return strings.HasPrefix(m, "Function ") }, []string{"1305", "1630"}},
 	{func(m, _ string) bool {
 		return strings.HasPrefix(m, "Event ") && strings.HasSuffix(m, " cannot be renamed to itself.")
 	}, []string{"1551"}},
