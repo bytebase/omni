@@ -352,6 +352,11 @@ func (w *spanWalker) pipeJoin(in *pipeTable, join *ast.JoinExpr) *pipeTable {
 	}
 	known := len(w.leaves.rels)
 	rel := w.buildFromItem(join.Right)
+	if sourceReshapes(join.Right) {
+		w.recordSourceTVFArgs(join.Right)
+		w.walkPredicate(join.On)
+		return w.pipeFailClosed("a pipe JOIN to a PIVOT or UNPIVOT source")
+	}
 	w.recordSourceTVFArgs(join.Right)
 	w.walkPredicate(join.On)
 	for _, col := range join.Using {
@@ -406,11 +411,14 @@ func (w *spanWalker) pipeSetOperation(cols []projColumn, n *ast.PipeSetOperation
 		}
 		return w.pipeFailClosed("a pipe set operation")
 	}
-	if set.OuterMode != "" && !strings.EqualFold(set.OuterMode, "INNER") {
+	// An outer or INNER mode, and a CORRESPONDING without STRICT, keep a
+	// subset or a union of the inputs' names that mergeByName does not
+	// compute (`|> INNER UNION ALL BY NAME` keeps only the shared columns).
+	if set.OuterMode != "" || (set.Corresponding && !set.Strict) {
 		for _, rhs := range n.Right {
 			w.visitPipeOperand(rhs)
 		}
-		return w.pipeFailClosed("an outer pipe set operation")
+		return w.pipeFailClosed("a pipe set operation that matches a subset of the inputs' names")
 	}
 	m := setOpMerger{cols: cols}
 	for _, rhs := range n.Right {
@@ -431,6 +439,21 @@ func containsColumnFold(cols []projColumn, name string) bool {
 		if strings.EqualFold(c.name, name) {
 			return true
 		}
+	}
+	return false
+}
+
+// sourceReshapes reports whether a FROM source carries a PIVOT or UNPIVOT,
+// whose output columns buildFromItem does not derive: it returns the
+// source's columns before the operator.
+func sourceReshapes(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.TableExpr:
+		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
+	case *ast.UnnestExpr:
+		return n != nil && (n.Pivot != nil || n.Unpivot != nil)
+	case *ast.JoinExpr:
+		return n != nil && (sourceReshapes(n.Left) || sourceReshapes(n.Right))
 	}
 	return false
 }

@@ -132,6 +132,12 @@ func TestGetQuerySpanPipe(t *testing.T) {
 			"SELECT x FROM t |> CALL f()",
 			"SELECT x FROM t |> NATURAL JOIN (SELECT 1 AS x)",
 			"SELECT x, y FROM t |> SET x = 1, x = 2 |> SELECT x |> RENAME z AS w",
+			// Name matching that keeps only the shared columns.
+			"SELECT x, y FROM t |> INNER UNION ALL BY NAME (SELECT x FROM u)",
+			"SELECT x, y FROM t |> UNION ALL CORRESPONDING (SELECT x FROM u)",
+			// A PIVOT source's output is not its input's columns.
+			"SELECT 0 AS p |> CROSS JOIN (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b'))",
+			"FROM (SELECT s, c FROM t) PIVOT(MAX(s) FOR c IN ('a', 'b')) |> SELECT *",
 		} {
 			if _, err := GetQuerySpan(sql); err == nil {
 				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)

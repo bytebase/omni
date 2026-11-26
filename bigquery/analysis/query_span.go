@@ -911,6 +911,13 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	resolvePipe := q.Pipe != nil && !w.tablesOnly && !pipeKeepsProjection(q.Pipe)
 	results := w.visitBody(q.Body)
 	ranges := w.outRanges
+	if sel, ok := q.Body.(*ast.SelectStmt); ok && resolvePipe {
+		for _, src := range sel.From {
+			if sourceReshapes(src) {
+				w.failClosed(fmt.Errorf("a pipe operator over a PIVOT or UNPIVOT source, whose output columns this walker does not derive (fail closed)"))
+			}
+		}
+	}
 
 	// A pipe suffix transforms the query's output. One that keeps the
 	// projection (WHERE, ORDER BY, LIMIT ...) leaves the head's results; one
