@@ -1827,6 +1827,30 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -1840,6 +1864,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -1888,6 +1972,54 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -2222,6 +2354,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -3816,6 +3996,18 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -3937,6 +4129,30 @@
 | CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 1088 202 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -4007,6 +4223,30 @@
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 6 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -4100,6 +4340,30 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [t_d_idx] ON [dbo].[t] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4902 1 16 1 Cannot find the object "a" because it does not exist or you do not have permissions.
@@ -5596,6 +5860,34 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -5611,6 +5903,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -5678,6 +6040,114 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < ok 0 -
 > query
@@ -6071,6 +6541,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 1911 103 16 1 Column name 'a' does not exist in the target table or view.
@@ -7593,6 +8111,19 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -7732,6 +8263,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -7787,6 +8342,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -7913,6 +8492,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -9430,6 +10033,34 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -9445,6 +10076,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -9528,6 +10229,114 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < ok 0 -
 > query
@@ -9921,6 +10730,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
@@ -11516,6 +12373,19 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -11670,6 +12540,30 @@
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -11725,6 +12619,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -11851,6 +12769,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a_d_idx] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -13363,6 +14305,34 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -13378,6 +14348,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -13445,6 +14485,114 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < ok 0 -
 > query
@@ -13838,6 +14986,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
@@ -15433,6 +16629,19 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -15587,6 +16796,30 @@
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -15642,6 +16875,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 1716 2 16 1 FILESTREAM_ON cannot be specified when a table has no FILESTREAM columns. Remove the FILESTREAM_ON clause from the statement, or add a FILESTREAM column to the table.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -15768,6 +17025,30 @@
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 | CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+| CREATE NONCLUSTERED INDEX [a] ON [dbo].[a] ([d]);
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -17435,6 +18716,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -17450,6 +18759,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -17506,6 +18885,62 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -17842,6 +19277,62 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -19451,6 +20942,20 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -19592,6 +21097,34 @@
 | CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -19638,6 +21171,34 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -19747,6 +21308,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE VIEW [dbo].[a] AS SELECT [b], [a], [d] FROM [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -21539,6 +23128,36 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -21555,6 +23174,81 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -21682,6 +23376,198 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [a] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [a_chk] CHECK ([d]>(0));
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.ch
+: string
+| CREATE TABLE [dbo].[ch] ([b] int NOT NULL, [a_b] int NULL);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b] ASC);
+| ALTER TABLE [dbo].[ch] ADD CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]);
+|
+< row
+: string
+| TABLE
+: string
+| dbo.p
+: string
+| CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
+| ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < ok 0 -
 > query
@@ -22239,6 +24125,58 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
@@ -24121,6 +26059,20 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -24325,6 +26277,32 @@
 | CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 12002 1 16 1 The requested spatial index on column 'a' of table 'a' could not be created because the column type is not geometry or geography . Specify a column name that refers to a column with a geometry or geography data type.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -24403,6 +26381,32 @@
 | CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
 | ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -24577,6 +26581,32 @@
 | CREATE TABLE [dbo].[p] ([b] int NOT NULL, [d] int NULL);
 | ALTER TABLE [dbo].[p] ADD CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[p] ([b] INT NOT NULL, [d] INT NULL, CONSTRAINT [PK_p] PRIMARY KEY CLUSTERED ([b]));
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [a] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_a_p] FOREIGN KEY ([a]) REFERENCES [dbo].[p] ([b]), CONSTRAINT [a_chk] CHECK ([d] > 0));
+| CREATE TABLE [dbo].[ch] ([b] INT NOT NULL, [a_b] INT NULL, CONSTRAINT [PK_ch] PRIMARY KEY CLUSTERED ([b]), CONSTRAINT [FK_ch_a] FOREIGN KEY ([a_b]) REFERENCES [dbo].[a] ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -26349,6 +28379,38 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -26366,6 +28428,86 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'rowguidcol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name '$IDENTITY'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+| 207 1 16 1 Invalid column name 'identitycol'.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -26448,6 +28590,150 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< ok 0 -
+> query
+| EXEC [dbo].[_sim_forms]
+< result
+< column "kind" "NVARCHAR"
+< column "name" "NVARCHAR"
+< column "text" "NVARCHAR"
+< row
+: string
+| SCHEMA
+: string
+| a
+: string
+| CREATE SCHEMA [a];
+|
+< row
+: string
+| TABLE
+: string
+| dbo.a
+: string
+| CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
+| ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
+|
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < ok 0 -
 > query
@@ -26938,6 +29224,62 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 1911 103 16 1 Column name 'a' does not exist in the target table or view.
@@ -28739,6 +31081,21 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 13930 0 16 1 Edge constraint cannot be created on table 'a'.  The table is not an edge table.
+| 1750 0 16 1 Could not create constraint or index. See previous errors.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -28905,6 +31262,34 @@
 | CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 1911 103 16 1 Column name 'a' does not exist in the target table or view.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -28973,6 +31358,34 @@
 | CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -29129,6 +31542,34 @@
 | CREATE TABLE [dbo].[a] ([b] int NOT NULL, [c] int NULL, [d] int NULL);
 | ALTER TABLE [dbo].[a] ADD CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b] ASC);
 |
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE SCHEMA [a];
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[a] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_a] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
+|
+< error
+| 1921 3 16 1 Invalid filegroup 'a' specified.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -30580,6 +33021,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -30593,6 +33058,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -30641,6 +33166,54 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -31061,6 +33634,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -32440,6 +35061,18 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -32583,6 +35216,30 @@
 | CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -32637,6 +35294,30 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -32818,6 +35499,30 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SEQUENCE [dbo].[a] AS BIGINT START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -34240,6 +36945,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -34253,6 +36982,66 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -34301,6 +37090,54 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -34589,6 +37426,54 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -35968,6 +38853,18 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -36089,6 +38986,30 @@
 | CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -36143,6 +39064,30 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -36236,6 +39181,30 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+| CREATE SYNONYM [dbo].[a] FOR [dbo].[t];
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -37967,6 +40936,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -37982,6 +40979,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -38038,6 +41105,62 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -38374,6 +41497,62 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -39983,6 +43162,20 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -40124,6 +43317,34 @@
 | CREATE PROCEDURE [dbo].[a] AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -40170,6 +43391,34 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -40279,6 +43528,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE PROCEDURE [dbo].[a] AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -41960,6 +45237,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -41975,6 +45280,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -42031,6 +45406,62 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -42367,6 +45798,62 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -43976,6 +47463,20 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -44117,6 +47618,34 @@
 | CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -44163,6 +47692,34 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -44272,6 +47829,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE FUNCTION [dbo].[a]() RETURNS INT AS BEGIN RETURN 1 END;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -45912,6 +49497,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD INDEX a WHERE ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE $IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD INDEX a WHERE a IS NULL
 |
 < error
@@ -45927,6 +49540,76 @@
 < ok 0 -
 > exec
 | ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.ROWGUIDCOL IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE a.$IDENTITY IS NULL
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL > 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL < 1
+|
+< error
+| 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! = 1
 |
 < error
 | 8135 0 16 1 Table level constraint or index does not specify column list, table 'a'.
@@ -45983,6 +49666,62 @@
 < ok 0 -
 > exec
 | ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, FILLFACTOR = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, MAXDOP = 1)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, XML_COMPRESSION = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, ONLINE = ON)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a REBUILD WITH(FILLFACTOR = 1, IGNORE_DUP_KEY = ON)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
@@ -46319,6 +50058,62 @@
 < ok 0 -
 > exec
 | CREATE SPATIAL INDEX a ON a(a) WITH(FILTERING = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAXDOP = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(BUCKET_COUNT = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(COMPRESSION_DELAY = 1)
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) WITH(MAX_DURATION = 1)
 |
 < error
 | 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
@@ -47928,6 +51723,20 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| ALTER TABLE a ADD CONNECTION(a TO a) ON DELETE NO ACTION
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | ALTER TABLE a ADD CONNECTION(a TO a, a TO a)
 |
 < error
@@ -48069,6 +51878,34 @@
 | CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
 < ok 0 -
 > exec
+| CREATE SPATIAL INDEX a ON a(a) ON N'a'
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| CREATE SPATIAL INDEX a ON a(a) ON a
+|
+< error
+| 6334 1 16 1 Could not create the XML or spatial index on object 'a' because that object is not a table. Create the index on the base table column.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
 | CREATE FUNCTION a() RETURNS a WITH INLINE = OFF BEGIN SELECT 1 END
 |
 < error
@@ -48115,6 +51952,34 @@
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON N'a')
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| DROP INDEX a ON a WITH(FILESTREAM_ON a)
+|
+< error
+| 3701 7 11 1 Cannot drop the index 'a.a', because it does not exist or you do not have permission.
 > exec
 | EXEC [dbo].[_sim_reset]
 < ok 0 -
@@ -48224,6 +52089,34 @@
 < ok 0 -
 > exec
 | ALTER TABLE a SET(LOCK_ESCALATION = TABLE)
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = N'a')
+|
+< error
+| 4909 1 16 1 Cannot alter 'a' because it is not a table.
+> exec
+| EXEC [dbo].[_sim_reset]
+< ok 0 -
+> exec
+| CREATE TABLE [dbo].[t] ([b] INT NOT NULL, [c] INT NULL, [d] INT NULL, CONSTRAINT [PK_t] PRIMARY KEY CLUSTERED ([b]));
+< ok 0 -
+> exec
+| CREATE TRIGGER [dbo].[a] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+< ok 0 -
+> exec
+| ALTER TABLE a SET(FILESTREAM_ON = a)
 |
 < error
 | 4909 1 16 1 Cannot alter 'a' because it is not a table.

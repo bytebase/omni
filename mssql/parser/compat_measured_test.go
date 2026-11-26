@@ -105,3 +105,51 @@ func TestLineCommentOpening(t *testing.T) {
 		}
 	}
 }
+
+// TestKeywordChoiceSitesMeasured holds the forms beside the (every
+// alternative) rows of tokens.tsv that closed gaps, each as the pinned SQL
+// Server 2022 answered it under SET PARSEONLY ON (2026-11-26).
+func TestKeywordChoiceSitesMeasured(t *testing.T) {
+	for _, tc := range []struct {
+		sql    string
+		accept bool
+	}{
+		// comparisonOperator (TSql160.g:31264) in an index filter, its two
+		// characters written apart.
+		{"CREATE INDEX a ON a(a) WHERE a ! = 1", true},
+		{"CREATE INDEX a ON a(a) WHERE a < = 1", true},
+		{"CREATE INDEX a ON a(a) WHERE a > = 1", true},
+		{"CREATE INDEX a ON a(a) WHERE a < > 1", true},
+		{"CREATE INDEX a ON a(a) WHERE a = 1 AND a ! > 1", true},
+		{"ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! < 1", true},
+		{"ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ! 1", false},
+		// openXmlSchemaItem's pattern is stringOrVariable (TSql160.g:20564);
+		// OPENJSON's is a string only.
+		{"SELECT * FROM OPENXML(@a, 'a') WITH(a a @a, b int 'b')", true},
+		{"SELECT * FROM OPENXML(@a, 'a') WITH(a a @@a)", true},
+		{"SELECT * FROM OPENXML(@a, 'a') WITH(a a 1)", false},
+		{"SELECT * FROM OPENJSON(@a) WITH(a a @a)", false},
+		// HOLDLOCK where a name goes in t( ... ), and no condition there.
+		{"SELECT * FROM a(HOLDLOCK)", true},
+		{"SELECT * FROM dbo.a(HOLDLOCK) AS b", true},
+		{"SELECT * FROM a(NOLOCK, HOLDLOCK)", true},
+		{"SELECT * FROM a(HOLDLOCK NOLOCK)", false},
+		{"SELECT * FROM a(SPATIAL_WINDOW_MAX_CELLS = 1)", false},
+		{"SELECT * FROM a(b IS NULL)", false},
+		{"SELECT * FROM a(1, b = 1)", false},
+		{"SELECT * FROM a(b IN (1))", false},
+		{"SELECT * FROM a((SELECT 1))", true},
+		{"SELECT * FROM a(DEFAULT)", true},
+		// A text column's last part may be a pseudo-column (TSql160.g:32740).
+		{"WRITETEXT a.$IDENTITY 0x00 NULL", true},
+		{"READTEXT a.$ROWGUID 0x00 1 1", true},
+		{"UPDATETEXT a.b.$IDENTITY 0x00 NULL NULL", true},
+		{"WRITETEXT a.$a 0x00 NULL", false},
+		{"WRITETEXT $IDENTITY 0x00 NULL", false},
+	} {
+		_, err := Parse(tc.sql)
+		if got := err == nil; got != tc.accept {
+			t.Errorf("Parse(%q): accept = %v (%v), SQL Server: %v", tc.sql, got, err, tc.accept)
+		}
+	}
+}

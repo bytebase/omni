@@ -13,14 +13,16 @@ on a fresh server confirmed every row.
 
 | Rows | Total | Agree | Only SQL Server accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 5,592 | 5,592 | 0 | 0 |
-| Near-misses | 12,114 | 12,114 | 0 | 0 |
+| One per alternative | 6,044 | 6,044 | 0 | 0 |
+| Near-misses | 12,268 | 12,268 | 0 | 0 |
 | `suite:lexer` | 66 | 66 | 0 | 0 |
 | `suite:optional-clauses` | 100 | 100 | 0 | 0 |
 
-5,592 alternatives include 82 rows `tokens.tsv` adds with an optional clause
+6,044 alternatives include the rows `tokens.tsv` adds with an optional clause
 written out at each site a rule names it (`(every site)`), such as
-`ALTER TABLE a DROP COLUMN IF EXISTS a`. `suite:optional-clauses` holds
+`ALTER TABLE a DROP COLUMN IF EXISTS a`, and with each form of a keyword
+choice at each site that names it (`(every alternative)`), such as
+`WHERE a ! = 1` in an index filter. `suite:optional-clauses` holds
 `IF EXISTS`, `IF NOT EXISTS`, `CREATE OR ALTER`, `CREATE OR REPLACE`,
 `TEMPORARY` and `CASCADE` where T-SQL has none, which no grammar row reaches.
 
@@ -136,7 +138,10 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-17,872 / 17,872 rows agree (**100.00%**). The `(every site)` and
+18,478 / 18,478 rows agree (**100.00%**). The `(every alternative)` rows found 5
+gaps, closed: a split comparison operator in an index filter, HOLDLOCK and no
+condition in a table-valued function's list, a variable as OPENXML's column
+pattern, and a pseudo-column as a text column's last part. The `(every site)` and
 `suite:optional-clauses` rows found 21 gaps, closed: `CREATE OR ALTER` on
 anything but a function, procedure, trigger or view (13), `IF EXISTS` on
 `DROP PARTITION FUNCTION`/`SCHEME` and `DROP XML SCHEMA COLLECTION` (3), a DML
@@ -167,7 +172,7 @@ closing all 30 parser gaps judge rev 3 exposed in `external.go` (27 CETAS
 STREAM` option-duplication row, 1 `COPY INTO ... WITH(IDENTITY_INSERT = a)`
 row, and 1 duplicate `FORMAT_OPTIONS(USE_TYPE_DEFAULT = ...)` row).
 
-0 rows disagree: all 5,592 alternatives, all 12,114 near-misses, all 66
+0 rows disagree: all 6,044 alternatives, all 12,268 near-misses, all 66
 `suite:lexer` and all 100 `suite:optional-clauses` rows agree.
 
 ### Closed over-accepts (3)

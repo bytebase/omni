@@ -722,6 +722,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Path != nil {
 			Walk(v, n.Path)
 		}
+		if n.PathVar != nil {
+			Walk(v, n.PathVar)
+		}
 		if n.Nullable != nil {
 			Walk(v, n.Nullable)
 		}

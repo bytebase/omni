@@ -56,6 +56,10 @@ uniqueConstraintTailOpt	(every site)	TSql160.g:29806 ON a filegroup
 foreignConstraintColumnsOpt	(every site)	TSql160.g:30091 a FOREIGN KEY's columns
 inlineIndexType	(every site)	TSql160.g:28624 CLUSTERED, NONCLUSTERED or HASH
 functionReturnTypeAndBody(functionAttributes)?	(every site)	TSql160.g:13029 a function's WITH options
+columnWithSortOrder(orderByOption)?	(every site)	TSql160.g:29862 ASC or DESC on a key column
+expressionWithSortOrder(orderByOption)?	(every site)	TSql160.g:21499 ASC or DESC on an ORDER BY item
+signedInteger(Minus)?	(every site)	TSql160.g:33043 a number's minus
+nullNotNull(Not)?	(every site)	TSql160.g:32997 NOT NULL
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
 optionOnOff	(every alternative)	TSql160.g:5084 ON or OFF
@@ -71,3 +75,54 @@ assignmentWithOp	(every alternative)	TSql160.g:33665 a compound assignment opera
 dmlTriggerAction	(every alternative)	TSql160.g:25429 INSERT, UPDATE or DELETE
 actionWithQual	(every alternative)	TSql160.g:5445 an audited action
 stringLiteral	(every alternative)	TSql160.g:33464 a string, or an N'' one
+onFailureAuditOption	(every alternative)	TSql160.g:2040 ON_FAILURE's CONTINUE, SHUTDOWN or FAIL_OPERATION
+onFailureAuditOption(Continue|Shutdown|FAIL_OPERATION)	(every alternative)	TSql160.g:2040 the group onFailureAuditOption is
+enabledDisabled	(every alternative)	TSql160.g:7151 ENABLED or DISABLED
+enabledDisabled(ENABLED|DISABLED)	(every alternative)	TSql160.g:7151 the group enabledDisabled is
+eventSessionScope	(every alternative)	TSql160.g:7688 an event session's ON SERVER or ON DATABASE
+eventSessionScope(Database|SERVER)	(every alternative)	TSql160.g:7688 the group eventSessionScope is
+eventNotificationObjectScope	(every alternative)	TSql160.g:7672 an event notification's DATABASE, SERVER or QUEUE
+eventNotificationObjectScope(Database|QUEUE_schemaObjectThreePart~f28029d9)	(every alternative)	TSql160.g:7672 the group eventNotificationObjectScope is
+dekEncryptorType	(every alternative)	TSql160.g:5532 CERTIFICATE or ASYMMETRIC KEY
+dekEncryptorType((CERTIFICATE)|(ASYMMETRIC_Key))	(every alternative)	TSql160.g:5532 the group dekEncryptorType is
+largeDataOn	(every alternative)	TSql160.g:26687 TEXTIMAGE_ON or FILESTREAM_ON
+largeDataOn(TEXTIMAGE_ON|FILESTREAM_ON)	(every alternative)	TSql160.g:26687 the group largeDataOn is
+uniqueConstraintHeader(Unique|Primary_Key)	(every alternative)	TSql160.g:29767 UNIQUE or PRIMARY KEY
+uniqueConstraintHeader(Clustered|NonClustered_HASH|NonClustered)?	(every alternative)	TSql160.g:29767 CLUSTERED, NONCLUSTERED HASH or NONCLUSTERED
+sortedDataOptions	(every alternative)	TSql160.g:29855 SORTED_DATA or SORTED_DATA_REORG
+sortedDataOptions(SORTED_DATA|SORTED_DATA_REORG)	(every alternative)	TSql160.g:29855 the group sortedDataOptions is
+deleteUpdateAction	(every alternative)	TSql160.g:29890 NO ACTION, CASCADE, SET NULL or SET DEFAULT
+deleteUpdateAction(Null|Default)	(every alternative)	TSql160.g:29890 SET NULL or SET DEFAULT
+jsonNullClauseFunction	(every alternative)	TSql160.g:31857 NULL ON NULL or ABSENT ON NULL
+jsonNullClauseFunction(Null_On_Null|ABSENT_On_Null)	(every alternative)	TSql160.g:31857 the group jsonNullClauseFunction is
+windowFrameClause(ROWS|RANGE)	(every alternative)	TSql160.g:32082 ROWS or RANGE
+windowFrameDelimiter(PRECEDING|FOLLOWING)	(every alternative)	TSql160.g:32121 PRECEDING or FOLLOWING
+offsetClause(ROW|ROWS)	(every alternative)	TSql160.g:18254 ROW or ROWS
+isolationLevel	(every alternative)	TSql160.g:16601 an isolation level
+isolationLevel((Read_(COMMITTED|UNCOMMITTED))|(REPE~ebe9cc5a)	(every alternative)	TSql160.g:16601 the group isolationLevel is
+isolationLevel(COMMITTED|UNCOMMITTED)	(every alternative)	TSql160.g:16601 READ COMMITTED or READ UNCOMMITTED
+isolationLevel(SNAPSHOT|SERIALIZABLE)	(every alternative)	TSql160.g:16601 SNAPSHOT or SERIALIZABLE
+principal	(every alternative)	TSql160.g:13986 PUBLIC, NULL or a name
+specialColumn	(every alternative)	TSql160.g:32740 $IDENTITY, $ROWGUID or a system column
+comparisonOperator	(every alternative)	TSql160.g:31264 a comparison operator
+offsetItem	(every alternative)	TSql160.g:16520 SET OFFSETS' items
+languageTerm	(every alternative)	TSql160.g:8698 a language: a name, a number, a string or a binary
+languageTerm(stringLiteral|integer|identifier|binary)	(every alternative)	TSql160.g:8698 the group languageTerm is
+seedIncrement(Minus|Plus)?	(every alternative)	TSql160.g:33315 a seed's sign
+stringOrDefaultLiteralOptionValue(stringLiteral|defaultLiteral)	(every alternative)	TSql160.g:33568 a string or DEFAULT
+integerOrDefaultLiteralOptionValue(integer|defaultLiteral)	(every alternative)	TSql160.g:33597 a number or DEFAULT
+stringOrVariable	(every alternative)	TSql160.g:33112 a string or a variable
+stringOrIdentifier	(every alternative)	TSql160.g:33229 a string or a name
+identifierOrVariable	(every alternative)	TSql160.g:33097 a name or a variable
+integerOrVariable	(every alternative)	TSql160.g:26391 a number or a variable
+integerOrRealOrNumeric	(every alternative)	TSql160.g:26396 an integer, a real or a numeric
+signedIntegerOrVariable	(every alternative)	TSql160.g:33023 a signed number or a variable
+stringLiteralOrVariable	(every alternative)	TSql160.g:33480 a string or a variable
+binaryOrVariable	(every alternative)	TSql160.g:26386 a binary or a variable
+identifierOrInteger	(every alternative)	TSql160.g:33214 a name or a number
+integerOrNumeric	(every alternative)	TSql160.g:33376 an integer or a numeric
+binaryOrString	(every alternative)	TSql160.g:1142 a binary or a string
+loginPassword	(every alternative)	TSql160.g:9289 a password as a binary or a string
+expressionWithDefault	(every alternative)	TSql160.g:32480 an expression or DEFAULT
+indexOption	(every alternative)	TSql160.g:17632 an index option
+tableHint	(every alternative)	TSql160.g:21058 a table hint
