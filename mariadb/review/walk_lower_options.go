@@ -232,7 +232,7 @@ func unknownOption(engine, name string) string {
 //   - ROW_FORMAT FIXED or PAGE (1478).
 func (b *builder) innoDBOptionsFail(v *ast.AlterTableStmt, r tableRef) bool {
 	st := b.syncedOf(r)
-	if st == nil || st.engine != "innodb" || b.w.sqlModeSet {
+	if st == nil || st.engine != "innodb" || b.w.sqlModeSet || b.w.strictSet {
 		return false
 	}
 	if _, sets := alterEngine(v); sets {

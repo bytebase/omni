@@ -250,9 +250,11 @@ type walker struct {
 	triggersMade map[walk.Key]bool
 	// sqlModeSet is set once the session assigns sql_mode, which may take
 	// NO_ENGINE_SUBSTITUTION or STRICT_TRANS_TABLES out of it or put
-	// IGNORE_BAD_TABLE_OPTIONS in, or innodb_strict_mode, which may turn
-	// InnoDB's refusal of a table option into a warning.
+	// IGNORE_BAD_TABLE_OPTIONS in.
 	sqlModeSet bool
+	// strictSet is set once the session assigns innodb_strict_mode, which
+	// may turn InnoDB's refusal of a table option into a warning.
+	strictSet bool
 }
 
 func newWalker(sql string, stmts []statement, t review.Target) *walker {
@@ -338,9 +340,8 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 		w.fkChecks, b.fkOption = on, true
 	}
 	// SET STATEMENT sql_mode and innodb_strict_mode hold for this
-	// statement alone too. sqlModeOption marks sql_mode alone: a SET it
-	// wraps still counts its own assignment of innodb_strict_mode.
-	modeSet := w.sqlModeSet
+	// statement alone too.
+	modeSet, strictSet := w.sqlModeSet, w.strictSet
 	for _, a := range w.stmts[i].options {
 		if a.Column == nil || a.Column.Table != "" {
 			continue
@@ -349,12 +350,12 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 		case strings.EqualFold(a.Column.Column, "sql_mode"):
 			w.sqlModeSet, b.sqlModeOption = true, true
 		case strings.EqualFold(a.Column.Column, "innodb_strict_mode"):
-			w.sqlModeSet = true
+			w.strictSet, b.strictOption = true, true
 		}
 	}
 	lowered := b.statement(w.stmts[i].node)
 	w.fkChecks = checks
-	w.sqlModeSet = modeSet
+	w.sqlModeSet, w.strictSet = modeSet, strictSet
 	if !lowered {
 		return nil
 	}
@@ -371,6 +372,8 @@ type builder struct {
 	// names foreign_key_checks, and sqlModeOption one that names sql_mode.
 	fkOption      bool
 	sqlModeOption bool
+	// strictOption is sqlModeOption for innodb_strict_mode.
+	strictOption bool
 	// fks is set when the statement's table keeps the foreign keys it
 	// names (keepsFKs). Until a lowering sets it, the statement claims
 	// nothing of foreign keys and leaves their names Unknown.

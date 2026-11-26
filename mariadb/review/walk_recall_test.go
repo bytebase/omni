@@ -123,6 +123,7 @@ func TestWalkThroughMariaDBInnoDBOptions(t *testing.T) {
 		{sql: "SET STATEMENT innodb_strict_mode = OFF FOR SET sql_mode = 'IGNORE_BAD_TABLE_OPTIONS';\nALTER TABLE t x = 1;"},
 		{sql: "CREATE TABLE x (a INT, KEY k USING RTREE (a)) ENGINE = InnoDB;", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
 		{sql: "ALTER TABLE t ADD (KEY k USING RTREE (a));", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
+		{sql: "SET innodb_strict_mode = OFF;\nALTER TABLE t ENGINE = nope;", statement: 1, want: "MariaDB has no storage engine `nope`.", code: "1286"},
 		{sql: "ALTER TABLE t ADD KEY k2 (a) USING RTREE;", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
 		{sql: "ALTER TABLE t ADD UNIQUE KEY k3 (a) USING RTREE;", want: "Only a `SPATIAL` key can be an `RTREE` key.", code: "1210"},
 		{sql: "ALTER TABLE t CHANGE a b INT AFTER a;", want: "Column `a` can't be placed after itself.", code: "1054"},
