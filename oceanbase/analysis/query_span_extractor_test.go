@@ -695,17 +695,22 @@ func TestQuerySpanScenarioBatch1_ExpressionCoverage(t *testing.T) {
 		}, span.Results)
 	})
 
-	t.Run("group_concat_separator_contributes_lineage", func(t *testing.T) {
+	t.Run("group_concat_separator_is_a_string", func(t *testing.T) {
+		// opt_separator is SEPARATOR STRING_VALUE (sql_parser_mysql_mode.y:3975),
+		// so a separator reads no column, and OceanBase 4.3.5 answers 1064 for
+		// SEPARATOR b.
 		span, err := resolveExtractorSpan(
 			catalog,
-			"SELECT GROUP_CONCAT(a SEPARATOR b) AS gc FROM t",
+			"SELECT GROUP_CONCAT(a SEPARATOR ',') AS gc FROM t",
 			"db",
 			false,
 		)
 		require.NoError(t, err)
 		require.Equal(t, []QuerySpanResult{
-			{Name: "gc", SourceColumns: sourceColumnSetFromResources([]ColumnResource{{Database: "db", Table: "t", Column: "a"}, {Database: "db", Table: "t", Column: "b"}}), IsPlainField: false},
+			{Name: "gc", SourceColumns: sourceColumnSetFromResources([]ColumnResource{{Database: "db", Table: "t", Column: "a"}}), IsPlainField: false},
 		}, span.Results)
+		_, err = resolveExtractorSpan(catalog, "SELECT GROUP_CONCAT(a SEPARATOR b) AS gc FROM t", "db", false)
+		require.Error(t, err)
 	})
 
 	t.Run("group_concat_order_by_contributes_lineage", func(t *testing.T) {

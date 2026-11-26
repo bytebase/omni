@@ -2284,12 +2284,7 @@ func (p *Parser) parseChoice() (string, error) {
 		p.advance()
 		return "DEFAULT", nil
 	}
-	// opt_plus: a '+' may stand before a decimal number, not a 0x one.
-	if p.cur.Type == '+' {
-		if next := p.peekNext().Type; next == tokICONST || next == tokFCONST {
-			p.advance()
-		}
-	}
+	p.skipOptPlus()
 	tok, err := p.parseReplicationNumber(false)
 	if err != nil {
 		return "", err
@@ -2394,14 +2389,30 @@ func (p *Parser) consumeIntegerOptionValue() (string, error) {
 }
 
 // consumeNumericOptionValue reads an option value that must be a number,
-// integer or decimal. A string, a keyword and a leading sign are each a 1064.
+// integer or decimal, after an optional '+' (skipOptPlus). A string, a keyword
+// and a '-' are each a 1064.
 func (p *Parser) consumeNumericOptionValue() (string, error) {
+	p.skipOptPlus()
 	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 		return "", p.syntaxErrorAtCur()
 	}
 	val := p.cur.Str
 	p.advance()
 	return val, nil
+}
+
+// skipOptPlus consumes the opt_plus that ulong_num and ulonglong_num take
+// before a decimal number: a '+' directly before an integer or a decimal, never
+// before a 0x one. real_ulong_num and real_ulonglong_num take none, so partition
+// options do not call it.
+//
+// Ref: opt_plus, ulong_num and ulonglong_num in MariaDB 11.8 sql/sql_yacc.yy:13072.
+func (p *Parser) skipOptPlus() {
+	if p.cur.Type == '+' {
+		if next := p.peekNext().Type; next == tokICONST || next == tokFCONST {
+			p.advance()
+		}
+	}
 }
 
 // consumeStringOptionValue reads an option value that must be a quoted string,
@@ -2434,6 +2445,7 @@ func (p *Parser) consumeZeroOneOrDefaultOptionValue() (string, error) {
 //
 // Ref: ulong_num and ternary_option in MariaDB 11.8 sql/sql_yacc.yy.
 func (p *Parser) consumeBoundedOptionValue(minimum, maximum uint64) (string, error) {
+	p.skipOptPlus()
 	if p.cur.Type != tokICONST && p.cur.Type != tokFCONST {
 		return "", p.syntaxErrorAtCur()
 	}

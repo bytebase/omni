@@ -453,6 +453,7 @@ func (p *Parser) parseIndexOption() (*nodes.IndexOption, bool, error) {
 	case p.cur.Type == kwKEY_BLOCK_SIZE:
 		p.advance()
 		p.matchEqual() // optional =
+		p.skipOptPlus()
 		valStart := p.pos()
 		// ulong_num takes a decimal and reads its whole part.
 		if p.cur.Type == tokICONST || p.cur.Type == tokFCONST {

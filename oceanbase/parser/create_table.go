@@ -442,8 +442,9 @@ func (p *Parser) parseColumnOption(col *nodes.ColumnDef) (bool, error) {
 		return true, nil
 
 	case kwCOLLATE:
+		// COLLATE collation_name (sql_parser_mysql_mode.y:7605).
 		p.advance()
-		collName, _, err := p.parseIdent()
+		collName, err := p.parseCollationName()
 		if err != nil {
 			return false, err
 		}
@@ -2758,10 +2759,14 @@ func (p *Parser) parseSubpartitionClause(part *nodes.PartitionClause) error {
 			return p.syntaxErrorAtCur()
 		}
 		p.advance()
-		if p.cur.Type == tokICONST {
-			part.NumSubParts = int(p.cur.Ival)
-			p.advance()
+		// opt_subpartitions is SUBPARTITIONS INTNUM (sql_parser_mysql_mode.y:9152):
+		// the count is required once the word is there, and OceanBase 4.3.5
+		// answers 1064 for SUBPARTITION BY HASH(a) SUBPARTITIONS alone.
+		if p.cur.Type != tokICONST {
+			return p.syntaxErrorAtCur()
 		}
+		part.NumSubParts = int(p.cur.Ival)
+		p.advance()
 	}
 	return nil
 }

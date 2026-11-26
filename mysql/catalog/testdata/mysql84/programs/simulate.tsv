@@ -19,6 +19,7 @@
 1054	1054	engine	one_table@missing	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	one_table@missing	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
 1054	1054	engine	one_table@missing	opt_ev_on_completion/ev_on_completion	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE DO COMMIT;
+1054	1054	engine	one_table@missing	opt_ev_on_completion/ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE DO COMMIT;
 1539	1539	engine	one_table@missing	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 1539	1539	engine	one_table@missing	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 1539	1539	engine	one_table@missing	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
@@ -79,6 +80,7 @@ ok:481c34c143f5	ok:481c34c143f5	engine	one_table@missing	sp_proc_stmt/sp_proc_st
 1539	1539	engine	one_table@missing	sp_unlabeled_control/WHILE_SYM_expr_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	ALTER EVENT utf8mb4 DO WHILE utf8mb4 DO COMMIT; END WHILE;
 1539	1539	engine	one_table@missing	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT;
 1054	1054	engine	one_table@missing	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
+1054	1054	engine	one_table@missing	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE;
 1551	1551	engine	one_table@missing	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	one_table@missing	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:75c7b3d9b21b	ok:75c7b3d9b21b	engine	one_table@missing	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
@@ -111,6 +113,7 @@ ok:00f49a3a0702	ok:00f49a3a0702	engine	one_table@missing	suite:type-collate	CREA
 1054	1054	engine	one_table@table	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	one_table@table	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
 1054	1054	engine	one_table@table	opt_ev_on_completion/ev_on_completion	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE DO COMMIT;
+1054	1054	engine	one_table@table	opt_ev_on_completion/ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE DO COMMIT;
 1539	1539	engine	one_table@table	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 1539	1539	engine	one_table@table	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 1539	1539	engine	one_table@table	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
@@ -171,6 +174,7 @@ ok:5ee90d6ff285	ok:5ee90d6ff285	engine	one_table@table	sp_proc_stmt/sp_proc_stmt
 1539	1539	engine	one_table@table	sp_unlabeled_control/WHILE_SYM_expr_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	ALTER EVENT utf8mb4 DO WHILE utf8mb4 DO COMMIT; END WHILE;
 1539	1539	engine	one_table@table	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT;
 1054	1054	engine	one_table@table	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
+1054	1054	engine	one_table@table	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE;
 1551	1551	engine	one_table@table	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	one_table@table	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:5873bd311d71	ok:5873bd311d71	engine	one_table@table	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
@@ -203,6 +207,7 @@ ok:0dd1fb555ed4	ok:0dd1fb555ed4	engine	objects@routine	simple_statement/drop_pro
 1054	1054	engine	objects@routine	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	objects@routine	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
 1054	1054	engine	objects@routine	opt_ev_on_completion/ev_on_completion	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE DO COMMIT;
+1054	1054	engine	objects@routine	opt_ev_on_completion/ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE DO COMMIT;
 1539	1539	engine	objects@routine	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 1539	1539	engine	objects@routine	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 1539	1539	engine	objects@routine	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
@@ -263,6 +268,7 @@ ok:3b338dc77888	ok:3b338dc77888	engine	objects@routine	sp_suid/SQL_SYM_SECURITY_
 1539	1539	engine	objects@routine	sp_unlabeled_control/WHILE_SYM_expr_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	ALTER EVENT utf8mb4 DO WHILE utf8mb4 DO COMMIT; END WHILE;
 1539	1539	engine	objects@routine	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT;
 1054	1054	engine	objects@routine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
+1054	1054	engine	objects@routine	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE;
 1551	1551	engine	objects@routine	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@routine	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:bd2666094b16	ok:bd2666094b16	engine	objects@routine	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
@@ -295,6 +301,7 @@ ok:6a102a367337	ok:6a102a367337	engine	objects@trigger	simple_statement/drop_tri
 1054	1054	engine	objects@trigger	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	objects@trigger	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
 1054	1054	engine	objects@trigger	opt_ev_on_completion/ev_on_completion	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE DO COMMIT;
+1054	1054	engine	objects@trigger	opt_ev_on_completion/ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE DO COMMIT;
 1539	1539	engine	objects@trigger	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 1539	1539	engine	objects@trigger	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 1539	1539	engine	objects@trigger	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
@@ -355,6 +362,7 @@ ok:468281bf1df1	ok:468281bf1df1	engine	objects@trigger	sp_proc_stmt/sp_proc_stmt
 1539	1539	engine	objects@trigger	sp_unlabeled_control/WHILE_SYM_expr_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	ALTER EVENT utf8mb4 DO WHILE utf8mb4 DO COMMIT; END WHILE;
 1539	1539	engine	objects@trigger	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT;
 1054	1054	engine	objects@trigger	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
+1054	1054	engine	objects@trigger	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE;
 1551	1551	engine	objects@trigger	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@trigger	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:c56d144ed865	ok:c56d144ed865	engine	objects@trigger	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
@@ -387,6 +395,7 @@ ok:0150f8691195	ok:0150f8691195	engine	objects@event	opt_ev_status/DISABLE_SYM	A
 1054	1054	engine	objects@event	ev_starts/STARTS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY STARTS utf8mb4;
 1054	1054	engine	objects@event	ev_ends/ENDS_SYM_expr	ALTER EVENT utf8mb4 ON SCHEDULE EVERY utf8mb4 DAY ENDS utf8mb4;
 1054	1054	engine	objects@event	opt_ev_on_completion/ev_on_completion	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE DO COMMIT;
+1054	1054	engine	objects@event	opt_ev_on_completion/ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	CREATE EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE DO COMMIT;
 ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	ev_on_completion/ON_SYM_COMPLETION_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION PRESERVE;
 ok:720db8a7e3fe	ok:720db8a7e3fe	engine	objects@event	ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON COMPLETION NOT PRESERVE;
 ok:b896ccb298f1	ok:b896ccb298f1	engine	objects@event	opt_ev_comment/COMMENT_SYM_TEXT_STRING_sys	ALTER EVENT utf8mb4 COMMENT 's';
@@ -447,6 +456,7 @@ ok:95c9025030b8	ok:95c9025030b8	engine	objects@event	sp_opt_label/label_ident!tr
 ok:27548aaac196	ok:27548aaac196	engine	objects@event	sp_unlabeled_control/WHILE_SYM_expr_DO_SYM_sp_proc_stmts1_END_WHILE_SYM	ALTER EVENT utf8mb4 DO WHILE utf8mb4 DO COMMIT; END WHILE;
 ok:9633fe9bfe86	ok:9633fe9bfe86	engine	objects@event	sp_unlabeled_control/REPEAT_SYM_sp_proc_stmts1_UNTIL_SYM_expr_END_REPEAT_SYM	ALTER EVENT utf8mb4 DO REPEAT COMMIT; UNTIL utf8mb4 END REPEAT;
 1054	1054	engine	objects@event	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION PRESERVE;
+1054	1054	engine	objects@event	ev_alter_on_schedule_completion/ON_SYM_SCHEDULE_SYM_ev_schedule_time_ev_on_completion+ev_on_completion/ON_SYM_COMPLETION_SYM_NOT_SYM_PRESERVE_SYM	ALTER EVENT utf8mb4 ON SCHEDULE AT utf8mb4 ON COMPLETION NOT PRESERVE;
 1551	1551	engine	objects@event	opt_ev_rename_to/RENAME_TO_SYM_sp_name	ALTER EVENT utf8mb4 RENAME TO utf8mb4;
 1305	1305	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident	DROP FUNCTION utf8mb4.utf8mb4;
 ok:36db948ea5c5	ok:36db948ea5c5	engine	objects@event	drop_function_stmt/DROP_FUNCTION_SYM_if_exists_ident_._ident+if_exists	DROP FUNCTION IF EXISTS utf8mb4.utf8mb4;
