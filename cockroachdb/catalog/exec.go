@@ -846,6 +846,21 @@ func (c *Catalog) checkSequences(expr tree.Expr) error {
 	return nil
 }
 
+// callsSequence reports whether a default calls nextval, currval or setval
+// on a sequence.
+func callsSequence(def, schema, name string) bool {
+	if def == "" {
+		return false
+	}
+	expr, err := parser.ParseExpr(def)
+	if err != nil {
+		return false
+	}
+	return slices.ContainsFunc(calledSequences(expr), func(tn *tree.TableName) bool {
+		return schemaOf(tn) == schema && string(tn.ObjectName) == name
+	})
+}
+
 // calledSequences returns the sequences an expression's nextval, currval and
 // setval name, each with its schema and name apart.
 func calledSequences(expr tree.Expr) []*tree.TableName {
@@ -1168,9 +1183,6 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 	for _, expr := range sel.Exprs {
 		exprs = append(exprs, expr.Expr)
 	}
-	for _, expr := range sel.DistinctOn {
-		exprs = append(exprs, expr)
-	}
 	for _, window := range sel.Window {
 		exprs = append(exprs, window.Partitions...)
 		for _, order := range window.OrderBy {
@@ -1194,7 +1206,12 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 			}
 		}
 	}
-	exprs = append(exprs, sel.GroupBy...)
+	// GROUP BY and DISTINCT ON may name an output column too.
+	for _, expr := range append(slices.Clone(sel.GroupBy), sel.DistinctOn...) {
+		if err := checkColumns(ordered, expr); err != nil {
+			return err
+		}
+	}
 	if sel.Where != nil {
 		exprs = append(exprs, sel.Where.Expr)
 	}
@@ -1919,7 +1936,11 @@ func isIdentChar(b byte) bool {
 
 // routineNamesType reports whether a routine's parameters or result have a
 // type, as the catalog names a user-defined type.
-func routineNamesType(definition, typ string) bool {
+func routineNamesType(definition, typ, name string) bool {
+	// The body is stored as written; a type it names is not rewritten.
+	if identifierIn(routineBody(definition), name) {
+		return true
+	}
 	stmt, err := parser.ParseOne(definition)
 	if err != nil {
 		return false
@@ -1965,7 +1986,7 @@ func (c *Catalog) labelUser(typ, label string) string {
 	c.eachTable(func(_ *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 		var texts []string
 		for _, column := range table.Columns {
-			if column.Type == typ || column.Type == typ+"[]" {
+			if column.Type == typ || column.Type == typ+"[]" || namesType(column.Default, typ) {
 				texts = append(texts, column.Default)
 			}
 			if column.Generation != nil {
@@ -2068,7 +2089,7 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 		}
 		// A routine names its parameter and result types by their schema.
 		for _, function := range s.Functions {
-			if routineNamesType(function.Definition, typ) {
+			if routineNamesType(function.Definition, typ, name) {
 				users = append(users, typeName(s.Name, function.Name))
 			}
 		}
@@ -2108,6 +2129,11 @@ func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
 		return nil
 	}
 	for _, s := range c.l.meta.Schemas {
+		for _, function := range s.Functions {
+			if identifierIn(routineBody(function.Definition), name) {
+				return &Error{Message: fmt.Sprintf("changing sequence %q, which routine %q may call, is not supported", name, function.Name)}
+			}
+		}
 		var definitions []string
 		for _, v := range s.Views {
 			definitions = append(definitions, v.Definition)
@@ -2189,7 +2215,7 @@ func (c *Catalog) routineTypeUser(schema, name string) error {
 	typ := typeName(schema, name)
 	for _, s := range c.l.meta.Schemas {
 		for _, function := range s.Functions {
-			if routineNamesType(function.Definition, typ) {
+			if routineNamesType(function.Definition, typ, name) {
 				return &Error{Message: fmt.Sprintf("renaming or moving type %q, which routine %q names, is not supported", typ, function.Name)}
 			}
 		}
@@ -2488,7 +2514,7 @@ func (c *Catalog) dropRelations(names tree.TableNames, ifExists bool, behavior t
 					return
 				}
 				for _, column := range table.Columns {
-					if slices.Contains(usedSequences(column.Default), t.s.Name+"."+t.name) {
+					if callsSequence(column.Default, t.s.Name, t.name) {
 						users = append(users, column)
 					}
 				}
@@ -3016,6 +3042,11 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 		}
 		if err := c.routineColumn(schema, table.Name, col.Name); err != nil {
 			return err
+		}
+		for _, index := range table.Indexes {
+			if strings.Contains(index.Definition, " PARTITION BY ") && identifierIn(index.Definition[strings.Index(index.Definition, " PARTITION BY "):], col.Name) {
+				return &Error{Message: fmt.Sprintf("renaming column %q, which index %q partitions by, is not supported", col.Name, index.Name)}
+			}
 		}
 		if columns[string(cmd.NewName)] {
 			return refuse(codeDuplicateColumn, "column %q of relation %q already exists", cmd.NewName, table.Name)

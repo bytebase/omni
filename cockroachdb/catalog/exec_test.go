@@ -410,3 +410,26 @@ func TestExecRound20(t *testing.T) {
 	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (a INT8); CREATE INDEX ix ON t ((CASE WHEN a > 0 THEN 'sad'::mood ELSE 'happy'::mood END)); ALTER TYPE mood DROP VALUE 'sad'")
 	require.Error(t, err)
 }
+
+func TestExecRound21(t *testing.T) {
+	for _, script := range []string{
+		"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT a AS b FROM t GROUP BY b",
+		"CREATE TABLE t (a INT8); CREATE VIEW v AS SELECT DISTINCT ON (b) a AS b FROM t",
+	} {
+		_, err := execLast(t, script)
+		require.NoError(t, err, script)
+	}
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (a STRING DEFAULT ('sad'::mood)::STRING); ALTER TYPE mood DROP VALUE 'sad'")
+	require.Equal(t, "2BP01", code(err))
+	c, err := execLast(t, `CREATE SCHEMA "a.b"; CREATE SCHEMA a; CREATE SEQUENCE "a.b".c; CREATE SEQUENCE a."b.c"; CREATE TABLE t (v INT8 DEFAULT nextval('a."b.c"')); DROP SEQUENCE "a.b".c`)
+	require.NoError(t, err)
+	require.NotEmpty(t, c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+	for _, script := range []string{
+		"CREATE TYPE mood AS ENUM ('sad'); CREATE FUNCTION f() RETURNS STRING LANGUAGE SQL AS $$ SELECT 'sad'::mood::STRING $$; ALTER TYPE mood RENAME TO feeling",
+		"CREATE SEQUENCE sq; CREATE FUNCTION f() RETURNS INT8 LANGUAGE SQL AS $$ SELECT nextval('sq') $$; ALTER SEQUENCE sq RENAME TO sq2",
+		"CREATE TABLE t (a INT8); CREATE INDEX ix ON t (a) PARTITION BY LIST (a) (PARTITION p VALUES IN (1)); ALTER TABLE t RENAME COLUMN a TO b",
+	} {
+		_, err := execLast(t, script)
+		require.Error(t, err, script)
+	}
+}
