@@ -457,3 +457,29 @@ func TestResolveQuerySpanPreferColumnsAlias(t *testing.T) {
 		t.Errorf("results %+v, want three", got.Results)
 	}
 }
+
+// Without a catalog, a column an open derived relation names is found
+// there before a later relation's column of that name.
+func TestResolveQuerySpanOpenRelationNamedColumn(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT email FROM (SELECT *, secret AS email FROM shop.secrets) AS a CROSS JOIN (SELECT 'public' AS email) AS b", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Results[0].SourceColumns[ColumnResource{Database: "shop", Table: "secrets", Column: "secret"}] {
+		t.Errorf("reads %v, want shop.secrets.secret among them", names(got.Results[0].SourceColumns))
+	}
+}
+
+// dictionary('db.d') reads the dictionary.
+func TestResolveQuerySpanDictionaryTableFunction(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT email FROM dictionary('shop.d')", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.d"}; !slices.Equal(names(got.SourceColumns), want) {
+		t.Errorf("tables %v, want %v", names(got.SourceColumns), want)
+	}
+	if want := []string{"shop.d.email"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+}

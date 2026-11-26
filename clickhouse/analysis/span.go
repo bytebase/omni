@@ -660,6 +660,16 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 		if strings.EqualFold(t.Func.Name, "merge") {
 			return r.merge(t.Func, name)
 		}
+		if dict, ok := dictionaryName(t.Func); ok {
+			// dictionary('db.d') reads the dictionary's rows: each column
+			// is that attribute of it.
+			database, table := r.database, dict
+			if db, d, ok := strings.Cut(dict, "."); ok {
+				database, table = db, d
+			}
+			r.tables[ColumnResource{Database: database, Table: table}] = true
+			return &relation{database: database, table: table, name: name, open: true}
+		}
 		return &relation{name: name, open: true}
 	case t.Table == "":
 		// A query parameter names the table: nothing to resolve.
@@ -705,6 +715,15 @@ var virtualColumns = map[string]bool{
 	"_part_granule_offset": true, "_part_uuid": true, "_part_data_version": true,
 	"_partition_id": true, "_partition_value": true, "_sample_factor": true,
 	"_row_exists": true, "_block_number": true, "_block_offset": true, "_disk_name": true,
+}
+
+// dictionaryName is the dictionary a dictionary('db.d') call reads.
+func dictionaryName(f *parser.FuncCallExpr) (string, bool) {
+	if !strings.EqualFold(f.Name, "dictionary") || len(f.Args) != 1 {
+		return "", false
+	}
+	lit, ok := f.Args[0].(*parser.LiteralExpr)
+	return lit.Val, ok && lit.Kind == "STRING"
 }
 
 // tableFunctionColumns are the one column of the table functions that read
@@ -1747,7 +1766,9 @@ func lookup(parts []string, sc *spanScope) (spanColumn, found) {
 			n     int
 		)
 		for _, rel := range rels {
-			if rel.open {
+			if rel.open && !slices.ContainsFunc(rel.columns, func(c spanColumn) bool { return c.name == name && !c.star }) {
+				// Only a column an open relation names counts here; its
+				// unknown ones are the fallback below.
 				continue
 			}
 			c, ok := rel.column(name)
