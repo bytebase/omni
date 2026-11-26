@@ -169,15 +169,15 @@ func (p *Parser) parseSampleSuffix(sc *ast.SampleClause) error {
 }
 
 // parseRepeatableClause parses `REPEATABLE ( <seed> )` (repeatable_clause). The
-// seed is a possibly-cast integer literal or parameter; we parse it as a general
-// expression (which subsumes CAST(...) and @param). REPEATABLE is the current
-// token. Returns the seed expression.
+// seed is possibly_cast_int_literal_or_parameter (googlesql.tm:6095): BigQuery
+// refuses `REPEATABLE(a)` with a syntax error. REPEATABLE is the current token.
+// Returns the seed expression.
 func (p *Parser) parseRepeatableClause() (ast.Node, error) {
 	p.advance() // REPEATABLE
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	seed, err := p.parseExpr()
+	seed, err := p.parseIntLiteralOrParameterOrCast()
 	if err != nil {
 		return nil, err
 	}

@@ -1681,11 +1681,18 @@ func (p *Parser) parseCaseExpr() (ast.Node, error) {
 // argument is not a valid expression, so it falls out as a syntax error
 // (oracle: `CAST(CAST AS INT64)` rejects).
 func (p *Parser) parseCastExpr(safe bool) (ast.Node, error) {
+	return p.parseCastWith(safe, p.parseExpr)
+}
+
+// parseCastWith parses a CAST whose operand operand parses: a full expression
+// for cast_expression, or int_literal_or_parameter for
+// cast_int_literal_or_parameter (googlesql.tm:6083).
+func (p *Parser) parseCastWith(safe bool, operand func() (ast.Node, error)) (ast.Node, error) {
 	castTok := p.advance() // CAST / SAFE_CAST
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
-	expr, err := p.parseExpr()
+	expr, err := operand()
 	if err != nil {
 		return nil, err
 	}

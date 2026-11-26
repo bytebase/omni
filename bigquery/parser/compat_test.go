@@ -23,18 +23,20 @@ import (
 
 // TestCompatibility holds omni's GoogleSQL parser to testdata/compat.tsv: a
 // statement for each alternative of GoogleSQL's grammar
-// (../../spanner/testdata/GoogleSQL.g4) and its near-misses, with omni's
+// (../../spanner/testdata/GoogleSQL.g4), written with the token forms and
+// opt-ins of BigQuery's own ../testdata/tokens.tsv, and its near-misses, with omni's
 // verdict and live BigQuery dry-run's verdict on the pinned Google Cloud
 // project (../testdata/pins.tsv). Offline runs read the committed file with no
 // credentials and no network access. OMNI_RECORD=1 judges unjudged rows via
 // BigQuery dry-run jobs (which execute nothing and mutate no datasets).
 func TestCompatibility(t *testing.T) {
 	gsqlTD := filepath.Join("..", "..", "spanner", "testdata")
+	td := filepath.Join("..", "testdata")
 	compat.Check(t, compat.Suite{
 		Path:    filepath.Join("testdata", "compat.tsv"),
-		Pins:    filepath.Join("..", "testdata", "pins.tsv"),
+		Pins:    filepath.Join(td, "pins.tsv"),
 		Grammar: filepath.Join(gsqlTD, "GoogleSQL.g4"),
-		Tokens:  filepath.Join(gsqlTD, "tokens.tsv"),
+		Tokens:  filepath.Join(td, "tokens.tsv"),
 		Omni:    omniVerdict,
 		Source:  compat.SourceEngine,
 		Judge:   compatJudge,
