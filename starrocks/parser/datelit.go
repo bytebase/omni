@@ -54,12 +54,12 @@ func validDateLiteral(s string) bool {
 	case strings.HasSuffix(s, "Z") || strings.HasSuffix(s, "]"):
 		return isoZonedDateTime(s)
 	case strings.Contains(s, "+"):
-		rest, ok := isoLocalDateTime(s)
+		t, rest, ok := isoLocalDateTime(s)
 		if !ok {
 			return false
 		}
-		rest, ok = isoOffset(rest)
-		return ok && rest == ""
+		rest, off, ok := isoOffset(rest)
+		return ok && rest == "" && t.inRangeAt(off)
 	case strings.Contains(s, ":"):
 		// DATETIME_FORMATTERS[isTwoDigit][withMs][withSplitT][withSec]:
 		// %Y-%m-%e or %y-%m-%e, ' ' or 'T', %H:%i, then :%s, then .%f, each
@@ -204,11 +204,12 @@ func monthDay(s string) (int, int, string, bool) {
 // isoZonedDateTime reads DateTimeFormatter.ISO_ZONED_DATE_TIME: a local date
 // and time, an offset, and an optional bracketed zone ID (see zoneID).
 func isoZonedDateTime(s string) bool {
-	rest, ok := isoLocalDateTime(s)
+	t, rest, ok := isoLocalDateTime(s)
 	if !ok {
 		return false
 	}
-	if rest, ok = isoOffset(rest); !ok {
+	rest, off, ok := isoOffset(rest)
+	if !ok || !t.inRangeAt(off) {
 		return false
 	}
 	if rest == "" {
@@ -246,26 +247,48 @@ func strictOffset(s string) bool {
 	if len(s) != 6 && len(s) != 9 || s[0] != '+' && s[0] != '-' || strings.Count(s, ":") != len(s)/3-1 {
 		return false
 	}
-	rest, ok := isoOffset(s)
+	rest, _, ok := isoOffset(s)
 	return ok && rest == ""
+}
+
+// An isoTime is the date and the whole seconds of the day an ISO local
+// date-time names.
+type isoTime struct{ y, m, d, secs int }
+
+// inRangeAt reports whether t at offset off seconds is still a LocalDateTime
+// once DateUtils converts it to the server's zone, UTC on the pinned image:
+// java.time's years end at ±999,999,999, and an offset of at most 18 hours
+// can only cross that on the last or first day.
+func (t isoTime) inRangeAt(off int) bool {
+	switch {
+	case t.y == 999999999 && t.m == 12 && t.d == 31 && off < 0:
+		return t.secs-off < 86400
+	case t.y == -999999999 && t.m == 1 && t.d == 1 && off > 0:
+		return t.secs >= off
+	}
+	return true
 }
 
 // isoLocalDateTime reads ISO_LOCAL_DATE_TIME, uuuu-MM-dd'T'HH:mm[:ss[.n]],
 // and returns what follows it. The year here takes four digits, or a sign
-// and four to nine.
-func isoLocalDateTime(s string) (string, bool) {
+// and four to ten.
+func isoLocalDateTime(s string) (isoTime, string, bool) {
+	var t isoTime
 	var y int
 	var ok bool
 	rest := s
 	if rest != "" && (rest[0] == '+' || rest[0] == '-') {
-		// SignStyle.EXCEEDS_PAD: a minus with four digits or more, a plus
-		// only with more than four, and YEAR's range of ±999,999,999.
+		// appendValue(YEAR, 4, 10, SignStyle.EXCEEDS_PAD): four to ten
+		// digits, a plus only with more than four, and YEAR's range of
+		// ±999,999,999.
 		neg := rest[0] == '-'
 		n := leadingDigits(rest[1:], 10)
-		if n < 4 || !neg && n == 4 || n > 9 {
-			return "", false
+		if n < 4 || !neg && n == 4 {
+			return t, "", false
 		}
-		y = atoiDigits(rest[1 : 1+n])
+		if y = atoiDigits(rest[1 : 1+n]); y > 999999999 {
+			return t, "", false
+		}
 		if neg {
 			y = -y
 		}
@@ -273,64 +296,64 @@ func isoLocalDateTime(s string) (string, bool) {
 	} else {
 		n := leadingDigits(rest, 4)
 		if n != 4 || leadingDigits(rest, 5) != 4 {
-			return "", false
+			return t, "", false
 		}
 		y, rest = atoiDigits(rest[:4]), rest[4:]
 	}
-	var m, d, hh, mm int
+	var m, d, hh, mm, ss int
 	if rest, ok = cut(rest, '-'); !ok {
-		return "", false
+		return t, "", false
 	}
 	if m, rest, ok = fixedDigits(rest, 2); !ok {
-		return "", false
+		return t, "", false
 	}
 	if rest, ok = cut(rest, '-'); !ok {
-		return "", false
+		return t, "", false
 	}
 	if d, rest, ok = fixedDigits(rest, 2); !ok || !validDay(y, m, d) {
-		return "", false
+		return t, "", false
 	}
 	if rest == "" || rest[0] != 'T' && rest[0] != 't' {
-		return "", false
+		return t, "", false
 	}
 	if hh, rest, ok = fixedDigits(rest[1:], 2); !ok || hh > 23 {
-		return "", false
+		return t, "", false
 	}
 	if rest, ok = cut(rest, ':'); !ok {
-		return "", false
+		return t, "", false
 	}
 	if mm, rest, ok = fixedDigits(rest, 2); !ok || mm > 59 {
-		return "", false
+		return t, "", false
 	}
 	if r, ok := cut(rest, ':'); ok {
-		ss, r, ok := fixedDigits(r, 2)
-		if !ok || ss > 59 {
-			return "", false
+		if ss, r, ok = fixedDigits(r, 2); !ok || ss > 59 {
+			return t, "", false
 		}
 		rest = r
 		if r, ok := cut(rest, '.'); ok {
 			rest = r[leadingDigits(r, 9):]
 		}
 	}
-	return rest, true
+	return isoTime{y, m, d, hh*3600 + mm*60 + ss}, rest, true
 }
 
-// isoOffset reads an offset ID: Z or z, or a sign and HH, HH:mm or HH:mm:ss, no
-// more than 18 hours.
-func isoOffset(s string) (string, bool) {
+// isoOffset reads an offset ID: Z or z, or a sign and HH, HH:mm or
+// HH:mm:ss, no more than 18 hours. It returns what follows and the offset
+// in seconds.
+func isoOffset(s string) (string, int, bool) {
 	if s == "" {
-		return "", false
+		return "", 0, false
 	}
 	// ISO_OFFSET_DATE_TIME reads its offset case-insensitively.
 	if s[0] == 'Z' || s[0] == 'z' {
-		return s[1:], true
+		return s[1:], 0, true
 	}
 	if s[0] != '+' && s[0] != '-' {
-		return "", false
+		return "", 0, false
 	}
 	hh, rest, ok := fixedDigits(s[1:], 2)
 	if !ok {
-		return "", false
+		return "", 0, false
 	}
 	secs := hh * 3600
 	for _, unit := range []int{60, 1} {
@@ -340,12 +363,15 @@ func isoOffset(s string) (string, bool) {
 		}
 		v, r, ok := fixedDigits(r, 2)
 		if !ok || v > 59 {
-			return "", false
+			return "", 0, false
 		}
 		secs += v * unit
 		rest = r
 	}
-	return rest, secs <= 18*3600
+	if s[0] == '-' {
+		secs = -secs
+	}
+	return rest, secs, secs <= 18*3600 && secs >= -18*3600
 }
 
 // validDay reports whether d is a day of month m of the proleptic Gregorian
