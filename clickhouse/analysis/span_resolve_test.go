@@ -416,3 +416,16 @@ func TestResolveQuerySpanDictionaryPredicates(t *testing.T) {
 		}
 	}
 }
+
+// Without a catalog, a column read from a subquery whose * a REPLACE
+// changed reads the replacement's own column, not one of its name.
+func TestResolveQuerySpanReplaceThroughDerived(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT email FROM (SELECT * REPLACE ((SELECT secret FROM shop.secrets LIMIT 1) AS email) FROM shop.customers)", ResolveOptions{DefaultDatabase: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sources := got.Results[0].SourceColumns
+	if !sources[ColumnResource{Database: "shop", Table: "secrets", Column: "secret"}] || sources[ColumnResource{Database: "shop", Table: "secrets", Column: "email"}] {
+		t.Errorf("reads %v, want shop.secrets.secret and no shop.secrets.email", names(sources))
+	}
+}

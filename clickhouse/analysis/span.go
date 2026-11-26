@@ -211,8 +211,9 @@ type relation struct {
 	// virtual marks a catalog table, whose virtual columns a name reads.
 	virtual bool
 	// starTables are the tables an unexpanded * of a derived relation
-	// read, whose columns an unknown name of it reads.
-	starTables SourceColumnSet
+	// read, whose columns an unknown name of it reads; starColumns are the
+	// columns the * is known to read, which such a name reads too.
+	starTables, starColumns SourceColumnSet
 	// r resolves a catalog table's ALIAS columns when they are read.
 	r *spanResolver
 }
@@ -234,6 +235,9 @@ func (rel *relation) column(name string) (spanColumn, bool) {
 		}
 		for t := range rel.starTables {
 			c.sources[ColumnResource{Database: t.Database, Table: t.Table, Column: name}] = true
+		}
+		for col := range rel.starColumns {
+			c.sources[col] = true
 		}
 		return c, true
 	}
@@ -829,10 +833,16 @@ func derived(name string, cols []spanColumn) *relation {
 		// The * stays in its place, so a * over the relation keeps it.
 		rel.open = true
 		if rel.starTables == nil {
-			rel.starTables = SourceColumnSet{}
+			rel.starTables, rel.starColumns = SourceColumnSet{}, SourceColumnSet{}
 		}
 		for t := range c.sources {
-			rel.starTables[ColumnResource{Database: t.Database, Table: t.Table}] = true
+			if t.Column == "" {
+				rel.starTables[t] = true
+			} else {
+				// A column the * is known to read (a REPLACE's), which any
+				// column of it may hold.
+				rel.starColumns[t] = true
+			}
 		}
 	}
 	return rel
@@ -1027,7 +1037,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			continue
 		}
 		if rel.open && len(rel.columns) == 0 {
-			sources := union(SourceColumnSet{}, rel.starTables)
+			sources := union(union(SourceColumnSet{}, rel.starTables), rel.starColumns)
 			if rel.table != "" {
 				sources[ColumnResource{Database: rel.database, Table: rel.table}] = true
 			}
@@ -1292,7 +1302,7 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 		if rel.open {
 			// Columns no metadata lists may match too: as an unexpanded *,
 			// what they read is the relation's tables.
-			sources := union(SourceColumnSet{}, rel.starTables)
+			sources := union(union(SourceColumnSet{}, rel.starTables), rel.starColumns)
 			if rel.table != "" {
 				sources[ColumnResource{Database: rel.database, Table: rel.table}] = true
 			}
@@ -1667,6 +1677,8 @@ func (r *spanResolver) inTable(parts []string, sc *spanScope, ctes *cteBinding) 
 			// A table no metadata describes: all of it.
 			out[ColumnResource{Database: rel.database, Table: rel.table}] = true
 		}
+		// A CTE whose * no metadata expanded: what the * read.
+		out = union(union(out, rel.starTables), rel.starColumns)
 	}
 	return out
 }
