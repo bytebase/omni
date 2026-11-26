@@ -1672,11 +1672,11 @@ func (w *spanWalker) buildPathRelation(path *ast.PathExpr, alias string) *relati
 }
 
 // addLeaf registers a leaf FROM relation in the current SELECT's lookup set
-// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. A
-// nil or unnamed relation is skipped (a join wrapper is unnamed — its sides are
-// registered individually).
+// (w.leaves), used to resolve `rel.col` / `rel.*` / bare-column references. An
+// unnamed relation (an unaliased subquery or UNNEST) is registered too: no
+// qualifier finds it, but a bare column still resolves to its projection.
 func (w *spanWalker) addLeaf(rel *relation) {
-	if rel == nil || rel.name == "" {
+	if rel == nil {
 		return
 	}
 	w.leaves.add(rel)

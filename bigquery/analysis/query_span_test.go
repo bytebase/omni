@@ -470,6 +470,27 @@ func TestGetQuerySpan_SourceColumns(t *testing.T) {
 	}
 }
 
+// TestGetQuerySpan_UnaliasedSubqueryColumn confirms a bare column of an
+// unaliased FROM subquery carries the subquery's sources: it once resolved to
+// none, which left the column unmasked.
+func TestGetQuerySpan_UnaliasedSubqueryColumn(t *testing.T) {
+	span, err := GetQuerySpan("SELECT x FROM (SELECT a AS x FROM t UNION ALL SELECT b FROM u)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	if len(span.Results) != 1 {
+		t.Fatalf("expected 1 result, got %d", len(span.Results))
+	}
+	var got []string
+	for _, sc := range span.Results[0].SourceColumns {
+		got = append(got, sc.Table+"."+sc.Column)
+	}
+	sort.Strings(got)
+	if !eqStrings(got, []string{"t.a", "u.b"}) {
+		t.Errorf("source columns = %v, want [t.a u.b]", got)
+	}
+}
+
 // TestGetQuerySpan_LambdaParamsExcluded confirms a lambda's bound parameter is
 // not recorded as a column reference, while a free column inside the lambda is.
 func TestGetQuerySpan_LambdaParamsExcluded(t *testing.T) {
