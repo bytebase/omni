@@ -775,7 +775,7 @@ func (b *builder) constraint(t walk.Key, rv *ast.RangeVar, con *ast.Constraint, 
 					continue
 				}
 				col, ok := storedKey(name.Str)
-				if !ok || b.colTouch[col] > 0 {
+				if !ok || b.colTouch[col] > 0 || fkTarget.key == t && b.colTouch[pkCols[i]] > 0 {
 					continue
 				}
 				fc, ok := b.w.syncedCol(t, col)

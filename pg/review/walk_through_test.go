@@ -1079,6 +1079,7 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER TABLE t ALTER n TYPE boolean;\nCREATE INDEX ON t (id) WHERE n;",
 		"ALTER TABLE t ALTER n TYPE boolean, ADD EXCLUDE (id WITH =) WHERE (n);",
 		"ALTER TABLE u ALTER n TYPE integer, ADD FOREIGN KEY (n) REFERENCES t;",
+		"ALTER TABLE t ALTER id TYPE boolean USING id::boolean, ADD FOREIGN KEY (flag) REFERENCES t;",
 		// Sibling subcommands replacing primary key before self-referencing FK.
 		"ALTER TABLE t DROP CONSTRAINT t_pkey, ADD PRIMARY KEY (id, flag), ADD FOREIGN KEY (id, flag) REFERENCES t;",
 		// Function-style type coercion in index expression (e.g. unsynced domain).
