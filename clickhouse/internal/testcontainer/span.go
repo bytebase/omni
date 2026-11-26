@@ -78,6 +78,15 @@ type SpanRelation struct {
 	Columns []string `json:"columns"`
 	// Definition is a view's create_table_query.
 	Definition string `json:"definition,omitempty"`
+	// Computed holds the ALIAS and MATERIALIZED columns, by name: their
+	// kind and their expression.
+	Computed map[string]SpanComputed `json:"computed,omitempty"`
+}
+
+// SpanComputed is an ALIAS or MATERIALIZED column.
+type SpanComputed struct {
+	Kind       string `json:"kind"`
+	Expression string `json:"expression"`
 }
 
 // SpanAnswer is what ClickHouse states about one query.
@@ -183,7 +192,7 @@ func (l *spanLive) fixture(ctx context.Context, sqlText string) (SpanFixture, er
 		}
 	}
 	found, err := rows(ctx, root, `
-		SELECT t.database, t.name, t.engine, t.create_table_query, t.as_select, c.name
+		SELECT t.database, t.name, t.engine, t.create_table_query, t.as_select, c.name, c.default_kind, c.default_expression
 		FROM system.tables AS t
 		INNER JOIN system.columns AS c ON c.database = t.database AND c.table = t.name
 		WHERE t.database NOT IN ('system', 'information_schema', 'INFORMATION_SCHEMA')
@@ -193,7 +202,7 @@ func (l *spanLive) fixture(ctx context.Context, sqlText string) (SpanFixture, er
 	}
 	l.views = map[string]string{}
 	for _, r := range found {
-		database, name, engine, definition, asSelect, column := r[0], r[1], r[2], r[3], r[4], r[5]
+		database, name, engine, definition, asSelect, column, kind, expression := r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]
 		if n := len(fx.Databases); n == 0 || fx.Databases[n-1].Name != database {
 			fx.Databases = append(fx.Databases, SpanDatabase{Name: database})
 		}
@@ -208,6 +217,12 @@ func (l *spanLive) fixture(ctx context.Context, sqlText string) (SpanFixture, er
 		}
 		rel := &(*list)[len(*list)-1]
 		rel.Columns = append(rel.Columns, column)
+		if kind == "ALIAS" || kind == "MATERIALIZED" {
+			if rel.Computed == nil {
+				rel.Computed = map[string]SpanComputed{}
+			}
+			rel.Computed[column] = SpanComputed{Kind: kind, Expression: expression}
+		}
 	}
 	return fx, nil
 }
@@ -522,11 +537,6 @@ func (w *treeWalker) expr(n *treeNode) error {
 }
 
 func (w *treeWalker) column(n *treeNode) error {
-	if e := n.section("EXPRESSION"); e != nil {
-		// A column the analyzer computed: a USING column (each side's), an
-		// ARRAY JOIN alias, or an ALIAS column.
-		return w.expr(e)
-	}
 	src, err := strconv.Atoi(n.field("source_id"))
 	if err != nil {
 		return fmt.Errorf("column %d has no source: %q", n.id, n.text)
@@ -536,6 +546,15 @@ func (w *treeWalker) column(n *treeNode) error {
 		return fmt.Errorf("column %d's source %d is not in the tree", n.id, src)
 	}
 	name := n.field("column_name")
+	if e := n.section("EXPRESSION"); e != nil {
+		// A column the analyzer computed: a USING column (each side's), an
+		// ARRAY JOIN alias, or a table's ALIAS column, which is also read
+		// by its own name.
+		if source.kind == "TABLE" {
+			w.out = append(w.out, source.field("table_name")+"."+name)
+		}
+		return w.expr(e)
+	}
 	switch source.kind {
 	case "TABLE":
 		table := source.field("table_name")

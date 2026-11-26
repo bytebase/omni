@@ -330,3 +330,7 @@ SELECT events.attrs.v FROM events
 SELECT * FROM events
 SELECT id, k FROM events ARRAY JOIN attrs.k AS k
 SELECT id, attrs.k FROM events ARRAY JOIN attrs
+SELECT * FROM calc
+SELECT a, m FROM calc
+SELECT id, upper(a) FROM calc
+SELECT calc.* FROM calc

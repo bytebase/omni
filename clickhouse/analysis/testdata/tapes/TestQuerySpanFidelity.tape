@@ -1435,8 +1435,9 @@
 | fixture
 | CREATE DATABASE lab
 | CREATE TABLE lab.events (id UInt32, attrs Nested(k String, v UInt32)) ENGINE = MergeTree ORDER BY id
+| CREATE TABLE lab.calc (id UInt32, secret String, a String ALIAS concat(secret, '!'), m UInt32 MATERIALIZED id * 2) ENGINE = MergeTree ORDER BY id
 < raw
-| {"databases":[{"name":"lab","tables":[{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
+| {"databases":[{"name":"lab","tables":[{"name":"calc","columns":["id","secret","a","m"],"computed":{"a":{"kind":"ALIAS","expression":"concat(secret, '!')"},"m":{"kind":"MATERIALIZED","expression":"id * 2"}}},{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
 > raw
 | span lab
 | SELECT attrs.k FROM events
@@ -1462,3 +1463,23 @@
 | SELECT id, attrs.k FROM events ARRAY JOIN attrs
 < raw
 | {"columns":["id","attrs.k"],"lineage":[["lab.events.id"],["lab.events.attrs.k","lab.events.attrs.v"]],"tables":["lab.events"]}
+> raw
+| span lab
+| SELECT * FROM calc
+< raw
+| {"columns":["id","secret"],"lineage":[["lab.calc.id"],["lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT a, m FROM calc
+< raw
+| {"columns":["a","m"],"lineage":[["lab.calc.a","lab.calc.secret"],["lab.calc.m"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT id, upper(a) FROM calc
+< raw
+| {"columns":["id","upper(a)"],"lineage":[["lab.calc.id"],["lab.calc.a","lab.calc.secret"]],"tables":["lab.calc"]}
+> raw
+| span lab
+| SELECT calc.* FROM calc
+< raw
+| {"columns":["id","secret"],"lineage":[["lab.calc.id"],["lab.calc.secret"]],"tables":["lab.calc"]}

@@ -117,7 +117,13 @@ func spanCatalog(fx testcontainer.SpanFixture) Catalog {
 			return out
 		}
 		for _, t := range d.Tables {
-			db.tables[t.Name] = &metadata.TableMetadata{Name: t.Name, Columns: columns(t.Columns)}
+			table := &metadata.TableMetadata{Name: t.Name, Columns: columns(t.Columns)}
+			for _, c := range table.Columns {
+				if computed, ok := t.Computed[c.Name]; ok {
+					c.Generation = generation(computed)
+				}
+			}
+			db.tables[t.Name] = table
 		}
 		for _, v := range d.Views {
 			db.views[v.Name] = &metadata.ViewMetadata{Name: v.Name, Definition: v.Definition, Columns: columns(v.Columns)}
@@ -132,6 +138,15 @@ func spanCatalog(fx testcontainer.SpanFixture) Catalog {
 			return nil, nil
 		},
 	}
+}
+
+// generation is an ALIAS or MATERIALIZED column as a sync records it.
+func generation(c testcontainer.SpanComputed) *metadata.GenerationMetadata {
+	g := &metadata.GenerationMetadata{Type: metadata.GenerationMetadata_TYPE_STORED, Expression: c.Expression}
+	if c.Kind == "ALIAS" {
+		g.Type = metadata.GenerationMetadata_TYPE_VIRTUAL
+	}
+	return g
 }
 
 type spanDatabase struct {

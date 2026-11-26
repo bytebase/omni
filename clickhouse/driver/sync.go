@@ -177,6 +177,9 @@ func (d *Driver) syncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err := columnRows.Close(); err != nil {
 		return nil, err
 	}
+	if err := d.syncComputedColumns(ctx, databaseName, columnMap); err != nil {
+		return nil, err
+	}
 
 	// system.tables is used rather than information_schema.tables because it
 	// carries the engine. metadata_modification_time is not selected: Bytebase
@@ -271,6 +274,42 @@ func (d *Driver) syncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		Name:    databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
 	}, nil
+}
+
+// syncComputedColumns records each ALIAS and MATERIALIZED column's kind as
+// its Generation: information_schema.columns lists them with the others,
+// but SELECT * leaves them out, and an ALIAS column is computed from its
+// expression whenever it is read.
+func (d *Driver) syncComputedColumns(ctx context.Context, database string, columnMap map[string][]*metadatapb.ColumnMetadata) error {
+	const query = `
+		SELECT table, name, default_kind, default_expression
+		FROM system.columns
+		WHERE database = $1 AND default_kind IN ('ALIAS', 'MATERIALIZED')
+		ORDER BY table, name`
+	rows, err := d.db.QueryContext(ctx, query, database)
+	if err != nil {
+		return formatErrorWithQuery(err, query)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var table, name, kind, expression string
+		if err := rows.Scan(&table, &name, &kind, &expression); err != nil {
+			return err
+		}
+		generation := &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_STORED, Expression: expression}
+		if kind == "ALIAS" {
+			generation.Type = metadatapb.GenerationMetadata_TYPE_VIRTUAL
+		}
+		for _, column := range columnMap[table] {
+			if column.Name == name {
+				column.Generation = generation
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return formatErrorWithQuery(err, query)
+	}
+	return rows.Close()
 }
 
 // splitKeyExpressions splits ClickHouse's comma-separated sorting key, primary

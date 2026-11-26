@@ -913,6 +913,19 @@
 |
 > query
 |
+| 		SELECT table, name, default_kind, default_expression
+| 		FROM system.columns
+| 		WHERE database = $1 AND default_kind IN ('ALIAS', 'MATERIALIZED')
+| 		ORDER BY table, name
+: string
+| omni_testdumprestores
+< result
+< column "table" "String" "string"
+< column "name" "String" "string"
+< column "default_kind" "String" "string"
+< column "default_expression" "String" "string"
+> query
+|
 | 		SELECT
 | 			name,
 | 			engine,
@@ -3810,6 +3823,19 @@
 |
 : string
 |
+> query
+|
+| 		SELECT table, name, default_kind, default_expression
+| 		FROM system.columns
+| 		WHERE database = $1 AND default_kind IN ('ALIAS', 'MATERIALIZED')
+| 		ORDER BY table, name
+: string
+| omni_testdumprestores
+< result
+< column "table" "String" "string"
+< column "name" "String" "string"
+< column "default_kind" "String" "string"
+< column "default_expression" "String" "string"
 > query
 |
 | 		SELECT

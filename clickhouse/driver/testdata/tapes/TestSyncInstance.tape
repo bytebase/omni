@@ -20,7 +20,9 @@
 |   price Decimal(18, 4) DEFAULT 1.5,
 |   point Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL),
 |   matrix Array(Array(Nullable(Decimal(9, 3)))),
-|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])
+|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2]),
+|   label String ALIAS concat(name, '!'),
+|   doubled UInt64 MATERIALIZED id * 2
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)

@@ -166,6 +166,9 @@ type spanColumn struct {
 	// hidden marks the right side's USING column, which * skips and only a
 	// qualified name reads.
 	hidden bool
+	// omitted marks an ALIAS or MATERIALIZED column, which * skips and a
+	// name reads.
+	omitted bool
 	// rel is the FROM relation the column was read from, if any.
 	rel *relation
 }
@@ -804,11 +807,19 @@ func (r *spanResolver) relation(database, table string) (cols []spanColumn, open
 	}
 	if t := db.GetTable(table); t != nil {
 		for _, c := range t.Columns {
-			cols = append(cols, spanColumn{
+			col := spanColumn{
 				name:    c.Name,
 				sources: SourceColumnSet{{Database: database, Table: table, Column: c.Name}: true},
 				plain:   true,
-			})
+				// An ALIAS or MATERIALIZED column is not one of *'s.
+				omitted: c.Generation != nil,
+			}
+			if g := c.Generation; g != nil && g.Type == metadata.GenerationMetadata_TYPE_VIRTUAL && g.Expression != "" {
+				// An ALIAS column is computed when it is read.
+				col.sources = union(col.sources, r.aliasColumn(database, table, g.Expression))
+				col.plain = false
+			}
+			cols = append(cols, col)
 		}
 		return cols, false, true
 	}
@@ -817,6 +828,39 @@ func (r *spanResolver) relation(database, table string) (cols []spanColumn, open
 	}
 	r.missing(NotFoundError{Database: &database, Table: &table})
 	return nil, false, false
+}
+
+// aliasColumn resolves an ALIAS column's expression against its table.
+func (r *spanResolver) aliasColumn(database, table, expression string) SourceColumnSet {
+	key := ColumnResource{Database: database, Table: table, Column: "ALIAS"}
+	if r.resolving[key] {
+		// The table's other ALIAS columns, read by this one, are resolved
+		// as its plain columns.
+		return nil
+	}
+	quote := func(name string) string { return "`" + strings.ReplaceAll(name, "`", "``") + "`" }
+	text := "SELECT (" + expression + ") FROM " + quote(database) + "." + quote(table)
+	stmts, err := parser.Parse(text)
+	if err != nil || len(stmts) != 1 {
+		r.err = errors.Join(r.err, fmt.Errorf("ALIAS column of %s.%s: %q does not parse: %v", database, table, expression, err))
+		return nil
+	}
+	q, ok := stmts[0].(*parser.SelectUnionStmt)
+	if !ok {
+		r.err = errors.Join(r.err, fmt.Errorf("ALIAS column of %s.%s: %q is not an expression", database, table, expression))
+		return nil
+	}
+	r.resolving[key] = true
+	savedDB, savedText := r.database, r.text
+	r.database, r.text = database, text
+	cols := r.query(q, nil, nil)
+	r.database, r.text = savedDB, savedText
+	delete(r.resolving, key)
+	out := SourceColumnSet{}
+	for _, c := range cols {
+		out = union(out, c.sources)
+	}
+	return out
 }
 
 // view resolves a view's stored definition in the view's database, once: its
@@ -888,7 +932,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			switch {
 			case c.star:
 				out = append(out, c)
-			case !c.hidden:
+			case !c.hidden && !c.omitted:
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)
@@ -1105,7 +1149,7 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 			continue
 		}
 		for _, c := range rel.columns {
-			if !c.hidden && !c.star && re.MatchString(c.name) {
+			if !c.hidden && !c.omitted && !c.star && re.MatchString(c.name) {
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)
@@ -1155,10 +1199,20 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		}
 		if lambda := r.lambdaAlias(n.Name, sc); lambda != nil {
 			// A WITH-bound lambda called by its alias reads what its body
-			// reads besides its arguments.
-			r.resolving[lambda] = true
-			out = r.expr(lambda, sc, ctes)
-			delete(r.resolving, lambda)
+			// reads besides its arguments, resolved once per scope as an
+			// alias is.
+			key := aliasUse{lambda, sc}
+			if memo, ok := r.aliasMemo[key]; ok {
+				out = memo
+			} else {
+				skipped := r.skipped
+				r.resolving[lambda] = true
+				out = r.expr(lambda, sc, ctes)
+				delete(r.resolving, lambda)
+				if r.skipped == skipped {
+					r.aliasMemo[key] = out
+				}
+			}
 		}
 		if re, ok := columnsMatcher(n); ok {
 			// COLUMNS('re') in an expression is the columns it matches.
@@ -1394,6 +1448,10 @@ func (r *spanResolver) inTable(parts []string, sc *spanScope, ctes *cteBinding) 
 	if rel := r.tableExpr(t, sc, ctes); rel != nil {
 		for _, c := range rel.columns {
 			out = union(out, c.sources)
+		}
+		if rel.open && rel.table != "" {
+			// A table no metadata describes: all of it.
+			out[ColumnResource{Database: rel.database, Table: rel.table}] = true
 		}
 	}
 	return out

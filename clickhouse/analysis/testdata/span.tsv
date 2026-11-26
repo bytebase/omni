@@ -864,3 +864,15 @@ lab.events	lab.events	engine	nested	lab	tables	SELECT id, k FROM events ARRAY JO
 id, attrs.k	id, attrs.k	engine	nested	lab	results	SELECT id, attrs.k FROM events ARRAY JOIN attrs
 lab.events.id | lab.events.attrs.k lab.events.attrs.v	lab.events.id | lab.events.attrs.k lab.events.attrs.v	engine	nested	lab	lineage	SELECT id, attrs.k FROM events ARRAY JOIN attrs
 lab.events	lab.events	engine	nested	lab	tables	SELECT id, attrs.k FROM events ARRAY JOIN attrs
+id, secret	id, secret	engine	nested	lab	results	SELECT * FROM calc
+lab.calc.id | lab.calc.secret	lab.calc.id | lab.calc.secret	engine	nested	lab	lineage	SELECT * FROM calc
+lab.calc	lab.calc	engine	nested	lab	tables	SELECT * FROM calc
+a, m	a, m	engine	nested	lab	results	SELECT a, m FROM calc
+lab.calc.a lab.calc.secret | lab.calc.m	lab.calc.a lab.calc.secret | lab.calc.m	engine	nested	lab	lineage	SELECT a, m FROM calc
+lab.calc	lab.calc	engine	nested	lab	tables	SELECT a, m FROM calc
+id, upper(a)	id, upper(a)	engine	nested	lab	results	SELECT id, upper(a) FROM calc
+lab.calc.id | lab.calc.a lab.calc.secret	lab.calc.id | lab.calc.a lab.calc.secret	engine	nested	lab	lineage	SELECT id, upper(a) FROM calc
+lab.calc	lab.calc	engine	nested	lab	tables	SELECT id, upper(a) FROM calc
+id, secret	id, secret	engine	nested	lab	results	SELECT calc.* FROM calc
+lab.calc.id | lab.calc.secret	lab.calc.id | lab.calc.secret	engine	nested	lab	lineage	SELECT calc.* FROM calc
+lab.calc	lab.calc	engine	nested	lab	tables	SELECT calc.* FROM calc
