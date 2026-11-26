@@ -5,6 +5,7 @@ import (
 
 	"github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/review"
+	"github.com/bytebase/omni/review/walk"
 )
 
 // mariadbCharsets are the character sets MariaDB 11.8 has (SHOW
@@ -204,4 +205,102 @@ func (b *builder) alterOptionTextFails(v *ast.AlterTableStmt) bool {
 		}
 	}
 	return b.optionTextFails(opts, convert, cols)
+}
+
+// innoDBTableOptions are the engine-defined table options InnoDB defines
+// (ha_innodb.cc's innodb_table_option_list). It defines none of a column
+// or of a key.
+var innoDBTableOptions = map[string]bool{
+	"page_compressed": true, "page_compression_level": true,
+	"encrypted": true, "encryption_key_id": true,
+}
+
+// unknownOption is the text for an engine-defined option the table's
+// engine doesn't define (1911).
+func unknownOption(engine, name string) string {
+	return "Storage engine " + review.Code(engine) + " has no option " + review.Code(name) + "."
+}
+
+// innoDBOptionsFail fails an ALTER TABLE of a synced InnoDB table that it
+// leaves on InnoDB, under the default sql_mode and innodb_strict_mode,
+// for an option InnoDB doesn't take (verified on mariadb:11.8.8):
+//
+//   - an engine-defined option, `name = value`, that InnoDB doesn't define
+//     for the table, or any of a column or of a key but a VECTOR key's M
+//     and DISTANCE (1911), which IGNORE_BAD_TABLE_OPTIONS would let
+//     through, unless the column or key is added IF NOT EXISTS;
+//   - ROW_FORMAT FIXED or PAGE (1478).
+func (b *builder) innoDBOptionsFail(v *ast.AlterTableStmt, r tableRef) bool {
+	st := b.syncedOf(r)
+	if st == nil || st.engine != "innodb" || b.w.sqlModeSet || b.w.strictSet {
+		return false
+	}
+	if _, sets := alterEngine(v); sets {
+		return false
+	}
+	keyOptionFails := func(con *ast.Constraint) bool {
+		if con == nil || con.IfNotExists {
+			return false
+		}
+		for _, o := range con.IndexOptions {
+			if o == nil || !o.Engine {
+				continue
+			}
+			if n := strings.ToLower(o.Name); con.Type == ast.ConstrVector && (n == "m" || n == "distance") {
+				continue
+			}
+			b.fail(rangeOf(o.Loc), []walk.Key{relKey(r.db, r.name)}, review.UnsupportedForm, unknownOption("InnoDB", o.Name))
+			return true
+		}
+		return false
+	}
+	rowFormat := ""
+	for _, c := range v.Commands {
+		if c == nil {
+			continue
+		}
+		// An addition IF NOT EXISTS skips when its name is there, and the
+		// walk leaves it alone.
+		if c.IfNotExists {
+			continue
+		}
+		cols := c.Columns
+		if c.Column != nil {
+			cols = append([]*ast.ColumnDef{c.Column}, cols...)
+		}
+		for _, col := range cols {
+			if col != nil && len(col.EngineOptions) > 0 {
+				b.fail(rangeOf(col.Loc), []walk.Key{relKey(r.db, r.name)}, review.UnsupportedForm, unknownOption("InnoDB", col.EngineOptions[0].Name))
+				return true
+			}
+		}
+		if keyOptionFails(c.Constraint) {
+			return true
+		}
+		for _, con := range c.Constraints {
+			if keyOptionFails(con) {
+				return true
+			}
+		}
+		if c.Type != ast.ATTableOption || c.Option == nil {
+			continue
+		}
+		o := c.Option
+		if o.EngineDefined {
+			if !innoDBTableOptions[strings.ToLower(o.Name)] {
+				b.fail(rangeOf(o.Loc), []walk.Key{relKey(r.db, r.name)}, review.UnsupportedForm, unknownOption("InnoDB", o.Name))
+				return true
+			}
+			continue
+		}
+		if optionName(o) == "ROW_FORMAT" {
+			rowFormat = strings.ToUpper(optionValue(o))
+		}
+	}
+	if rowFormat == "FIXED" || rowFormat == "PAGE" {
+		b.fail(b.anchor(), []walk.Key{relKey(r.db, r.name)}, review.UnsupportedForm,
+			"Storage engine "+review.Code("InnoDB")+" doesn't take "+review.Code("ROW_FORMAT="+rowFormat)+".")
+		return true
+	}
+	return false
 }

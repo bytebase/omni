@@ -814,7 +814,8 @@ func TestWalkThroughMariaDBTypesAndQueries(t *testing.T) {
 	// Key parts judged by their columns' types (1283, 1210, 1089).
 	oneFinding(t, "ALTER TABLE ty ADD FULLTEXT (n);", 0, "Column `n` cannot be part of a `FULLTEXT` index.", shop)
 	oneFinding(t, "CREATE SPATIAL INDEX k ON ty (n);", 0, "Column `n` cannot be part of a `SPATIAL` index.", shop)
-	oneFinding(t, "ALTER TABLE ty ADD KEY USING RTREE (s);", 0, "Column `s` cannot be part of a `SPATIAL` index.", shop)
+	oneFinding(t, "ALTER TABLE ty ADD KEY USING RTREE (s);", 0, "Only a `SPATIAL` key can be an `RTREE` key.", shop)
+	oneFinding(t, "CREATE INDEX k USING RTREE ON ty (s);", 0, "Only a `SPATIAL` key can be an `RTREE` key.", shop)
 	oneFinding(t, "ALTER TABLE ty ADD VECTOR (n);", 0, "Column `n` cannot be part of a `VECTOR` index.", shop)
 	oneFinding(t, "ALTER TABLE ty ADD KEY (n(3));", 0, "Column `n` cannot use an index prefix length.", shop)
 	oneFinding(t, "ALTER TABLE ty ADD COLUMN m DATE;\nCREATE FULLTEXT INDEX k ON ty (m);", 1, "Column `m` cannot be part of a `FULLTEXT` index.", shop)

@@ -83,7 +83,7 @@ func constraintKeyKind(c *ast.Constraint) keyKind {
 	switch {
 	case c.Type == ast.ConstrFulltextIndex:
 		return keyFulltext
-	case c.Type == ast.ConstrSpatialIndex, strings.EqualFold(c.IndexType, "RTREE"):
+	case c.Type == ast.ConstrSpatialIndex:
 		return keySpatial
 	case c.Type == ast.ConstrVector:
 		return keyVector
@@ -95,7 +95,7 @@ func createIndexKeyKind(v *ast.CreateIndexStmt) keyKind {
 	switch {
 	case v.Fulltext:
 		return keyFulltext
-	case v.Spatial, strings.EqualFold(v.IndexType, "RTREE"):
+	case v.Spatial:
 		return keySpatial
 	case v.Vector:
 		return keyVector
@@ -105,7 +105,7 @@ func createIndexKeyKind(v *ast.CreateIndexStmt) keyKind {
 
 // keyPartTypesFail fails a key whose plain column part has a type the
 // key refuses (verified on mariadb:11.8.8): a FULLTEXT key a column that
-// is no character string (1283), a SPATIAL or RTREE key one that is no
+// is no character string (1283), a SPATIAL key one that is no
 // geometry and a VECTOR key one that is no vector (1210, "Incorrect
 // arguments to SPATIAL INDEX"), and any other key a prefix of a column
 // that is no string (1089). typeOf returns a column's base type, ""

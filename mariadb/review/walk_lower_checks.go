@@ -173,6 +173,12 @@ func syncedSequenceValues(q *metadata.SequenceMetadata) (sequenceValues, bool) {
 func (b *builder) checkSequenceValues(v *ast.AlterSequenceStmt, r tableRef, k walk.Key) {
 	values, known := b.w.sequences[k]
 	forget := func() { b.Session(func() { delete(b.w.sequences, k) }) }
+	// AS beside any other option is 1235, which the walk leaves alone.
+	if known && v.DataType != nil && !b.w.sqlModeSet && *v == (ast.AlterSequenceStmt{Loc: v.Loc, Name: v.Name, IfExists: v.IfExists, DataType: v.DataType}) &&
+		sequenceTypeFails(v.DataType, values) {
+		b.fail(r.rng, nil, review.UnsupportedForm, "Sequence "+review.Code(r.written)+" has a value out of the range of "+review.Code(strings.ToUpper(v.DataType.Name))+".") // 1264
+		return
+	}
 	if !known || v.DataType != nil || v.NoMinValue || v.NoMaxValue {
 		forget()
 		return
@@ -197,6 +203,34 @@ func (b *builder) checkSequenceValues(v *ast.AlterSequenceStmt, r tableRef, k wa
 		return
 	}
 	b.Session(func() { b.w.sequences[k] = next })
+}
+
+// sequenceSignedBits are the integer types a sequence may take, by their
+// width in bits.
+var sequenceSignedBits = map[string]uint{"tinyint": 8, "smallint": 16, "mediumint": 24, "int": 32, "integer": 32, "bigint": 64}
+
+// sequenceTypeFails reports whether a sequence's minimum, maximum, or start
+// value lies outside the integer type ALTER SEQUENCE ... AS gives it, which
+// MariaDB refuses with 1264: it changes the value columns of the sequence's
+// table to the type (verified on mariadb:11.8.8). A type that is no integer
+// the walk leaves alone.
+func sequenceTypeFails(t *ast.DataType, values sequenceValues) bool {
+	bits, ok := sequenceSignedBits[strings.ToLower(t.Name)]
+	if !ok {
+		return false
+	}
+	lo := new(big.Int).Neg(new(big.Int).Lsh(big.NewInt(1), bits-1))
+	hi := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), bits-1), big.NewInt(1))
+	if t.Unsigned {
+		lo.SetInt64(0)
+		hi.Sub(new(big.Int).Lsh(big.NewInt(1), bits), big.NewInt(1))
+	}
+	for _, n := range []*big.Int{values.min, values.max, values.start} {
+		if n.Cmp(lo) < 0 || n.Cmp(hi) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkSequenceIncrement rejects an INCREMENT outside MariaDB's signed 64-bit
