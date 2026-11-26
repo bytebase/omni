@@ -717,6 +717,23 @@ func (p *parser) parsePrimaryExpr() (Expr, error) {
 				Type: &DataType{span: span{Pos: tok.Pos, End: tok.End}, Name: "DateTime"},
 			}, nil
 		}
+	case KwExists:
+		// EXISTS (subquery) is the function exists applied to the subquery
+		// (ParserExistsExpression in src/Parsers/ExpressionElementParsers.cpp).
+		if p.peek(1).Type == TokLParen {
+			save := p.pos
+			p.advance()
+			if p.looksLikeSelect() {
+				sub, err := p.parseParenOrSubqueryOrTuple()
+				if err != nil {
+					return nil, err
+				}
+				if sq, ok := sub.(*SubqueryExpr); ok {
+					return &FuncCallExpr{span: span{Pos: tok.Pos, End: sq.End}, Name: "exists", Args: []Expr{sq}}, nil
+				}
+			}
+			p.pos = save
+		}
 	case KwExtract:
 		if p.peek(1).Type == TokLParen {
 			return p.parseExtractExpr()
