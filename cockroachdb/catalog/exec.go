@@ -2097,7 +2097,7 @@ func (c *Catalog) labelUser(typ, label string) string {
 		for _, text := range texts {
 			if user == "" && text != "" {
 				expr, err := parser.ParseExpr(text)
-				if err == nil && readsLabel(expr, label) {
+				if err == nil && (readsLabel(expr, label) || arrayLiteral(text, typ, label)) {
 					user = table.Name
 				}
 			}

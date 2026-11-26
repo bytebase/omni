@@ -495,3 +495,8 @@ func TestExecRound28(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, c.Metadata().Schemas[0].Tables[0].Indexes[0].Definition, "u.a > 0")
 }
+
+func TestExecRound29(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'x'); CREATE TABLE t (m mood[] DEFAULT '{sad}'::mood[]); ALTER TYPE mood DROP VALUE 'sad'")
+	require.Equal(t, "2BP01", code(err))
+}
