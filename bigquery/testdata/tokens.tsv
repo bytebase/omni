@@ -1,0 +1,99 @@
+# GoogleSQL token forms for generated compat rows: the text written for each
+# token GoogleSQL.g4 names, a class of texts or a token the tokenizer makes
+# in code (its lookahead transformer, from the words around it). Keywords and
+# punctuation spell themselves and need no row. Each note cites the token in
+# googlesql.tm, whose lexer matches keywords in any case (caseInsensitive).
+# columns: token, form, note
+IDENTIFIER	a	googlesql.tm:205 a letter or _, then letters, digits and _; or a backquoted name
+STRING_LITERAL	'a'	googlesql.tm:201 a quoted string, raw (r) or triple-quoted
+BYTES_LITERAL	b'a'	googlesql.tm:202 b or rb and a quoted string
+INTEGER_LITERAL	1	googlesql.tm:203 decimal or hex (0x) digits, which the lookahead transformer makes from DECIMAL_INTEGER_LITERAL and HEX_INTEGER_LITERAL
+FLOATING_POINT_LITERAL	1.5	googlesql.tm:204 digits with a point or an exponent, fused by the lookahead transformer
+SCRIPT_LABEL	a	googlesql.tm:212 a name the tokenizer reads as a label, before : at the start of a statement
+MACRO_BODY_TOKEN	a	googlesql.tm:775 any token in the body of DEFINE MACRO
+ATTACHED_ALIAS	(unreachable)	googlesql.tm:506 a name against a number (10K); its only alternative refuses it
+KW_OPEN_HINT	@	googlesql.tm:251 the @ that opens a hint, @{
+KW_OPEN_INTEGER_HINT	@	googlesql.tm:255 the @ of an integer hint, @1
+OPEN_INTEGER_PREFIX_HINT	@	googlesql.tm:257 the @ of an integer hint before a @{ hint
+KW_NOT_SPECIAL	NOT	googlesql.tm:466 NOT before BETWEEN, IN, LIKE or DISTINCT
+KW_DEFINE_FOR_MACROS	DEFINE	googlesql.tm:311 DEFINE first in a statement
+KW_GRAPH_TABLE_RESERVED	GRAPH_TABLE	googlesql.tm:326 GRAPH_TABLE where the language enables it as a reserved word
+KW_QUALIFY_RESERVED	QUALIFY	googlesql.tm:395 QUALIFY where the language enables it as a reserved word
+KW_MATCH_RECOGNIZE_RESERVED	MATCH_RECOGNIZE	googlesql.tm:344 MATCH_RECOGNIZE where the language enables it as a reserved word
+KW_WITH_STARTING_WITH_EXPRESSION	WITH	googlesql.tm:453 WITH before ( that opens a WITH expression
+KW_EXCEPT_IN_SET_OP	EXCEPT	googlesql.tm:454 EXCEPT between two queries
+KW_FOR_BEFORE_LOCK_MODE	FOR	googlesql.tm:456 FOR before UPDATE that ends a query
+KW_FULL_IN_SET_OP	FULL	googlesql.tm:457 FULL before a set operation
+KW_INNER_IN_SET_OP	INNER	googlesql.tm:458 INNER before a set operation
+KW_LEFT_IN_SET_OP	LEFT	googlesql.tm:459 LEFT before a set operation
+KW_TABLE_FOR_TABLE_CLAUSE	TABLE	googlesql.tm:460 TABLE in a FROM-less table clause
+KW_REPLACE_AFTER_INSERT	REPLACE	googlesql.tm:461 REPLACE after INSERT OR
+KW_UPDATE_AFTER_INSERT	UPDATE	googlesql.tm:462 UPDATE after INSERT OR
+KW_OPTIONS_IN_WITH_OPTIONS	OPTIONS	googlesql.tm:502 OPTIONS in SELECT WITH a OPTIONS(...)
+
+# Optional clauses tried at every site the grammar allows them, and not only
+# where their own alternative's row reaches (see grammar.EverySite).
+opt_if_not_exists	(every site)	googlesql.tm:4234 IF NOT EXISTS
+opt_if_exists	(every site)	googlesql.tm:12428 IF EXISTS
+opt_or_replace	(every site)	googlesql.tm:11849 OR REPLACE
+opt_create_scope	(every site)	googlesql.tm:11875 TEMP, TEMPORARY, PUBLIC or PRIVATE
+opt_access	(every site)	googlesql.tm:12448 ACCESS in ROW ACCESS POLICY
+opt_unique	(every site)	googlesql.tm:11886 UNIQUE
+opt_options_list	(every site)	googlesql.tm:11946 OPTIONS (...)
+
+# Keyword choices written in each of their forms at every site that names
+# them, and not only where the rule's own alternatives are reached (see
+# grammar.EveryAlternative).
+schema_object_kind	(every alternative)	googlesql.tm:1776 the object kinds ALTER, DROP, UNDROP and CREATE SNAPSHOT take
+table_or_table_function	(every alternative)	googlesql.tm:4074 TABLE or TABLE FUNCTION
+privileges	(every alternative)	googlesql.tm:4345 ALL [PRIVILEGES] or a privilege list
+all_or_distinct	(every alternative)	googlesql.tm:4621 ALL or DISTINCT
+query_set_operation_type	(every alternative)	googlesql.tm:4647 UNION, EXCEPT or INTERSECT
+asc_or_desc	(every alternative)	googlesql.tm:8726 ASC or DESC
+null_order	(every alternative)	googlesql.tm:8744 NULLS FIRST or NULLS LAST
+comparative_operator	(every alternative)	googlesql.tm:8957 a comparison operator
+any_some_all	(every alternative)	googlesql.tm:9035 ANY, SOME or ALL
+like_operator	(every alternative)	googlesql.tm:9057 LIKE or NOT LIKE
+between_operator	(every alternative)	googlesql.tm:9072 BETWEEN or NOT BETWEEN
+in_operator	(every alternative)	googlesql.tm:9101 IN or NOT IN
+is_operator	(every alternative)	googlesql.tm:9116 IS or IS NOT
+preceding_or_following	(every alternative)	googlesql.tm:11117 PRECEDING or FOLLOWING
+frame_unit	(every alternative)	googlesql.tm:11156 ROWS or RANGE
+boolean_literal	(every alternative)	googlesql.tm:11317 TRUE or FALSE
+generated_mode	(every alternative)	googlesql.tm:3474 GENERATED [ALWAYS | BY DEFAULT] AS, or AS
+foreign_key_action	(every alternative)	googlesql.tm:4023 NO ACTION, RESTRICT, CASCADE or SET NULL
+constraint_enforcement	(every alternative)	googlesql.tm:4061 ENFORCED or NOT ENFORCED
+index_type	(every alternative)	googlesql.tm:12630 SEARCH or VECTOR
+function_name_from_keyword	(every alternative)	googlesql.tm:10731 a keyword that names a function
+plus_or_star_quantifier	(every alternative)	googlesql.tm:6540 * or +
+slashed_identifier_separator	(every alternative)	googlesql.tm:9878 -, / or : in a slashed path
+expression_or_default	(every alternative)	googlesql.tm:12152 an expression or DEFAULT
+possibly_empty_grantee_list	(every alternative)	googlesql.tm:4543 a grantee list or ()
+possibly_unbounded_int_literal_or_parameter	(every alternative)	googlesql.tm:8578 a count or UNBOUNDED
+on_or_using_clause	(every alternative)	googlesql.tm:7930 ON or USING
+dynamic_label_or_properties	(every alternative)	googlesql.tm:2835 DYNAMIC LABEL or DYNAMIC PROPERTIES
+
+# BigQuery's own opt-ins, beyond the GoogleSQL ones above: choices named at
+# several sites, each written in every form at each of them.
+create_scope	(every alternative)	googlesql.tm:11856 TEMP, TEMPORARY, PUBLIC or PRIVATE
+opt_all_or_distinct	(every alternative)	googlesql.tm:5853 ALL, DISTINCT or nothing in a SELECT
+join_type_base	(every alternative)	googlesql.tm:7943 CROSS, FULL, INNER, LEFT or RIGHT JOIN
+join_hint_base	(every alternative)	googlesql.tm:7974 HASH or LOOKUP JOIN
+int_literal_or_parameter	(every alternative)	googlesql.tm:6075 a count, a parameter or a system variable
+possibly_cast_int_literal_or_parameter	(every alternative)	googlesql.tm:6090 a count or a CAST of one
+string_literal_or_parameter	(every alternative)	googlesql.tm:8766 a string, a parameter or a system variable
+parameter_expression	(every alternative)	googlesql.tm:10192 @name or ?
+identifier_or_integer	(every alternative)	googlesql.tm:9887 a name or a number in a path
+type_name	(every alternative)	googlesql.tm:10214 a type name or INTERVAL
+transaction_mode	(every alternative)	googlesql.tm:1985 READ ONLY, READ WRITE or ISOLATION LEVEL
+remote_with_connection_clause	(every alternative)	googlesql.tm:2309 REMOTE [WITH CONNECTION] or WITH CONNECTION
+window_frame_bound	(every alternative)	googlesql.tm:11128 UNBOUNDED, CURRENT ROW or an expression
+opt_select_as_clause	(every alternative)	googlesql.tm:5750 SELECT AS STRUCT or AS a type
+as_sql_function_body_or_string	(every alternative)	googlesql.tm:2352 AS (body) or AS 'string'
+insert_mode	(every alternative)	googlesql.tm:12026 INSERT [OR] IGNORE, OR REPLACE or OR UPDATE
+signed_numerical_literal	(every alternative)	googlesql.tm:3508 a number, signed or not
+table_element	(every alternative)	googlesql.tm:3348 a column or a constraint
+struct_field	(every alternative)	googlesql.tm:10255 a STRUCT field, named or not
+tvf_schema_column	(every alternative)	googlesql.tm:4085 a TABLE<...> column, named or not
+type_parameter	(every alternative)	googlesql.tm:10341 a type parameter: a literal or MAX
+grouping_set	(every alternative)	googlesql.tm:8206 (), an expression, ROLLUP or CUBE

@@ -1219,6 +1219,15 @@ reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(
 reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!drop-3	BEGIN READ ONLY, READ
 reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!insert	BEGIN READ ONLY, READ ONLY zzz
 reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!swap	BEGIN READ ONLY, REBUILD ONLY
+accept	accept	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE	BEGIN READ ONLY, READ WRITE
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE!drop-2	BEGIN READ ONLY, WRITE
+accept	accept	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier	BEGIN READ ONLY, ISOLATION LEVEL a
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-2	BEGIN READ ONLY, LEVEL a
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-3	BEGIN READ ONLY, ISOLATION a
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-4	BEGIN READ ONLY, ISOLATION LEVEL
+accept	accept	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier	BEGIN READ ONLY, ISOLATION LEVEL a a
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-2	BEGIN READ ONLY, LEVEL a a
+reject	reject	engine	begin_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-3	BEGIN READ ONLY, ISOLATION a a
 accept	accept	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*	SET TRANSACTION READ ONLY
 reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*!drop-1	TRANSACTION READ ONLY
 reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*!drop-2	SET READ ONLY
@@ -1226,6 +1235,15 @@ reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transact
 reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*!drop-4	SET TRANSACTION READ
 reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*!insert	SET TRANSACTION READ ONLY zzz
 reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*!swap	SETS TRANSACTION READ ONLY
+accept	accept	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE	SET TRANSACTION READ WRITE
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE!drop-3	SET TRANSACTION WRITE
+accept	accept	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier	SET TRANSACTION ISOLATION LEVEL a
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-3	SET TRANSACTION LEVEL a
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-4	SET TRANSACTION ISOLATION a
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-5	SET TRANSACTION ISOLATION LEVEL
+accept	accept	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier	SET TRANSACTION ISOLATION LEVEL a a
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-3	SET TRANSACTION LEVEL a a
+reject	reject	engine	set_statement/SET_TRANSACTION_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-4	SET TRANSACTION ISOLATION a a
 accept	accept	engine	set_statement/SET_identifier_=_expression	SET a = NULL
 reject	reject	engine	set_statement/SET_identifier_=_expression!drop-1	a = NULL
 reject	reject	engine	set_statement/SET_identifier_=_expression!drop-2	SET = NULL
@@ -1272,6 +1290,15 @@ reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_
 reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!drop-3	SET TRANSACTION READ ONLY, READ
 reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!insert	SET TRANSACTION READ ONLY, READ ONLY zzz
 reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*!swap	SET TRANSACTION READ ONLY, REBUILD ONLY
+accept	accept	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE	SET TRANSACTION READ ONLY, READ WRITE
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/READ_WRITE!drop-2	SET TRANSACTION READ ONLY, WRITE
+accept	accept	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier	SET TRANSACTION READ ONLY, ISOLATION LEVEL a
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-2	SET TRANSACTION READ ONLY, LEVEL a
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-3	SET TRANSACTION READ ONLY, ISOLATION a
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier!drop-4	SET TRANSACTION READ ONLY, ISOLATION LEVEL
+accept	accept	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier	SET TRANSACTION READ ONLY, ISOLATION LEVEL a a
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-2	SET TRANSACTION READ ONLY, LEVEL a a
+reject	reject	engine	set_statement(,_(transaction_mode))*/,_transaction_mode_(,_(transaction_mode))*+transaction_mode/ISOLATION_LEVEL_identifier_identifier!drop-3	SET TRANSACTION READ ONLY, ISOLATION a a
 accept	accept	engine	commit_statement/COMMIT_(TRANSACTION)?	COMMIT
 accept	accept	engine	commit_statement(TRANSACTION)?/%empty	COMMIT
 accept	accept	engine	commit_statement(TRANSACTION)?/TRANSACTION	COMMIT TRANSACTION
@@ -1515,10 +1542,18 @@ reject	reject	engine	language_or_remote_with_connection/LANGUAGE_identifier_(rem
 reject	reject	engine	language_or_remote_with_connection/LANGUAGE_identifier_(remote_with_connection_clause)?!insert	CREATE FUNCTION a() LANGUAGE a zzz
 reject	reject	engine	language_or_remote_with_connection/LANGUAGE_identifier_(remote_with_connection_clause)?!swap	CREATE FUNCTION a() LAST a
 accept	accept	engine	language_or_remote_with_connection/remote_with_connection_clause_(language)?	CREATE FUNCTION a() REMOTE
+accept	accept	engine	language_or_remote_with_connection/remote_with_connection_clause_(language)?+remote_with_connection_clause/with_connection_clause	CREATE FUNCTION a() WITH CONNECTION a
+reject	reject	engine	language_or_remote_with_connection/remote_with_connection_clause_(language)?+remote_with_connection_clause/with_connection_clause!drop-1	CREATE FUNCTION a() CONNECTION a
+reject	reject	engine	language_or_remote_with_connection/remote_with_connection_clause_(language)?+remote_with_connection_clause/with_connection_clause!drop-2	CREATE FUNCTION a() WITH a
+reject	reject	engine	language_or_remote_with_connection/remote_with_connection_clause_(language)?+remote_with_connection_clause/with_connection_clause!drop-3	CREATE FUNCTION a() WITH CONNECTION
 accept	accept	engine	language_or_remote_with_connection(remote_with_connection_clause)?/%empty	CREATE FUNCTION a() LANGUAGE a
 accept	accept	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause	CREATE FUNCTION a() LANGUAGE a REMOTE
 reject	reject	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause!insert	CREATE FUNCTION a() LANGUAGE a REMOTE zzz
 reject	reject	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause!swap	CREATE FUNCTION a() LANGUAGE a REMOVE
+accept	accept	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause+remote_with_connection_clause/with_connection_clause	CREATE FUNCTION a() LANGUAGE a WITH CONNECTION a
+reject	reject	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause+remote_with_connection_clause/with_connection_clause!drop-1	CREATE FUNCTION a() LANGUAGE a CONNECTION a
+reject	reject	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause+remote_with_connection_clause/with_connection_clause!drop-2	CREATE FUNCTION a() LANGUAGE a WITH a
+reject	reject	engine	language_or_remote_with_connection(remote_with_connection_clause)?/remote_with_connection_clause+remote_with_connection_clause/with_connection_clause!drop-3	CREATE FUNCTION a() LANGUAGE a WITH CONNECTION
 accept	accept	engine	language_or_remote_with_connection(language)?/%empty	CREATE FUNCTION a() REMOTE
 accept	accept	engine	language_or_remote_with_connection(language)?/language	CREATE FUNCTION a() REMOTE LANGUAGE a
 reject	reject	engine	language_or_remote_with_connection(language)?/language!drop-1	CREATE FUNCTION a() REMOTE a
@@ -1550,6 +1585,10 @@ reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!drop-2	CREATE FUNCTION a() OPTIONS() AS
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!insert	CREATE FUNCTION a() OPTIONS() AS 'a' zzz
 reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string!swap	CREATE FUNCTION a() OPTIONS() ASC 'a'
+reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string+as_sql_function_body_or_string/AS_sql_function_body	CREATE FUNCTION a() OPTIONS() AS(SELECT
+reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string+as_sql_function_body_or_string/AS_sql_function_body!drop-1	CREATE FUNCTION a() OPTIONS()(SELECT
+reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string+as_sql_function_body_or_string/AS_sql_function_body!drop-2	CREATE FUNCTION a() OPTIONS() AS SELECT
+reject	reject	engine	opt_as_sql_function_body_or_string(as_sql_function_body_or_string)?/as_sql_function_body_or_string+as_sql_function_body_or_string/AS_sql_function_body!drop-3	CREATE FUNCTION a() OPTIONS() AS(
 accept	accept	engine	path_expression_or_string/path_expression	IMPORT MODULE a
 accept	accept	engine	path_expression_or_string/string_literal	IMPORT MODULE 'a'
 reject	reject	engine	path_expression_or_string/string_literal!insert	IMPORT MODULE 'a' zzz
@@ -2401,6 +2440,11 @@ reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table
 accept	accept	engine	table_element_list_prefix/table_element_list_prefix_,_table_element!drop-5	CREATE TABLE a(a a, a)
 reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element!truncate	CREATE TABLE a(a a, a
 reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element!insert	CREATE TABLE a(a a, a a zzz)
+accept	accept	engine	table_element_list_prefix/table_element_list_prefix_,_table_element+table_element/table_constraint_definition	CREATE TABLE a(a a, PRIMARY KEY())
+reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element+table_element/table_constraint_definition!drop-5	CREATE TABLE a(a a, KEY())
+reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element+table_element/table_constraint_definition!drop-6	CREATE TABLE a(a a, PRIMARY())
+reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element+table_element/table_constraint_definition!drop-7	CREATE TABLE a(a a, PRIMARY KEY))
+reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,_table_element+table_element/table_constraint_definition!drop-8	CREATE TABLE a(a a, PRIMARY KEY()
 accept	accept	engine	table_element_list_prefix/table_element_list_prefix_,	CREATE TABLE a(a a,)
 reject	reject	engine	table_element_list_prefix/table_element_list_prefix_,!drop-1	CREATE TABLE a a a,)
 accept	accept	engine	table_element_list_prefix/table_element_list_prefix_,!drop-2	CREATE TABLE a(a,)
@@ -2545,6 +2589,15 @@ reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal!drop-3	A
 reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal!truncate	ALTER a ADD COLUMN a AS IDENTITY(START WITH
 reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal!insert	ALTER a ADD COLUMN a AS IDENTITY(START WITH 1 zzz)
 reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal!swap	ALTER a ADD COLUMN a AS IDENTITY(STATIC_DESCRIBE WITH 1)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/numeric_literal	ALTER a ADD COLUMN a AS IDENTITY(START WITH NUMERIC 'a')
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-3	ALTER a ADD COLUMN a AS IDENTITY(START WITH 'a')
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(START WITH NUMERIC)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/bignumeric_literal	ALTER a ADD COLUMN a AS IDENTITY(START WITH BIGNUMERIC 'a')
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/bignumeric_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(START WITH BIGNUMERIC)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(START WITH 1.5)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/-_integer_literal	ALTER a ADD COLUMN a AS IDENTITY(START WITH - 1)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/-_integer_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(START WITH -)
+reject	reject	engine	opt_start_with/START_WITH_signed_numerical_literal+signed_numerical_literal/-_floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(START WITH - 1.5)
 reject	reject	engine	opt_start_with/%empty	ALTER a ADD COLUMN a AS IDENTITY()
 reject	reject	engine	opt_start_with/%empty!insert	ALTER a ADD COLUMN a AS IDENTITY(zzz)
 reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY 1)
@@ -2554,6 +2607,15 @@ reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal!drop
 reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal!truncate	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY
 reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal!insert	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY 1 zzz)
 reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal!swap	ALTER a ADD COLUMN a AS IDENTITY(INDEX BY 1)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/numeric_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY NUMERIC 'a')
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-3	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY 'a')
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY NUMERIC)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/bignumeric_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY BIGNUMERIC 'a')
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/bignumeric_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY BIGNUMERIC)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY 1.5)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/-_integer_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY - 1)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/-_integer_literal!drop-4	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY -)
+reject	reject	engine	opt_increment_by/INCREMENT_BY_signed_numerical_literal+signed_numerical_literal/-_floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(INCREMENT BY - 1.5)
 reject	reject	engine	opt_increment_by/%empty	ALTER a ADD COLUMN a AS IDENTITY()
 reject	reject	engine	opt_maxvalue/MAXVALUE_signed_numerical_literal	ALTER a ADD COLUMN a AS IDENTITY(MAXVALUE 1)
 reject	reject	engine	opt_maxvalue/MAXVALUE_signed_numerical_literal!drop-1	ALTER a ADD COLUMN a AS IDENTITY(1)
@@ -2564,6 +2626,15 @@ reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal!drop-2	ALTER
 reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal!truncate	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE
 reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal!insert	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE 1 zzz)
 reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal!swap	ALTER a ADD COLUMN a AS IDENTITY(MODEL 1)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/numeric_literal	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE NUMERIC 'a')
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-2	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE 'a')
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/numeric_literal!drop-3	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE NUMERIC)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/bignumeric_literal	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE BIGNUMERIC 'a')
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/bignumeric_literal!drop-3	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE BIGNUMERIC)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE 1.5)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/-_integer_literal	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE - 1)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/-_integer_literal!drop-3	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE -)
+reject	reject	engine	opt_minvalue/MINVALUE_signed_numerical_literal+signed_numerical_literal/-_floating_point_literal	ALTER a ADD COLUMN a AS IDENTITY(MINVALUE - 1.5)
 reject	reject	engine	opt_minvalue/%empty	ALTER a ADD COLUMN a AS IDENTITY()
 reject	reject	engine	opt_cycle/CYCLE	ALTER a ADD COLUMN a AS IDENTITY(CYCLE)
 reject	reject	engine	opt_cycle/CYCLE!truncate	ALTER a ADD COLUMN a AS IDENTITY(
@@ -2901,6 +2972,7 @@ reject	reject	engine	tvf_schema_prefix/tvf_schema_prefix_,_tvf_schema_column!dro
 reject	reject	engine	tvf_schema_prefix/tvf_schema_prefix_,_tvf_schema_column!truncate	CREATE TABLE FUNCTION a RETURNS TABLE < a,
 reject	reject	engine	tvf_schema_prefix/tvf_schema_prefix_,_tvf_schema_column!insert	CREATE TABLE FUNCTION a RETURNS TABLE < a, a zzz >
 reject	reject	engine	tvf_schema_prefix/tvf_schema_prefix_,_tvf_schema_column!swap	CREATE TABLE FUNCTION a RETURNS TABLES < a, a >
+reject	reject	engine	tvf_schema_prefix/tvf_schema_prefix_,_tvf_schema_column+tvf_schema_column/identifier_type	CREATE TABLE FUNCTION a RETURNS TABLE < a, a a >
 reject	reject	engine	tvf_schema/tvf_schema_prefix_template_type_close	CREATE TABLE FUNCTION a RETURNS TABLE < a >
 reject	reject	engine	tvf_schema/tvf_schema_prefix_template_type_close!insert	CREATE TABLE FUNCTION a RETURNS TABLE < a > zzz
 accept	accept	engine	create_view_statement/CREATE_opt_or_replace_opt_create_scope_(RECURSIVE)?_VIE~446dc9ad	CREATE VIEW a AS SELECT NULL
@@ -3250,11 +3322,23 @@ reject	reject	engine	column_with_options_list(,_(column_with_options))*/,_column
 reject	reject	engine	column_with_options_list(,_(column_with_options))*/,_column_with_options_(,_(column_with_options))*!truncate	CREATE VIEW a(a,
 reject	reject	engine	column_with_options_list(,_(column_with_options))*/,_column_with_options_(,_(column_with_options))*!insert	CREATE VIEW a(a, a zzz) AS SELECT NULL
 accept	accept	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*	GRANT ALL ON a TO 'a'
+accept	accept	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/parameter_expression	GRANT ALL ON a TO ?
+accept	accept	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression	GRANT ALL ON a TO@a
+reject	reject	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression!drop-1	GRANT ALL ON a TO a
+reject	reject	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression!drop-2	GRANT ALL ON a TO@
+accept	accept	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/system_variable_expression	GRANT ALL ON a TO @@ a
+reject	reject	engine	grantee_list/string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/system_variable_expression!drop-2	GRANT ALL ON a TO @@
 accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/%empty	GRANT ALL ON a TO 'a'
 accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*	GRANT ALL ON a TO 'a', 'a'
 accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*!drop-1	GRANT ALL ON a TO 'a' 'a'
 reject	reject	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*!drop-2	GRANT ALL ON a TO 'a',
 reject	reject	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*!insert	GRANT ALL ON a TO 'a', 'a' zzz
+accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/parameter_expression	GRANT ALL ON a TO 'a', ?
+accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression	GRANT ALL ON a TO 'a',@a
+reject	reject	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression!drop-2	GRANT ALL ON a TO 'a', a
+reject	reject	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+parameter_expression/named_parameter_expression!drop-3	GRANT ALL ON a TO 'a',@
+accept	accept	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/system_variable_expression	GRANT ALL ON a TO 'a', @@ a
+reject	reject	engine	grantee_list(,_(string_literal_or_parameter))*/,_string_literal_or_parameter_(,_(string_literal_or_parameter))*+string_literal_or_parameter/system_variable_expression!drop-3	GRANT ALL ON a TO 'a', @@
 accept	accept	engine	possibly_empty_grantee_list/(_grantee_list_)	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD('a')
 reject	reject	engine	possibly_empty_grantee_list/(_grantee_list_)!drop-1	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD 'a')
 reject	reject	engine	possibly_empty_grantee_list/(_grantee_list_)!drop-3	ALTER PRIVILEGE RESTRICTION ON a ON a a ADD('a'
@@ -4106,6 +4190,13 @@ accept	accept	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_d
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d	SELECT FROM
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d!insert	SELECT FROM zzz
 reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d!swap	SEQUENCE FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_all_or_distinct/ALL	SELECT ALL FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_all_or_distinct/DISTINCT	SELECT DISTINCT FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause/AS_STRUCT	SELECT AS STRUCT FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause/AS_STRUCT!drop-2	SELECT STRUCT FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause/AS_STRUCT!drop-3	SELECT AS FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause/AS_path_expression	SELECT AS a FROM
+reject	reject	engine	select_clause/SELECT_(hint)?_opt_with_modifier_opt_all_or_distinct_op~f6d13c6d+opt_select_as_clause/AS_path_expression!drop-2	SELECT a FROM
 accept	accept	engine	select_clause(hint)?/%empty	SELECT NULL
 reject	reject	engine	select_clause(hint)?/%empty!insert	SELECT zzz NULL
 accept	accept	engine	select_clause(hint)?/hint	SELECT@1 NULL
@@ -4356,6 +4447,12 @@ reject	reject	engine	opt_natural/%empty!insert	|> zzz JOIN a
 accept	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter	SELECT EXISTS { - { 1, } }
 reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter!truncate	SELECT EXISTS { - {
 reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter!insert	SELECT EXISTS { - { 1 zzz, } }
+accept	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { - { ?, } }
+accept	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { - {@a, } }
+reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-1	SELECT EXISTS { - { a, } }
+reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { - {@, } }
+accept	accept	engine	opt_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { - { @@ a, } }
+reject	reject	engine	opt_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-2	SELECT EXISTS { - { @@, } }
 accept	accept	engine	opt_int_literal_or_parameter/%empty	SELECT EXISTS { - {, } }
 reject	reject	engine	opt_int_literal_or_parameter/%empty!insert	SELECT EXISTS { - { zzz, } }
 accept	accept	engine	int_literal_or_parameter/integer_literal	DELETE a ASSERT_ROWS_MODIFIED 1
@@ -4363,8 +4460,10 @@ reject	reject	engine	int_literal_or_parameter/integer_literal!drop-1	DELETE a AS
 reject	reject	engine	int_literal_or_parameter/integer_literal!insert	DELETE a ASSERT_ROWS_MODIFIED 1 zzz
 accept	accept	engine	int_literal_or_parameter/parameter_expression	DELETE a ASSERT_ROWS_MODIFIED ?
 reject	reject	engine	int_literal_or_parameter/parameter_expression!insert	DELETE a ASSERT_ROWS_MODIFIED ? zzz
+accept	accept	engine	int_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression	DELETE a ASSERT_ROWS_MODIFIED@a
+reject	reject	engine	int_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression!drop-1	DELETE a ASSERT_ROWS_MODIFIED a
+reject	reject	engine	int_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression!drop-2	DELETE a ASSERT_ROWS_MODIFIED@
 accept	accept	engine	int_literal_or_parameter/system_variable_expression	DELETE a ASSERT_ROWS_MODIFIED @@ a
-reject	reject	engine	int_literal_or_parameter/system_variable_expression!drop-1	DELETE a ASSERT_ROWS_MODIFIED a
 reject	reject	engine	int_literal_or_parameter/system_variable_expression!drop-2	DELETE a ASSERT_ROWS_MODIFIED @@
 reject	reject	engine	int_literal_or_parameter/system_variable_expression!insert	DELETE a ASSERT_ROWS_MODIFIED @@ a zzz
 accept	accept	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)	DELETE a ASSERT_ROWS_MODIFIED CAST(1 AS a)
@@ -4376,6 +4475,12 @@ reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_paramet
 reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)!drop-6	DELETE a ASSERT_ROWS_MODIFIED CAST(1 AS a
 reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)!insert	DELETE a ASSERT_ROWS_MODIFIED CAST(1 AS a) zzz
 reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)!swap	DELETE a ASSERT_ROWS_MODIFIED CHEAPEST(1 AS a)
+accept	accept	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+int_literal_or_parameter/parameter_expression	DELETE a ASSERT_ROWS_MODIFIED CAST(? AS a)
+accept	accept	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+parameter_expression/named_parameter_expression	DELETE a ASSERT_ROWS_MODIFIED CAST(@a AS a)
+reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+parameter_expression/named_parameter_expression!drop-3	DELETE a ASSERT_ROWS_MODIFIED CAST(a AS a)
+reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+parameter_expression/named_parameter_expression!drop-4	DELETE a ASSERT_ROWS_MODIFIED CAST(@AS a)
+accept	accept	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+int_literal_or_parameter/system_variable_expression	DELETE a ASSERT_ROWS_MODIFIED CAST(@@ a AS a)
+reject	reject	engine	cast_int_literal_or_parameter/CAST_(_int_literal_or_parameter_AS_type_opt_format_)+int_literal_or_parameter/system_variable_expression!drop-4	DELETE a ASSERT_ROWS_MODIFIED CAST(@@ AS a)
 accept	accept	engine	possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter	DELETE a ASSERT_ROWS_MODIFIED CAST(1 AS a)
 accept	accept	engine	possibly_cast_int_literal_or_parameter/int_literal_or_parameter	DELETE a ASSERT_ROWS_MODIFIED 1
 accept	accept	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)	|> TABLESAMPLE a(1 ROWS) REPEATABLE(1)
@@ -4385,9 +4490,35 @@ reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or
 reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)!drop-4	|> TABLESAMPLE a(1 ROWS) REPEATABLE(1
 reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)!insert	|> TABLESAMPLE a(1 ROWS) REPEATABLE(1) zzz
 reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)!swap	|> TABLESAMPLE a(1 ROWS) REPLACE(1)
+accept	accept	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST(1 AS a))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-3	|> TABLESAMPLE a(1 ROWS) REPEATABLE((1 AS a))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-4	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST 1 AS a))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-5	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST(AS a))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-6	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST(1 a))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-7	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST(1 AS))
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-8	|> TABLESAMPLE a(1 ROWS) REPEATABLE(CAST(1 AS a)
+accept	accept	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+int_literal_or_parameter/parameter_expression	|> TABLESAMPLE a(1 ROWS) REPEATABLE(?)
+accept	accept	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+parameter_expression/named_parameter_expression	|> TABLESAMPLE a(1 ROWS) REPEATABLE(@a)
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+parameter_expression/named_parameter_expression!drop-3	|> TABLESAMPLE a(1 ROWS) REPEATABLE(a)
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+parameter_expression/named_parameter_expression!drop-4	|> TABLESAMPLE a(1 ROWS) REPEATABLE(@)
+accept	accept	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+int_literal_or_parameter/system_variable_expression	|> TABLESAMPLE a(1 ROWS) REPEATABLE(@@ a)
+reject	reject	engine	repeatable_clause/REPEATABLE_(_possibly_cast_int_literal_or_parameter_)+int_literal_or_parameter/system_variable_expression!drop-4	|> TABLESAMPLE a(1 ROWS) REPEATABLE(@@)
 accept	accept	engine	sample_size_value/possibly_cast_int_literal_or_parameter	|> TABLESAMPLE a(1 ROWS)
 reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter!truncate	|> TABLESAMPLE a(
 reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter!insert	|> TABLESAMPLE a(1 zzz ROWS)
+accept	accept	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter	|> TABLESAMPLE a(CAST(1 AS a) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-1	|> TABLESAMPLE a((1 AS a) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-2	|> TABLESAMPLE a(CAST 1 AS a) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-3	|> TABLESAMPLE a(CAST(AS a) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-4	|> TABLESAMPLE a(CAST(1 a) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-5	|> TABLESAMPLE a(CAST(1 AS) ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-6	|> TABLESAMPLE a(CAST(1 AS a ROWS)
+accept	accept	engine	sample_size_value/possibly_cast_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	|> TABLESAMPLE a(? ROWS)
+accept	accept	engine	sample_size_value/possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression	|> TABLESAMPLE a(@a ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-1	|> TABLESAMPLE a(a ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	|> TABLESAMPLE a(@ROWS)
+accept	accept	engine	sample_size_value/possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	|> TABLESAMPLE a(@@ a ROWS)
+reject	reject	engine	sample_size_value/possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-2	|> TABLESAMPLE a(@@ ROWS)
 accept	accept	engine	sample_size_value/floating_point_literal	|> TABLESAMPLE a(1.5 ROWS)
 reject	reject	engine	sample_size_value/floating_point_literal!insert	|> TABLESAMPLE a(1.5 zzz ROWS)
 accept	accept	engine	sample_size_unit/ROWS	|> TABLESAMPLE a(1 ROWS)
@@ -4667,6 +4798,12 @@ reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!drop-2	
 reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!drop-3	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1) DEFINE a AS NULL)
 reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!truncate	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1
 accept	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}!insert	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { 1 } zzz) DEFINE a AS NULL)
+accept	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/parameter_expression	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { ? }) DEFINE a AS NULL)
+accept	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {@a }) DEFINE a AS NULL)
+reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression!drop-2	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { a }) DEFINE a AS NULL)
+reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression!drop-3	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a {@}) DEFINE a AS NULL)
+accept	accept	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/system_variable_expression	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { @@ a }) DEFINE a AS NULL)
+reject	reject	engine	row_pattern_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/system_variable_expression!drop-3	|> MATCH_RECOGNIZE(ORDER BY NULL MEASURES NULL AS a PATTERN(a { @@ }) DEFINE a AS NULL)
 accept	accept	engine	plus_or_star_quantifier/*	SELECT EXISTS { - * }
 reject	reject	engine	plus_or_star_quantifier/*!insert	SELECT EXISTS { - * zzz }
 accept	accept	engine	plus_or_star_quantifier/+	SELECT EXISTS { - + }
@@ -5002,6 +5139,8 @@ reject	reject	engine	graph_return_item_list/graph_return_item_list_,_graph_retur
 reject	reject	engine	graph_return_item_list/graph_return_item_list_,_graph_return_item!swap	GRAPH a RETURN NULLS, NULL
 accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca	GRAPH a RETURN NULL
 reject	reject	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca!swap	GRAPH a RETURNS NULL
+accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_all_or_distinct/ALL	GRAPH a RETURN ALL NULL
+accept	accept	engine	graph_return_operator/RETURN_(hint)?_opt_all_or_distinct_graph_return_item_li~9ca339ca+opt_all_or_distinct/DISTINCT	GRAPH a RETURN DISTINCT NULL
 accept	accept	engine	graph_return_operator(hint)?/%empty	GRAPH a RETURN NULL
 reject	reject	engine	graph_return_operator(hint)?/%empty!insert	GRAPH a RETURN zzz NULL
 accept	accept	engine	graph_return_operator(hint)?/hint	GRAPH a RETURN@1 NULL
@@ -5068,11 +5207,37 @@ reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_param
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!truncate	SELECT EXISTS { LIMIT
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!insert	SELECT EXISTS { LIMIT 1 zzz }
 reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter!swap	SELECT EXISTS { LOAD 1 }
+accept	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter	SELECT EXISTS { LIMIT CAST(1 AS a) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-2	SELECT EXISTS { LIMIT(1 AS a) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-3	SELECT EXISTS { LIMIT CAST 1 AS a) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-4	SELECT EXISTS { LIMIT CAST(AS a) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-5	SELECT EXISTS { LIMIT CAST(1 a) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-6	SELECT EXISTS { LIMIT CAST(1 AS) }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-7	SELECT EXISTS { LIMIT CAST(1 AS a }
+accept	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { LIMIT ? }
+accept	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { LIMIT@a }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { LIMIT a }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { LIMIT@}
+accept	accept	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { LIMIT @@ a }
+reject	reject	engine	graph_limit_clause/LIMIT_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { LIMIT @@ }
 accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter	SELECT EXISTS { OFFSET 1 }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!drop-2	SELECT EXISTS { OFFSET }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!truncate	SELECT EXISTS { OFFSET
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!insert	SELECT EXISTS { OFFSET 1 zzz }
 reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter!swap	SELECT EXISTS { ON 1 }
+accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter	SELECT EXISTS { OFFSET CAST(1 AS a) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-2	SELECT EXISTS { OFFSET(1 AS a) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-3	SELECT EXISTS { OFFSET CAST 1 AS a) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-4	SELECT EXISTS { OFFSET CAST(AS a) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-5	SELECT EXISTS { OFFSET CAST(1 a) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-6	SELECT EXISTS { OFFSET CAST(1 AS) }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+possibly_cast_int_literal_or_parameter/cast_int_literal_or_parameter!drop-7	SELECT EXISTS { OFFSET CAST(1 AS a }
+accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { OFFSET ? }
+accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { OFFSET@a }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { OFFSET a }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { OFFSET@}
+accept	accept	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { OFFSET @@ a }
+reject	reject	engine	graph_offset_clause/(OFFSET|SKIP)_possibly_cast_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { OFFSET @@ }
 accept	accept	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET	SELECT EXISTS { OFFSET 1 }
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET!truncate	SELECT EXISTS {
 reject	reject	engine	graph_offset_clause(OFFSET|SKIP)/OFFSET!insert	SELECT EXISTS { OFFSET zzz 1 }
@@ -5141,6 +5306,8 @@ reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!truncate	SELECT EXISTS { WITH
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!insert	SELECT EXISTS { WITH NULL zzz }
 reject	reject	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91!swap	SELECT EXISTS { WRITE NULL }
+accept	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_all_or_distinct/ALL	SELECT EXISTS { WITH ALL NULL }
+accept	accept	engine	graph_with_operator/WITH_opt_all_or_distinct_(hint)?_graph_return_item_list~b0f57a91+opt_all_or_distinct/DISTINCT	SELECT EXISTS { WITH DISTINCT NULL }
 accept	accept	engine	graph_with_operator(hint)?/%empty	SELECT EXISTS { WITH NULL }
 reject	reject	engine	graph_with_operator(hint)?/%empty!insert	SELECT EXISTS { WITH zzz NULL }
 accept	accept	engine	graph_with_operator(hint)?/hint	SELECT EXISTS { WITH@1 NULL }
@@ -5344,14 +5511,32 @@ accept	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter	SELECT EXI
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!drop-1	SELECT EXISTS { 1 - }
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!insert	SELECT EXISTS { ANY 1 zzz - }
 reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter!swap	SELECT EXISTS { APPROX 1 - }
+accept	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { ANY ? - }
+accept	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { ANY@a - }
+reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { ANY a - }
+reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { ANY@- }
+accept	accept	engine	graph_search_prefix/ANY_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { ANY @@ a - }
+reject	reject	engine	graph_search_prefix/ANY_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { ANY @@ - }
 accept	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter	SELECT EXISTS { SHORTEST 1 - }
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!truncate	SELECT EXISTS { SHORTEST
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!insert	SELECT EXISTS { SHORTEST 1 zzz - }
 reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter!swap	SELECT EXISTS { SHOW 1 - }
+accept	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { SHORTEST ? - }
+accept	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { SHORTEST@a - }
+reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { SHORTEST a - }
+reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { SHORTEST@- }
+accept	accept	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { SHORTEST @@ a - }
+reject	reject	engine	graph_search_prefix/SHORTEST_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { SHORTEST @@ - }
 accept	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter	SELECT EXISTS { CHEAPEST 1 - }
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!truncate	SELECT EXISTS { CHEAPEST
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!insert	SELECT EXISTS { CHEAPEST 1 zzz - }
 reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter!swap	SELECT EXISTS { CHECK 1 - }
+accept	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+int_literal_or_parameter/parameter_expression	SELECT EXISTS { CHEAPEST ? - }
+accept	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+parameter_expression/named_parameter_expression	SELECT EXISTS { CHEAPEST@a - }
+reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { CHEAPEST a - }
+reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { CHEAPEST@- }
+accept	accept	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { CHEAPEST @@ a - }
+reject	reject	engine	graph_search_prefix/CHEAPEST_int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { CHEAPEST @@ - }
 accept	accept	engine	graph_search_prefix/ALL	SELECT EXISTS { ALL - }
 reject	reject	engine	graph_search_prefix/ALL!insert	SELECT EXISTS { ALL zzz - }
 reject	reject	engine	graph_search_prefix/ALL!swap	SELECT EXISTS { ALTER - }
@@ -5429,6 +5614,12 @@ reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-1	SELECT
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!drop-3	SELECT EXISTS { - { 1 }
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!truncate	SELECT EXISTS { - { 1
 reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}!insert	SELECT EXISTS { - { 1 } zzz }
+accept	accept	engine	graph_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/parameter_expression	SELECT EXISTS { - { ? } }
+accept	accept	engine	graph_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression	SELECT EXISTS { - {@a } }
+reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression!drop-2	SELECT EXISTS { - { a } }
+reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}+parameter_expression/named_parameter_expression!drop-3	SELECT EXISTS { - {@} }
+accept	accept	engine	graph_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/system_variable_expression	SELECT EXISTS { - { @@ a } }
+reject	reject	engine	graph_quantifier/{_int_literal_or_parameter_}+int_literal_or_parameter/system_variable_expression!drop-3	SELECT EXISTS { - { @@ } }
 accept	accept	engine	graph_quantifier/plus_or_star_quantifier	SELECT EXISTS { - * }
 accept	accept	engine	graph_quantified_path_primary/graph_path_primary_graph_quantifier	SELECT EXISTS { - * }
 accept	accept	engine	graph_element_pattern/graph_node_pattern	SELECT EXISTS {() }
@@ -5934,6 +6125,18 @@ reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(gr
 reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*!truncate	SELECT NULL GROUP BY GROUPING SETS(NULL,
 reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*!insert	SELECT NULL GROUP BY GROUPING SETS(NULL, NULL zzz)
 reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*!swap	SELECT NULL GROUP BY GROUPING SETS(NULL, NULLS)
+accept	accept	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/(_)	SELECT NULL GROUP BY GROUPING SETS(NULL,())
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/(_)!drop-2	SELECT NULL GROUP BY GROUPING SETS(NULL,))
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/(_)!drop-3	SELECT NULL GROUP BY GROUPING SETS(NULL,()
+accept	accept	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/rollup_list	SELECT NULL GROUP BY GROUPING SETS(NULL, ROLLUP(NULL))
+accept	accept	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/rollup_list!drop-2	SELECT NULL GROUP BY GROUPING SETS(NULL,(NULL))
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/rollup_list!drop-3	SELECT NULL GROUP BY GROUPING SETS(NULL, ROLLUP NULL))
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/rollup_list!drop-4	SELECT NULL GROUP BY GROUPING SETS(NULL, ROLLUP())
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/rollup_list!drop-5	SELECT NULL GROUP BY GROUPING SETS(NULL, ROLLUP(NULL)
+accept	accept	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/cube_list	SELECT NULL GROUP BY GROUPING SETS(NULL, CUBE(NULL))
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/cube_list!drop-3	SELECT NULL GROUP BY GROUPING SETS(NULL, CUBE NULL))
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/cube_list!drop-4	SELECT NULL GROUP BY GROUPING SETS(NULL, CUBE())
+reject	reject	engine	grouping_item_base(,_(grouping_set))*/,_grouping_set_(,_(grouping_set))*+grouping_set/cube_list!drop-5	SELECT NULL GROUP BY GROUPING SETS(NULL, CUBE(NULL)
 accept	accept	engine	grouping_item/grouping_item_base	SELECT NULL GROUP BY()
 accept	accept	engine	grouping_item/expression	SELECT NULL GROUP BY NULL
 reject	reject	engine	grouping_item/expression!insert	SELECT NULL GROUP BY NULL zzz
@@ -6139,6 +6342,12 @@ accept	accept	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_
 reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter!drop-1	|> RECURSIVE UNION ALL WITH DEPTH MAX()
 reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter!truncate	|> RECURSIVE UNION ALL WITH DEPTH MAX
 reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter!insert	|> RECURSIVE UNION ALL WITH DEPTH MAX 1 zzz()
+accept	accept	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/parameter_expression	|> RECURSIVE UNION ALL WITH DEPTH MAX ?()
+accept	accept	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression	|> RECURSIVE UNION ALL WITH DEPTH MAX@a()
+reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-1	|> RECURSIVE UNION ALL WITH DEPTH MAX a()
+reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+parameter_expression/named_parameter_expression!drop-2	|> RECURSIVE UNION ALL WITH DEPTH MAX@()
+accept	accept	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/system_variable_expression	|> RECURSIVE UNION ALL WITH DEPTH MAX @@ a()
+reject	reject	engine	possibly_unbounded_int_literal_or_parameter/int_literal_or_parameter+int_literal_or_parameter/system_variable_expression!drop-2	|> RECURSIVE UNION ALL WITH DEPTH MAX @@()
 accept	accept	engine	possibly_unbounded_int_literal_or_parameter/UNBOUNDED	|> RECURSIVE UNION ALL WITH DEPTH MAX UNBOUNDED()
 reject	reject	engine	possibly_unbounded_int_literal_or_parameter/UNBOUNDED!insert	|> RECURSIVE UNION ALL WITH DEPTH MAX UNBOUNDED zzz()
 reject	reject	engine	possibly_unbounded_int_literal_or_parameter/UNBOUNDED!swap	|> RECURSIVE UNION ALL WITH DEPTH MAX UNDROP()
@@ -6158,7 +6367,19 @@ reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required
 reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587!truncate	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND
 reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587!insert	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND 1 zzz()
 reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587!swap	|> RECURSIVE UNION ALL WRITE DEPTH BETWEEN 1 AND 1()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/parameter_expression	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN ? AND 1()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN@a AND 1()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression!drop-4	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN a AND 1()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression!drop-5	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN@AND 1()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/system_variable_expression	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN @@ a AND 1()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/system_variable_expression!drop-5	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN @@ AND 1()
 accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+possibly_unbounded_int_literal_or_parameter/UNBOUNDED	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN UNBOUNDED AND 1()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/parameter_expression#2	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND ?()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression#2	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND@a()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression#2!drop-6	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND a()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+parameter_expression/named_parameter_expression#2!drop-7	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND@()
+accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/system_variable_expression#2	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND @@ a()
+reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+int_literal_or_parameter/system_variable_expression#2!drop-7	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND @@()
 accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_BETWEEN_possibl~577ab587+possibly_unbounded_int_literal_or_parameter/UNBOUNDED#2	|> RECURSIVE UNION ALL WITH DEPTH BETWEEN 1 AND UNBOUNDED()
 accept	accept	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_MAX_possibly_un~492cab64	|> RECURSIVE UNION ALL WITH DEPTH MAX 1()
 reject	reject	engine	recursion_depth_modifier/WITH_DEPTH_(as_alias_with_required_as)?_MAX_possibly_un~492cab64!drop-1	|> RECURSIVE UNION ALL DEPTH MAX 1()
@@ -6291,8 +6512,10 @@ reject	reject	engine	string_literal_or_parameter/string_literal!drop-1	DECLARE a
 reject	reject	engine	string_literal_or_parameter/string_literal!insert	DECLARE a a COLLATE 'a' zzz
 accept	accept	engine	string_literal_or_parameter/parameter_expression	DECLARE a a COLLATE ?
 reject	reject	engine	string_literal_or_parameter/parameter_expression!insert	DECLARE a a COLLATE ? zzz
+accept	accept	engine	string_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression	DECLARE a a COLLATE@a
+reject	reject	engine	string_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression!drop-1	DECLARE a a COLLATE a
+reject	reject	engine	string_literal_or_parameter/parameter_expression+parameter_expression/named_parameter_expression!drop-2	DECLARE a a COLLATE@
 accept	accept	engine	string_literal_or_parameter/system_variable_expression	DECLARE a a COLLATE @@ a
-reject	reject	engine	string_literal_or_parameter/system_variable_expression!drop-1	DECLARE a a COLLATE a
 reject	reject	engine	string_literal_or_parameter/system_variable_expression!drop-2	DECLARE a a COLLATE @@
 reject	reject	engine	string_literal_or_parameter/system_variable_expression!insert	DECLARE a a COLLATE @@ a zzz
 accept	accept	engine	collate_clause/COLLATE_string_literal_or_parameter	DECLARE a a COLLATE 'a'
@@ -6993,6 +7216,7 @@ reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_se
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_identif~d471bf43!drop-2	FROM / - a
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_identif~d471bf43!drop-4	FROM / a -
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_identif~d471bf43!insert	FROM / a - a zzz
+reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_identif~d471bf43+identifier_or_integer/INTEGER_LITERAL	FROM / a - 1
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8	FROM / a - 1.5 - a
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8!drop-1	FROM a - 1.5 - a
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8!drop-2	FROM / - 1.5 - a
@@ -7004,6 +7228,7 @@ reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_se
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8+slashed_identifier_separator/COLON	FROM / a : 1.5 - a
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8+slashed_identifier_separator/SLASH#2	FROM / a - 1.5 / a
 reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8+slashed_identifier_separator/COLON#2	FROM / a - 1.5 : a
+reject	reject	engine	slashed_identifier/slashed_identifier_slashed_identifier_separator_FLOATIN~dac1e0c8+identifier_or_integer/INTEGER_LITERAL	FROM / a - 1.5 - 1
 reject	reject	engine	slashed_path_expression/slashed_identifier	FROM / a
 reject	reject	engine	slashed_path_expression/slashed_identifier_slashed_identifier_separator_FLOATIN~73e16b1c	FROM / a - 1.5 a
 reject	reject	engine	slashed_path_expression/slashed_identifier_slashed_identifier_separator_FLOATIN~73e16b1c!drop-2	FROM / - 1.5 a
@@ -7116,6 +7341,7 @@ reject	reject	engine	struct_type_prefix/struct_type_prefix_,_struct_field!drop-5
 reject	reject	engine	struct_type_prefix/struct_type_prefix_,_struct_field!truncate	DECLARE a STRUCT < a,
 accept	accept	engine	struct_type_prefix/struct_type_prefix_,_struct_field!insert	DECLARE a STRUCT < a, a zzz >
 reject	reject	engine	struct_type_prefix/struct_type_prefix_,_struct_field!swap	DECLARE a SYSTEM < a, a >
+accept	accept	engine	struct_type_prefix/struct_type_prefix_,_struct_field+struct_field/identifier_type	DECLARE a STRUCT < a, a a >
 accept	accept	engine	struct_type/STRUCT_template_type_open_template_type_close	DECLARE a STRUCT < >
 reject	reject	engine	struct_type/STRUCT_template_type_open_template_type_close!drop-1	DECLARE a < >
 reject	reject	engine	struct_type/STRUCT_template_type_open_template_type_close!swap	DECLARE a SYSTEM < >
@@ -7210,6 +7436,12 @@ reject	reject	engine	type_parameters_prefix/type_parameters_prefix_,_type_parame
 reject	reject	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter!drop-3	DECLARE a a(1 1)
 reject	reject	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter!truncate	DECLARE a a(1,
 reject	reject	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter!insert	DECLARE a a(1, 1 zzz)
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+type_parameter/boolean_literal	DECLARE a a(1, TRUE)
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+boolean_literal/FALSE	DECLARE a a(1, FALSE)
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+type_parameter/string_literal	DECLARE a a(1, 'a')
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+type_parameter/bytes_literal	DECLARE a a(1, b'a')
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+type_parameter/floating_point_literal	DECLARE a a(1, 1.5)
+accept	accept	engine	type_parameters_prefix/type_parameters_prefix_,_type_parameter+type_parameter/MAX	DECLARE a a(1, MAX)
 accept	accept	engine	type_parameters/type_parameters_prefix_)	DECLARE a a(1)
 reject	reject	engine	type_parameters/type_parameters_prefix_)!drop-3	DECLARE a a(1
 reject	reject	engine	type_parameters/type_parameters_prefix_)!insert	DECLARE a a(1) zzz
@@ -7252,6 +7484,7 @@ reject	reject	engine	type_or_tvf_schema/tvf_schema	CREATE TABLE FUNCTION a RETUR
 accept	accept	engine	new_constructor_prefix_no_arg/NEW_type_name_(	SELECT NEW a()
 reject	reject	engine	new_constructor_prefix_no_arg/NEW_type_name_(!truncate	SELECT NEW a
 accept	accept	engine	new_constructor_prefix_no_arg/NEW_type_name_(!insert	SELECT NEW a(zzz)
+accept	accept	engine	new_constructor_prefix_no_arg/NEW_type_name_(+type_name/INTERVAL	SELECT NEW INTERVAL()
 accept	accept	engine	new_constructor_arg/expression	SELECT NEW a(NULL)
 reject	reject	engine	new_constructor_arg/expression!insert	SELECT NEW a(NULL zzz)
 reject	reject	engine	new_constructor_arg/expression!swap	SELECT NEW a(NULLS)
@@ -7371,6 +7604,7 @@ reject	reject	engine	braced_constructor(,)?/,	SELECT { a : NULL, }
 reject	reject	engine	braced_constructor(,)?/,!truncate	SELECT { a : NULL
 reject	reject	engine	braced_constructor(,)?/,!insert	SELECT { a : NULL, zzz }
 reject	reject	engine	braced_new_constructor/NEW_type_name_braced_constructor	SELECT NEW a { }
+reject	reject	engine	braced_new_constructor/NEW_type_name_braced_constructor+type_name/INTERVAL	SELECT NEW INTERVAL { }
 reject	reject	engine	struct_braced_constructor/struct_type_braced_constructor	SELECT STRUCT < > { }
 reject	reject	engine	struct_braced_constructor/struct_type_braced_constructor!drop-1	SELECT < > { }
 reject	reject	engine	struct_braced_constructor/struct_type_braced_constructor!drop-2	SELECT STRUCT > { }
@@ -7782,6 +8016,22 @@ reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_A
 reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound!insert	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING zzz)
 reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound!swap	SELECT NULL() OVER(RUN BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
 reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+frame_unit/RANGE	SELECT NULL() OVER(RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING!drop-3	SELECT NULL() OVER(ROWS BETWEEN FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW	SELECT NULL() OVER(ROWS BETWEEN CURRENT ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW!drop-3	SELECT NULL() OVER(ROWS BETWEEN ROW AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW!drop-4	SELECT NULL() OVER(ROWS BETWEEN CURRENT AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/expression_preceding_or_following	SELECT NULL() OVER(ROWS BETWEEN NULL PRECEDING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/expression_preceding_or_following!drop-4	SELECT NULL() OVER(ROWS BETWEEN NULL AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING#2	SELECT NULL() OVER(ROWS BETWEEN NULL FOLLOWING AND UNBOUNDED PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING#2	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING#2!drop-6	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND FOLLOWING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW#2	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW#2!drop-6	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND ROW)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/CURRENT_ROW#2!drop-7	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/expression_preceding_or_following#2	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND NULL PRECEDING)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+window_frame_bound/expression_preceding_or_following#2!drop-7	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND NULL)
+reject	reject	engine	window_frame_clause/frame_unit_BETWEEN_window_frame_bound_AND_window_frame_bound+preceding_or_following/FOLLOWING#2#2	SELECT NULL() OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND NULL FOLLOWING)
 reject	reject	engine	window_frame_clause/frame_unit_window_frame_bound	SELECT NULL() OVER(ROWS UNBOUNDED PRECEDING)
 reject	reject	engine	window_specification/identifier	SELECT NULL() OVER a
 reject	reject	engine	window_specification/identifier!drop-1	SELECT NULL() OVER
@@ -8703,6 +8953,8 @@ accept	accept	engine	insert_statement(insert_mode)?/insert_mode	INSERT IGNORE a 
 reject	reject	engine	insert_statement(insert_mode)?/insert_mode!truncate	INSERT
 reject	reject	engine	insert_statement(insert_mode)?/insert_mode!insert	INSERT IGNORE zzz a SELECT NULL
 reject	reject	engine	insert_statement(insert_mode)?/insert_mode!swap	INSERT IMMEDIATE a SELECT NULL
+accept	accept	engine	insert_statement(insert_mode)?/insert_mode+insert_mode/(KW_REPLACE_AFTER_INSERT|OR_REPLACE)	INSERT REPLACE a SELECT NULL
+accept	accept	engine	insert_statement(insert_mode)?/insert_mode+insert_mode/(KW_UPDATE_AFTER_INSERT|OR_UPDATE)	INSERT UPDATE a SELECT NULL
 accept	accept	engine	insert_statement(INTO)?/%empty	INSERT a SELECT NULL
 accept	accept	engine	insert_statement(INTO)?/INTO	INSERT INTO a SELECT NULL
 reject	reject	engine	insert_statement(INTO)?/INTO!insert	INSERT INTO zzz a SELECT NULL

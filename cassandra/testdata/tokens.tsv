@@ -42,3 +42,17 @@ constant	(every alternative)	Parser.g:1527 each kind of literal, as a selector a
 intValue	(every alternative)	Parser.g:1601 a number, a named or a positional marker, in LIMIT, TTL and TIMESTAMP
 inMarker	(every alternative)	Parser.g:1812 a positional or a named marker after IN
 columnMask	(every alternative)	Parser.g:798 MASKED WITH a function or DEFAULT, in CREATE and ALTER TABLE
+ident	(every alternative)	Parser.g:1454 a column name as a name, a quoted name or an unreserved keyword, at each of its sites
+fident	(every alternative)	Parser.g:1460 a field name as a name, a quoted name or an unreserved keyword
+noncol_ident	(every alternative)	Parser.g:1467 a property, marker or argument name as a name, a quoted name or an unreserved keyword
+ksName	(every alternative)	Parser.g:1498 a keyspace name as a name, a quoted name or an unreserved keyword
+cfName	(every alternative)	Parser.g:1505 a table name as a name, a quoted name or an unreserved keyword
+idxName	(every alternative)	Parser.g:1512 an index name as a name, a quoted name or an unreserved keyword
+roleName	(every alternative)	Parser.g:1519 a role name as a name, a string, a quoted name or an unreserved keyword
+username	(every alternative)	Parser.g:1921 a user name as a name or a string, in CREATE, ALTER and DROP USER
+identity	(every alternative)	Parser.g:1927 an identity as a name or a string, in ADD and DROP IDENTITY
+markerForTuple	(every alternative)	Parser.g:1832 a positional or a named marker for a tuple
+allowedFunctionName	(every alternative)	Parser.g:1613 a function name as a name, a quoted name, an unreserved keyword, TOKEN or COUNT
+non_type_ident	(every alternative)	Parser.g:1939 a type's name as a name, a quoted name, an unreserved keyword or KEY
+property	(every alternative)	Parser.g:1754 a property set to a value or to a map
+unreserved_keyword	(every alternative)	Parser.g:1946 an unreserved keyword as a function keyword or one of TTL, COUNT, WRITETIME and the rest, wherever a name takes one
