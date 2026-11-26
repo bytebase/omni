@@ -1118,6 +1118,11 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 		case "APPLY":
 			// Each column is the function, or the lambda, applied to it.
 			applied := r.expr(t.ApplyExpr, sc, ctes)
+			if t.ApplyFunc != "" {
+				// APPLY(f) where f is a WITH-bound lambda reads what the
+				// lambda reads, as a call f(column) does.
+				applied = union(applied, r.expr(&parser.FuncCallExpr{Name: t.ApplyFunc}, sc, ctes))
+			}
 			for i := range kept {
 				kept[i].name = newNamer(r, sc, ctes).apply(t, kept[i].name)
 				kept[i].sources = union(kept[i].sources, applied)
@@ -1163,13 +1168,28 @@ func bareNames(c spanColumn, sc *spanScope) bool {
 // isAlias reports whether a name is an alias the scope resolves before its
 // columns.
 func (r *spanResolver) isAlias(parts []string, sc *spanScope) bool {
-	if len(parts) != 1 || r.preferColumns {
+	if len(parts) != 1 {
 		return false
 	}
-	for s := sc; s != nil; s = s.parent {
-		if _, ok := s.aliases[parts[0]]; ok {
-			return true
+	// A name resolves in the closest query that has it; there, an alias
+	// comes first, or with prefer_column_name_to_alias a column does.
+	for lv := sc; lv != nil; {
+		scopes, next := level(lv)
+		column := false
+		for _, s := range scopes {
+			if _, found := lookup(parts, s); found != foundNone {
+				column = true
+			}
 		}
+		for _, s := range scopes {
+			if _, ok := s.aliases[parts[0]]; ok {
+				return !(column && r.preferColumns)
+			}
+		}
+		if column {
+			return false
+		}
+		lv = next
 	}
 	return false
 }

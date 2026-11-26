@@ -429,3 +429,31 @@ func TestResolveQuerySpanReplaceThroughDerived(t *testing.T) {
 		t.Errorf("reads %v, want shop.secrets.secret and no shop.secrets.email", names(sources))
 	}
 }
+
+func customersCatalog() Catalog {
+	db := tableDatabase{table: &metadata.TableMetadata{Name: "customers", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "email"}}}}
+	return Catalog{GetDatabase: func(string) (Database, error) { return db, nil }}
+}
+
+// APPLY(f) of a WITH-bound lambda reads what the lambda captures.
+func TestResolveQuerySpanApplyLambdaAlias(t *testing.T) {
+	got, err := ResolveQuerySpan("WITH x -> concat(toString(x), email) AS f SELECT * APPLY(f) FROM customers", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"shop.customers.email", "shop.customers.id"}; !slices.Equal(names(got.Results[0].SourceColumns), want) {
+		t.Errorf("f(id) reads %v, want %v", names(got.Results[0].SourceColumns), want)
+	}
+}
+
+// With prefer_column_name_to_alias, an alias no column shares is still
+// the alias.
+func TestResolveQuerySpanPreferColumnsAlias(t *testing.T) {
+	got, err := ResolveQuerySpan("WITH tuple(email, id) AS t SELECT untuple(t), 42 FROM customers SETTINGS prefer_column_name_to_alias = 1", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 3 {
+		t.Errorf("results %+v, want three", got.Results)
+	}
+}
