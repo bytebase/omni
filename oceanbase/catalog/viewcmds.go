@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strings"
 	"unicode/utf16"
 
@@ -1346,6 +1347,7 @@ func rewriteViewExprs(sel *nodes.SelectStmt) {
 	for _, wd := range sel.WindowClause {
 		normalizeViewWindowDef(wd)
 	}
+	inlineViewWindows(sel)
 	for _, item := range sel.OrderBy {
 		item.Expr = normalizeViewLiteralExpr(item.Expr)
 	}
@@ -1360,6 +1362,54 @@ func rewriteViewExprs(sel *nodes.SelectStmt) {
 			}
 		}
 	}
+}
+
+// inlineViewWindows writes each named window into the OVER that names it and
+// drops the WINDOW clause, as OceanBase stores a view: 4.3.5.6 reads CREATE VIEW
+// v AS SELECT RANK() OVER w r FROM a WINDOW w AS (ORDER BY a) back as `select
+// rank() over( ORDER BY ...) AS r from a`, SUM(a) OVER (w ORDER BY d) with w AS
+// (PARTITION BY a) as `over( PARTITION BY a ORDER BY d ...)`, and drops a window
+// no OVER names (testdata/queries/simulate.tsv).
+func inlineViewWindows(sel *nodes.SelectStmt) {
+	if len(sel.WindowClause) == 0 {
+		return
+	}
+	declared := make(map[string]*nodes.WindowDef, len(sel.WindowClause))
+	for _, wd := range sel.WindowClause {
+		if wd != nil && wd.Name != "" {
+			declared[toLower(wd.Name)] = wd
+		}
+	}
+	var resolve func(w *nodes.WindowDef, depth int) *nodes.WindowDef
+	resolve = func(w *nodes.WindowDef, depth int) *nodes.WindowDef {
+		ref := w.RefName
+		if ref == "" && len(w.PartitionBy) == 0 && len(w.OrderBy) == 0 && w.Frame == nil {
+			ref = w.Name
+		}
+		base := declared[toLower(ref)]
+		if ref == "" || base == nil || depth > len(declared) {
+			return w
+		}
+		merged := *resolve(&nodes.WindowDef{Loc: base.Loc, RefName: base.RefName, PartitionBy: base.PartitionBy, OrderBy: base.OrderBy, Frame: base.Frame}, depth+1)
+		merged.Loc, merged.Name, merged.RefName = w.Loc, "", ""
+		if len(w.PartitionBy) > 0 {
+			merged.PartitionBy = w.PartitionBy
+		}
+		if len(w.OrderBy) > 0 {
+			merged.OrderBy = w.OrderBy
+		}
+		if w.Frame != nil {
+			merged.Frame = w.Frame
+		}
+		return &merged
+	}
+	inspectBlockOwnNodes(sel, func(n nodes.Node) bool {
+		if fc, ok := n.(*nodes.FuncCallExpr); ok && fc.Over != nil {
+			fc.Over = resolve(fc.Over, 0)
+		}
+		return true
+	})
+	sel.WindowClause = nil
 }
 
 func normalizeViewWindowDef(wd *nodes.WindowDef) {
@@ -1942,10 +1992,17 @@ func (c *Catalog) resolveQueryFirst(sel *nodes.SelectStmt, isView bool, targetDB
 	}
 	blocks := collectSelectBlocks(sel)
 	if err := validateViewQueryPreAnalysis(blocks); err != nil {
+		var refusal *Error
+		if errors.As(err, &refusal) && isView && variableResolvesFirst(sel, refusal) {
+			return nil, errViewSelectVariable()
+		}
 		return nil, err
 	}
 	q, err := c.AnalyzeSelectStmt(sel)
 	var refusal *Error
+	if errors.As(err, &refusal) && isView && variableResolvesFirst(sel, refusal) {
+		return nil, errViewSelectVariable()
+	}
 	if errors.As(err, &refusal) {
 		switch refusal.Code {
 		case ErrNoSuchTable, ErrNoSuchColumn, ErrUnknownTable, ErrUnknownTableInFieldList,
@@ -2018,6 +2075,85 @@ func inspectBlockOwnNodes(block *nodes.SelectStmt, fn func(nodes.Node) bool) {
 		}
 	}
 }
+
+// defaultIsNull reports whether a JSON_VALUE response is DEFAULT NULL.
+func defaultIsNull(r *nodes.JSONValueResponse) bool {
+	if r == nil {
+		return false
+	}
+	_, ok := r.Default.(*nodes.NullLit)
+	return ok
+}
+
+// variableResolvesFirst reports whether a view's query reaches a variable before
+// the failure the analyzer met. OceanBase resolves the WHERE and then each select
+// item in turn, and within one expression it refuses a variable (1351) before an
+// unknown column (1054) or window (5929): 4.3.5.6 answers 1351 for SELECT
+// MATCH(a) AGAINST(@@autocommit), SELECT a + @@autocommit and SELECT zz FROM a
+// WHERE a = @v, and 1054 for SELECT a, @@autocommit and SELECT @v := a
+// (testdata/queries/simulate.tsv). Only a single block is read.
+func variableResolvesFirst(sel *nodes.SelectStmt, refusal *Error) bool {
+	if sel.SetOp != nodes.SetOpNone || (refusal.Code != ErrNoSuchColumn && refusal.Code != ErrOBWindowNotDefined) {
+		return false
+	}
+	exprs := make([]nodes.ExprNode, 0, len(sel.TargetList)+1)
+	if sel.Where != nil {
+		exprs = append(exprs, sel.Where)
+	}
+	exprs = append(exprs, sel.TargetList...)
+	column := ""
+	if refusal.Code == ErrNoSuchColumn {
+		if m := unknownColumnName.FindStringSubmatch(refusal.Message); m != nil {
+			column = m[1]
+			if i := strings.LastIndexByte(column, '.'); i >= 0 {
+				column = column[i+1:]
+			}
+		}
+	}
+	for _, expr := range exprs {
+		hasVariable, fails := false, false
+		nodes.Inspect(expr, func(n nodes.Node) bool {
+			switch e := n.(type) {
+			case *nodes.SelectStmt:
+				return false
+			case *nodes.BinaryExpr:
+				if e.Op == nodes.BinOpAssign {
+					// An assignment's target is no variable read: its value
+					// resolves first.
+					nodes.Inspect(e.Right, func(m nodes.Node) bool {
+						if c, ok := m.(*nodes.ColumnRef); ok && strings.EqualFold(c.Column, column) {
+							fails = true
+						}
+						return true
+					})
+					return false
+				}
+			case *nodes.VariableRef:
+				if !e.Bare {
+					hasVariable = true
+				}
+			case *nodes.ColumnRef:
+				if column != "" && strings.EqualFold(e.Column, column) {
+					fails = true
+				}
+			case *nodes.FuncCallExpr:
+				if refusal.Code == ErrOBWindowNotDefined && e.Over != nil && (e.Over.Name != "" || e.Over.RefName != "") {
+					fails = true
+				}
+			}
+			return true
+		})
+		if hasVariable {
+			return true
+		}
+		if fails {
+			return false
+		}
+	}
+	return false
+}
+
+var unknownColumnName = regexp.MustCompile(`^Unknown column '([^']*)'`)
 
 func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 	for _, block := range blocks {
@@ -2110,6 +2246,14 @@ func validateViewQueryPreAnalysis(blocks []*nodes.SelectStmt) error {
 						err = werr
 						return false
 					}
+				}
+				// JSON_VALUE's DEFAULT NULL, ON EMPTY or ON ERROR, is refused
+				// before anything resolves: 4.3.5.6 answers 1149 for SELECT
+				// JSON_VALUE(zz, '$' DEFAULT NULL ON EMPTY) FROM a, and takes
+				// DEFAULT 1 and NULL ON EMPTY.
+				if jv := e.JSONValue; jv != nil && (defaultIsNull(jv.OnEmpty) || defaultIsNull(jv.OnError)) {
+					err = errOBSyntaxError()
+					return false
 				}
 				if e.JSONQueryArm && len(e.Args) >= 2 {
 					if lit, ok := e.Args[1].(*nodes.StringLit); ok && !isValidJSONPathLit(lit.Value) {
@@ -2212,6 +2356,12 @@ func (c *Catalog) validateViewQueryPostAnalysis(blocks []*nodes.SelectStmt, isVi
 	for _, block := range blocks {
 		if block.Approx && !hasVectorSortExpr(block.OrderBy) {
 			return &Error{Code: ErrNotSupportedYet, SQLState: "0A000", Message: "Using vector index without vector_sort_expr is not supported"}
+		}
+		// INTO is refused once the query resolves, before its variables are:
+		// 4.3.5.6 answers 1350 for CREATE VIEW v AS SELECT a INTO @v FROM a and
+		// 1054 for SELECT zz INTO @v FROM a (testdata/queries/simulate.tsv).
+		if isView && block.Into != nil {
+			return errViewSelectInto()
 		}
 		var err error
 		inspectBlockOwnNodes(block, func(n nodes.Node) bool {

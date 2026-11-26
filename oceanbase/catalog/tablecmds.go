@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math/big"
 	"slices"
 	"strconv"
 	"strings"
@@ -1225,6 +1226,11 @@ func timestampZeroDefault(fsp int) string {
 
 func setColumnDefaultFromExpr(col *Column, expr nodes.ExprNode) {
 	val, kind := columnDefaultValue(expr)
+	if isIntegerType(col.DataType) {
+		if n, ok := integerDefaultText(expr); ok {
+			val, kind = n, ColumnDefaultConstant
+		}
+	}
 	col.Default = &val
 	col.DefaultKind = kind
 	col.DefaultDropped = false
@@ -1234,6 +1240,43 @@ func setColumnOnUpdateFromExpr(col *Column, expr nodes.ExprNode) {
 	val, kind := columnDefaultValue(expr)
 	col.OnUpdate = val
 	col.OnUpdateKind = kind
+}
+
+// integerDefaultText returns the number an integer column stores for a default
+// written as a hex, bit or DATE literal, or as a number in parentheses: 4.3.5.6
+// stores TINYINT DEFAULT 0x41 as '65', DEFAULT b'1' and DEFAULT (1) as '1', and
+// INT DEFAULT DATE '2020-01-01' as '20200101' (testdata/simulate.tsv, rules
+// literal and signed_literal).
+func integerDefaultText(expr nodes.ExprNode) (string, bool) {
+	switch e := expr.(type) {
+	case *nodes.HexLit:
+		digits := strings.TrimPrefix(strings.TrimPrefix(e.Value, "0x"), "0X")
+		if len(digits) >= 3 && (digits[0] == 'x' || digits[0] == 'X') && digits[1] == '\'' {
+			digits = strings.Trim(digits[1:], "'")
+		}
+		if n, ok := new(big.Int).SetString(digits, 16); ok {
+			return n.String(), true
+		}
+	case *nodes.BitLit:
+		bits := strings.Trim(strings.TrimPrefix(canonicalBitLiteral(e.Value), "b"), "'")
+		if n, ok := new(big.Int).SetString(bits, 2); ok {
+			return n.String(), true
+		}
+	case *nodes.TemporalLit:
+		if strings.EqualFold(e.Type, "DATE") {
+			if m := dateText.FindStringSubmatch(strings.TrimSpace(e.Value)); m != nil && m[4] == "" {
+				y, _ := strconv.Atoi(m[1])
+				mo, _ := strconv.Atoi(m[2])
+				d, _ := strconv.Atoi(m[3])
+				return fmt.Sprintf("%04d%02d%02d", y, mo, d), true
+			}
+		}
+	case *nodes.ParenExpr:
+		if text, isString, ok := literalText(e.Expr); ok && !isString {
+			return text, true
+		}
+	}
+	return "", false
 }
 
 func columnDefaultValue(expr nodes.ExprNode) (string, ColumnDefaultKind) {

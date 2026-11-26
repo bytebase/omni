@@ -1907,6 +1907,12 @@ func (p *Parser) parseExternalPartitionAction() (*nodes.Assignment, error) {
 	}
 	nameEnd := p.prev.End
 	p.match('=')
+	// The value is an expr_const, whose parameter marker 4.3.5.6 refuses here:
+	// ADD PARTITION(a ?) LOCATION 's' is a 1064 where ADD PARTITION(a 1) and
+	// ADD PARTITION(a @@autocommit) parse.
+	if p.cur.Type == '?' {
+		return nil, p.syntaxErrorAtCur()
+	}
 	value, err := p.parseExprConst()
 	if err != nil {
 		return nil, err

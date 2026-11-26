@@ -180,7 +180,7 @@ func TestViewQueryAndExpressionValidation(t *testing.T) {
 		sql     string
 		wantDef string
 	}{
-		{"defined_window", "CREATE VIEW _v AS SELECT RANK() OVER w FROM a WINDOW w AS (ORDER BY b)", "rank() OVER `w`"},
+		{"defined_window", "CREATE VIEW _v AS SELECT RANK() OVER w FROM a WINDOW w AS (ORDER BY b)", "rank() OVER (ORDER BY `a`.`b` )"}, // the named window is written in (inlineViewWindows)
 		{"ranking_drops_frame", "CREATE VIEW _v AS SELECT RANK() OVER (ROWS CURRENT ROW)", "select rank() OVER ( )  AS `RANK() OVER (ROWS CURRENT ROW)`"},
 		{"charset_introducer_stripped", "CREATE VIEW _v AS SELECT _utf8mb4 'hello'", "select 'hello' AS `hello`"},
 		{"binary_introducer_hex", "CREATE VIEW _v AS SELECT _binary 's'", "select 0x73 AS `s`"},

@@ -2175,6 +2175,34 @@ func (p *Parser) parseJsonTableColumns() ([]*nodes.JsonTableColumn, error) {
 	return cols, nil
 }
 
+// parseJsonTablePath reads the literal a JSON_TABLE column's PATH or NESTED
+// takes, and returns a string's value or any other literal's text. The grammar
+// writes `literal` there (sql_parser_mysql_mode.y:24807, 24820 and 24832), so
+// 4.3.5.6 parses PATH 1, PATH 0x41, PATH DATE '2020-01-01' and PATH N'$', and
+// refuses to the resolver what is no path (PATH NULL is 5487 after parsing).
+// A parameter marker and a signed number are no literal: PATH ? and PATH -1
+// are 1064.
+func (p *Parser) parseJsonTablePath() (string, error) {
+	start := p.cur.Loc
+	var lit nodes.ExprNode
+	var err error
+	if p.atNationalString() {
+		lit, err = p.parsePrimaryExpr()
+	} else {
+		lit, err = p.parseLiteralOnly()
+	}
+	if err != nil {
+		return "", err
+	}
+	if lit == nil {
+		return "", p.syntaxErrorAtCur()
+	}
+	if s, ok := lit.(*nodes.StringLit); ok {
+		return s.Value, nil
+	}
+	return p.lexer.input[start-p.lexer.baseOffset : p.prev.End-p.lexer.baseOffset], nil
+}
+
 // parseJsonTableColumn parses a single JSON_TABLE column definition.
 func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	if err := p.enterNesting(); err != nil {
@@ -2183,20 +2211,20 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 	defer p.leaveNesting()
 	start := p.pos()
 
-	// NESTED PATH path COLUMNS (column_list). PATH is required: the grammar also
-	// derives NESTED literal COLUMNS (...), which the pinned server answers 1064
-	// for (json_table_nested_column_def/NESTED_literal_COLUMNS_(_jt_column_list_)
-	// in testdata/compat.tsv).
+	// NESTED [PATH] literal COLUMNS (column_list) (json_table_nested_column_def,
+	// sql_parser_mysql_mode.y:24832). Without PATH a plain quoted string is no
+	// path: 4.3.5.6 answers 1064 for NESTED '$' COLUMNS (...) and NESTED "$" and
+	// parses NESTED 1, NESTED N'$' and NESTED _utf8mb4'$', and every literal
+	// after PATH.
 	if p.cur.Type == kwNESTED {
 		p.advance()
-		if _, err := p.expect(kwPATH); err != nil {
+		if _, ok := p.match(kwPATH); !ok && p.cur.Type == tokSCONST {
+			return nil, p.syntaxErrorAtCur()
+		}
+		nestedPath, err := p.parseJsonTablePath()
+		if err != nil {
 			return nil, err
 		}
-		if p.cur.Type != tokSCONST {
-			return nil, &ParseError{Message: "expected path string in NESTED", Position: p.cur.Loc}
-		}
-		nestedPath := p.cur.Str
-		p.advance()
 
 		if p.cur.Type != kwCOLUMNS {
 			return nil, &ParseError{Message: "expected COLUMNS after NESTED PATH", Position: p.cur.Loc}
@@ -2262,14 +2290,12 @@ func (p *Parser) parseJsonTableColumn() (*nodes.JsonTableColumn, error) {
 		col.Exists = true
 	}
 
-	// PATH
+	// PATH literal (json_table_exists_column_def and json_table_value_column_def)
 	if p.cur.Type == kwPATH {
 		p.advance()
-		if p.cur.Type != tokSCONST {
-			return nil, &ParseError{Message: "expected path string", Position: p.cur.Loc}
+		if col.Path, err = p.parseJsonTablePath(); err != nil {
+			return nil, err
 		}
-		col.Path = p.cur.Str
-		p.advance()
 	}
 
 	// [on_empty] [on_error]

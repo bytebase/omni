@@ -207,9 +207,8 @@ func TestParseError_Section_1_4_DMLIgnoredErrors(t *testing.T) {
 		// it covered: a '@' with nothing after it is an empty host, and
 		// `SET DEFAULT ROLE role1 TO user@` runs on this engine.
 		{"rename_user_trunc", "RENAME USER", "expected user name"},
-		// load_data.go: charset/file identifier (2 sites)
+		// load_data.go: charset identifier (CHARSET alone is a 1064 on LOAD DATA)
 		{"load_data_charset_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARACTER SET", "at end of input"},
-		{"load_data_charset_short_trunc", "LOAD DATA INFILE 'f' INTO TABLE t CHARSET", "at end of input"},
 		// load_data.go: ROWS IDENTIFIED BY at EOF (3 sites)
 		{"load_rows_trunc", "LOAD XML INFILE 'f' INTO TABLE t ROWS", "at end of input"},
 		{"load_rows_identified_trunc", "LOAD XML INFILE 'f' INTO TABLE t ROWS IDENTIFIED", "at end of input"},
