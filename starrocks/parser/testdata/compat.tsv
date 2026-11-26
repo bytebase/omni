@@ -14410,3 +14410,8 @@ reject	reject	engine	suite:date-literals	SELECT DATE '-999999999-01-01T00:00:00+
 accept	accept	engine	suite:date-literals	SELECT DATE '2020-01-01T00:00:00.5+08:00'
 reject	reject	engine	suite:date-literals	SELECT DATE '2020-01-01T00:00.5Z'
 accept	accept	engine	suite:date-literals	SELECT DATE '2020-01-01T00:00:00+08:00:30'
+reject	reject	engine	suite:date-literals	SELECT DATE '-0000-01-01T00:00:00Z'
+reject	reject	engine	suite:date-literals	SELECT DATE '-000000-01-01T00:00:00Z'
+accept	accept	engine	suite:date-literals	SELECT DATE '+00000-01-01T00:00:00Z'
+accept	accept	engine	suite:date-literals	SELECT DATE '0000-01-01T00:00:00Z'
+reject	reject	engine	suite:date-literals	SELECT DATE '-0000-01-01T00:00:00+08:00'

@@ -286,7 +286,8 @@ func isoLocalDateTime(s string) (isoTime, string, bool) {
 		if n < 4 || !neg && n == 4 {
 			return t, "", false
 		}
-		if y = atoiDigits(rest[1 : 1+n]); y > 999999999 {
+		// A strict parse refuses a minus on zero.
+		if y = atoiDigits(rest[1 : 1+n]); y > 999999999 || neg && y == 0 {
 			return t, "", false
 		}
 		if neg {
