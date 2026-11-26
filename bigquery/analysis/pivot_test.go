@@ -20,8 +20,8 @@ func TestGetQuerySpanPivot(t *testing.T) {
 			[][]string{{"r", "t.r"}, {"Q1", "t.v"}, {"Q2", "t.v"}}},
 		{"SELECT p.* FROM (SELECT s, c, d FROM t) AS q PIVOT (MAX(s) AS m, COUNT(*) AS n FOR c IN ('a', 'b' AS bb)) AS p",
 			[][]string{{"d", "t.d"}, {"m_a", "t.s"}, {"n_a"}, {"m_bb", "t.s"}, {"n_bb"}}},
-		{"SELECT * FROM (SELECT x FROM t) PIVOT (SUM(x) FOR x IN (1, -2, true, NULL))",
-			[][]string{{"_1", "t.x"}, {"minus_2", "t.x"}, {"true", "t.x"}, {"NULL", "t.x"}}},
+		{"SELECT * FROM (SELECT x FROM t) PIVOT (SUM(x) FOR x IN (1, -2, true, NULL, DATE '2013-11-25'))",
+			[][]string{{"_1", "t.x"}, {"minus_2", "t.x"}, {"TRUE", "t.x"}, {"NULL", "t.x"}, {"_2013_11_25", "t.x"}}},
 		{"SELECT * FROM (SELECT r, a, b FROM t) UNPIVOT (v FOR n IN (a, b))",
 			[][]string{{"r", "t.r"}, {"v", "t.a", "t.b"}, {"n"}}},
 		{"SELECT * FROM (SELECT a, b, c, d FROM t) UNPIVOT ((v1, v2) FOR n IN ((a, b) AS 'x', (c, d) AS 'y'))",
@@ -43,5 +43,15 @@ func TestGetQuerySpanPivot(t *testing.T) {
 			got = append(got, append([]string{r.Name}, resultSourceColumns(r)...))
 		}
 		require.Equal(t, tc.want, got, "statement: %s", tc.sql)
+	}
+
+	// A value whose column name omni does not derive fails closed: a
+	// reference to the column by its name would read nothing.
+	for _, sql := range []string{
+		"SELECT * FROM (SELECT x FROM t) PIVOT (SUM(x) FOR x IN (1.5))",
+		"SELECT x FROM t |> PIVOT (SUM(x) FOR x IN (TIMESTAMP '2020-01-01'))",
+	} {
+		_, err := GetQuerySpan(sql)
+		require.Error(t, err, sql)
 	}
 }

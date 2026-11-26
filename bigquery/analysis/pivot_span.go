@@ -42,6 +42,10 @@ func (w *spanWalker) pivotColumns(in []projColumn, pv *ast.PivotClause) []projCo
 		if value == "" {
 			value = pivotValueName(v.Expr)
 		}
+		if value == "" {
+			// A reference to the column by its name would match nothing.
+			w.failClosed(fmt.Errorf("a PIVOT value without an alias whose column name this walker does not derive (fail closed)"))
+		}
 		for i, agg := range pv.Aggregates {
 			if agg == nil {
 				continue
@@ -70,15 +74,19 @@ func (w *spanWalker) markRead(used map[string]bool, expr ast.Node) {
 	}
 }
 
-// pivotValueName is the name BigQuery gives an IN value without an alias: a
-// string's content, `_1` for 1 and `minus_1` for -1, true, false and NULL.
-// Another value gets no name here.
+// pivotValueName is the name BigQuery gives an IN value without an alias
+// (https://cloud.google.com/bigquery/docs/reference/standard-sql/query-syntax#pivot_operator):
+// a string's content, `_1` for 1 and `minus_1` for -1, TRUE, FALSE, NULL,
+// and `_2013_11_25` for DATE '2013-11-25'. Another value gets no name here.
 func pivotValueName(expr ast.Node) string {
 	if u, ok := expr.(*ast.UnaryExpr); ok && u.Op == ast.UnaryMinus {
-		if lit, ok := u.Expr.(*ast.Literal); ok && lit.Kind == ast.LitInt {
+		if lit, ok := u.Expr.(*ast.Literal); ok && lit.Kind == ast.LitInt && !strings.HasPrefix(strings.ToLower(lit.Value), "0x") {
 			return "minus_" + lit.Value
 		}
 		return ""
+	}
+	if lit, ok := expr.(*ast.TypedLiteral); ok && strings.EqualFold(lit.TypeKeyword, "DATE") {
+		return "_" + strings.ReplaceAll(strings.TrimSpace(lit.Value), "-", "_")
 	}
 	lit, ok := expr.(*ast.Literal)
 	if !ok {
@@ -88,9 +96,12 @@ func pivotValueName(expr ast.Node) string {
 	case ast.LitString:
 		return lit.Value
 	case ast.LitInt:
+		if strings.HasPrefix(strings.ToLower(lit.Value), "0x") {
+			return ""
+		}
 		return "_" + lit.Value
 	case ast.LitBool:
-		return strings.ToLower(lit.Value)
+		return strings.ToUpper(lit.Value)
 	case ast.LitNull:
 		return "NULL"
 	}

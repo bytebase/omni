@@ -544,7 +544,18 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 		ref.Column = column
 		return []ColumnRef{ref}
 	}
-	return []ColumnRef{{Column: column}}
+	// Inside a scalar or ARRAY subquery the name may be an enclosing query's
+	// column, which a derived relation there may have renamed (`SELECT ssn AS
+	// renamed ... (SELECT renamed)`): add that column's sources. The bare ref
+	// stays, for a base table's column of either scope.
+	refs := []ColumnRef{{Column: column}}
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if outer, ok := w.enclosing[i].derivedColumn(column); ok {
+			refs = append(refs, outer...)
+			break
+		}
+	}
+	return refs
 }
 
 // outerColumn reports whether an unqualified column inside a scalar or ARRAY

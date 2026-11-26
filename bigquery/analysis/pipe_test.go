@@ -283,6 +283,8 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		{"SELECT 0 AS p |> SELECT ARRAY(SELECT secret FROM t) AS s", [][]string{{"s", "t.secret"}}},
 		{"SELECT x FROM t |> SET x = (SELECT MAX(secret) FROM t)", [][]string{{"x", "t.secret"}}},
 		// A correlated reference reads the enclosing query's column.
+		{"FROM t |> SELECT secret AS renamed |> EXTEND (SELECT renamed) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"SELECT (SELECT renamed FROM u) AS v FROM (SELECT secret AS renamed FROM t)", [][]string{{"v", "t.secret"}}},
 		{"SELECT (SELECT secret FROM u) AS v FROM t", [][]string{{"v", "t.secret"}}},
 		{"SELECT (SELECT STRING_AGG(e) FROM UNNEST([p.secret]) AS e) AS v FROM t AS p", [][]string{{"v", "t.secret"}}},
 	}
