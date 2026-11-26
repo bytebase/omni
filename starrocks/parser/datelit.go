@@ -202,8 +202,7 @@ func monthDay(s string) (int, int, string, bool) {
 }
 
 // isoZonedDateTime reads DateTimeFormatter.ISO_ZONED_DATE_TIME: a local date
-// and time, an offset, and an optional bracketed zone. The zone is checked
-// only for its characters, since its validity is the server's tz database's.
+// and time, an offset, and an optional bracketed zone ID (see zoneID).
 func isoZonedDateTime(s string) bool {
 	rest, ok := isoLocalDateTime(s)
 	if !ok {
@@ -215,15 +214,40 @@ func isoZonedDateTime(s string) bool {
 	if rest == "" {
 		return true
 	}
-	if rest[0] != '[' || rest[len(rest)-1] != ']' || len(rest) < 3 {
+	if len(rest) < 3 || rest[0] != '[' || rest[len(rest)-1] != ']' {
 		return false
 	}
-	for _, c := range rest[1 : len(rest)-1] {
-		if !(c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || strings.ContainsRune("/_+-:.~", c)) {
-			return false
+	return zoneID(rest[1 : len(rest)-1])
+}
+
+// zoneID reports whether ISO_ZONED_DATE_TIME's bracket takes id, as Java
+// 11's ZoneIdPrinterParser reads it (case-sensitively): GMT0, or UT, UTC or
+// GMT alone or with a strict offset; then a strict offset alone; then a
+// region the pinned server's JRE knows (javaZoneIDs); then Z.
+func zoneID(id string) bool {
+	if id == "GMT0" {
+		return true
+	}
+	for _, prefix := range []string{"UTC", "GMT", "UT"} {
+		if rest, ok := strings.CutPrefix(id, prefix); ok {
+			return rest == "" || strictOffset(rest)
 		}
 	}
-	return true
+	if id[0] == '+' || id[0] == '-' {
+		return strictOffset(id)
+	}
+	return javaZoneIDs[id] || id == "Z"
+}
+
+// strictOffset reports whether s is all one offset as the pattern
+// +HH:MM:ss reads it strictly: a sign, HH:MM and an optional :SS, no more
+// than 18 hours.
+func strictOffset(s string) bool {
+	if len(s) != 6 && len(s) != 9 || s[0] != '+' && s[0] != '-' || strings.Count(s, ":") != len(s)/3-1 {
+		return false
+	}
+	rest, ok := isoOffset(s)
+	return ok && rest == ""
 }
 
 // isoLocalDateTime reads ISO_LOCAL_DATE_TIME, uuuu-MM-dd'T'HH:mm[:ss[.n]],
