@@ -60,6 +60,7 @@ type Sequence struct {
 	Cycle       bool
 	OwnerRelOID uint32 // 0 if not owned
 	OwnerAttNum int16
+	Identity    bool // the owner column's identity sequence, not one OWNED BY it
 }
 
 // sequence type bounds
@@ -713,13 +714,22 @@ func sequenceInSchema(s *Schema, name string) (*Sequence, error) {
 }
 
 func (c *Catalog) findIdentitySequence(rel *Relation, attNum int16) (*Sequence, error) {
-	for _, seq := range c.sequenceByOID {
-		if seq.OwnerRelOID == rel.OID && seq.OwnerAttNum == attNum {
-			return seq, nil
-		}
+	if seq := c.identitySequenceOf(rel, attNum); seq != nil {
+		return seq, nil
 	}
 	return nil, &Error{Code: CodeUndefinedObject,
 		Message: fmt.Sprintf("identity sequence for column %d of relation %q does not exist", attNum, rel.Name)}
+}
+
+// identitySequenceOf returns the identity sequence of rel's column attNum,
+// or nil. Another sequence may be OWNED BY the same column.
+func (c *Catalog) identitySequenceOf(rel *Relation, attNum int16) *Sequence {
+	for _, seq := range c.sequenceByOID {
+		if seq.Identity && seq.OwnerRelOID == rel.OID && seq.OwnerAttNum == attNum {
+			return seq
+		}
+	}
+	return nil
 }
 
 // removeSequence removes a sequence from the catalog.
@@ -843,6 +853,7 @@ func (c *Catalog) createIdentitySequence(tableSchema *Schema, relName, colName, 
 	}
 
 	seq := spec.schema.Sequences[spec.name]
+	seq.Identity = true
 	return seq, stmt.Sequence, spec.explicitName, nil
 }
 

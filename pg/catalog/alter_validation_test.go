@@ -106,7 +106,7 @@ func TestAddColumnDefaultTypeMismatchRollsBackColumn(t *testing.T) {
 // An identity column takes another integer type, and its sequence with it;
 // programs/simulate.tsv's programs@identity rows hold this to PostgreSQL.
 func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
-	c, err := LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY);")
+	c, err := LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY);\nCREATE SEQUENCE extra AS int OWNED BY t.id;")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,8 +125,11 @@ func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if seq.TypeOID != INT8OID {
-		t.Errorf("identity sequence type = %d, want bigint", seq.TypeOID)
+	if seq.Name != "t_id_seq" || seq.TypeOID != INT8OID {
+		t.Errorf("identity sequence %s type = %d, want t_id_seq bigint", seq.Name, seq.TypeOID)
+	}
+	if extra, err := c.findSequence("", "extra"); err != nil || extra.TypeOID != INT4OID {
+		t.Errorf("sequence OWNED BY the column: %v, %+v; want it left integer", err, extra)
 	}
 	assertErrorCode(t, results[1].Error, CodeInvalidParameterValue)
 	if rel.Columns[0].TypeOID != INT8OID {

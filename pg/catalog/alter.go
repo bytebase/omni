@@ -3417,17 +3417,12 @@ func (c *Catalog) atAlterColumnType(rel *Relation, colName string, cd *nodes.Col
 	// An identity column's sequence takes the new type. A partition's
 	// column may run its parent's sequence.
 	// pg: src/backend/commands/tablecmds.c — ATExecAlterColumnType (attidentity)
-	if col.Identity != 0 {
-		for _, seq := range c.sequenceByOID {
-			if seq.OwnerRelOID != rel.OID || seq.OwnerAttNum != col.AttNum {
-				continue
-			}
-			return c.AlterSequenceStmt(&nodes.AlterSeqStmt{
-				Sequence:    &nodes.RangeVar{Schemaname: seq.Schema.Name, Relname: seq.Name},
-				Options:     &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "as", Arg: cd.TypeName}}},
-				ForIdentity: true,
-			})
-		}
+	if seq := c.identitySequenceOf(rel, col.AttNum); col.Identity != 0 && seq != nil {
+		return c.AlterSequenceStmt(&nodes.AlterSeqStmt{
+			Sequence:    &nodes.RangeVar{Schemaname: seq.Schema.Name, Relname: seq.Name},
+			Options:     &nodes.List{Items: []nodes.Node{&nodes.DefElem{Defname: "as", Arg: cd.TypeName}}},
+			ForIdentity: true,
+		})
 	}
 	return nil
 }

@@ -59,6 +59,9 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		// An implicit cast the sync does not list may let an argument reach a procedure.
 		"CALL f_double('1'::text);",
 		"CALL nope(1);",
+		// A user's sum may stand before pg_catalog's, as a DO block may set.
+		"DO $$ BEGIN SET search_path = public, pg_catalog; ALTER TABLE t ALTER n TYPE integer USING sum(n); END $$;",
+		"SET search_path = public, pg_catalog;\nALTER TABLE t ALTER n TYPE json USING JSON_ARRAYAGG(n);",
 		// DROP ROUTINE also drops an aggregate, which the sync does not list.
 		"DROP ROUTINE nope_agg(int);",
 		// A call may be a function-style cast to a domain the sync does not list.

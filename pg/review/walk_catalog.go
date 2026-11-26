@@ -3,6 +3,7 @@ package review
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/pg/ast"
@@ -97,7 +98,7 @@ func catalogRefusal(ctx context.Context, stmts []statement, steps []step, sessio
 		var refusal *pgcatalog.Error
 		if errors.As(err, &refusal) {
 			code, ok := catalogCodes[refusal.Code]
-			if !ok || !catalogJudges(node) || curable(refusal, node, snap) || namesUntrustedRoutine(node) || setsOwnSettings(node) {
+			if !ok || !catalogJudges(node) || curable(refusal, node, snap, sessions[i].path) || namesUntrustedRoutine(node) || setsOwnSettings(node) {
 				return nil
 			}
 			message := "PostgreSQL refuses this statement: " + refusal.Message + " (SQLSTATE " + refusal.Code + ")."
@@ -179,15 +180,26 @@ func setsOwnSettings(node ast.Node) bool {
 }
 
 // curable reports whether an object the sync does not list could cure the
-// refusal of node: a cast, for a coercion the catalog finds none for (a
-// RETURN that does not fit its routine's kind needs no cast); or, for a
+// refusal of node, run on path: a user routine named as a built-in
+// aggregate or window function; a cast, for a coercion the catalog finds
+// none for (a RETURN that does not fit its routine's kind needs no cast); or, for a
 // missing function, anything but a routine node names by its signature,
 // which the sync lists unless it may have lost routines. An operator, a
 // call in an expression (an aggregate, or a domain's function-style cast)
 // or in a body, and an aggregate that DROP ROUTINE or renaming a function
 // or routine finds by its signature may be what the sync leaves out.
-func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot) bool {
+func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []string) bool {
 	switch err.Code {
+	case "42803", "42P20":
+		// The aggregate or window function may be a user's routine of a
+		// built-in's name, which the sync leaves out, where the search path
+		// puts pg_catalog after its schema, or where a DO block or a called
+		// procedure runs the statement under a path of its own.
+		switch node.(type) {
+		case *ast.DoStmt, *ast.CallStmt:
+			return true
+		}
+		return slices.Index(path, "pg_catalog") > 0
 	case "42846":
 		return true
 	case "42804":
