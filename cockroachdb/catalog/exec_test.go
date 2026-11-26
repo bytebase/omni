@@ -459,3 +459,9 @@ func TestExecRound24(t *testing.T) {
 	_, err = execLast(t, "CREATE SEQUENCE sq AS INT4; ALTER SEQUENCE sq CACHE 10")
 	require.NoError(t, err)
 }
+
+func TestExecRound25(t *testing.T) {
+	c, err := execLast(t, "CREATE TABLE t (a INT8, b INT8, CHECK (t.a > 0)); ALTER TABLE t RENAME COLUMN a TO c")
+	require.NoError(t, err)
+	require.Contains(t, c.Metadata().Schemas[0].Tables[0].CheckConstraints[0].Expression, "t.c")
+}

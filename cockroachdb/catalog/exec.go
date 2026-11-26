@@ -2875,8 +2875,12 @@ func renameSequenceIn(def string, from, to [2]string) string {
 // renameColumnIn returns an expression with a column renamed.
 func renameColumnIn(expr tree.Expr, from, to string) tree.Expr {
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
-		if name, ok := e.(*tree.UnresolvedName); ok && name.NumParts == 1 && !name.Star && name.Parts[0] == from {
-			return false, &tree.UnresolvedName{NumParts: 1, Parts: tree.NameParts{to}}, nil
+		// A column named alone or under its relation (t.a); the qualifier
+		// stays.
+		if name, ok := e.(*tree.UnresolvedName); ok && name.NumParts <= 2 && !name.Star && name.Parts[0] == from {
+			renamed := *name
+			renamed.Parts[0] = to
+			return false, &renamed, nil
 		}
 		return true, e, nil
 	})
