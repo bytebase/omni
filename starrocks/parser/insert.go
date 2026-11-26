@@ -372,7 +372,7 @@ func (p *Parser) parseKeyPartitionValue() (ast.Node, error) {
 		return &ast.Literal{Kind: ast.LitNull, Value: "?", Loc: tok.Loc}, nil
 	case kwDATE, kwDATETIME:
 		kwTok := p.advance()
-		strTok, err := p.expect(tokString)
+		strTok, err := p.expectDateString()
 		if err != nil {
 			return nil, err
 		}

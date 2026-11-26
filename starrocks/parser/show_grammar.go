@@ -399,9 +399,12 @@ func (p *Parser) showShapeIdent() bool {
 	return err == nil
 }
 
-// showShapeLimitValue reads INTEGER_VALUE or PARAMETER.
+// showShapeLimitValue reads a limitElement's value (StarRocks.g4:2136),
+// INTEGER_VALUE or PARAMETER. Only the number is taken: AstBuilder's
+// visitLimitElement refuses a parameter ("using parameter(?) as limit or
+// offset not supported"), as parseLimitValue does.
 func (p *Parser) showShapeLimitValue() bool {
-	return p.showShapeToken(tokInt) || p.showShapeToken(tokPlaceholder)
+	return p.showShapeToken(tokInt)
 }
 
 // showShapeToken consumes the current token if it is of kind.

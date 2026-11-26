@@ -155,14 +155,14 @@ func (p *Parser) parseDeleteStmt(deleteStart int) (*ast.DeleteStmt, error) {
 	// pinned server, while `DELETE a FROM ...` is another statement Doris has
 	// and StarRocks does not.
 
-	// optional PARTITION(p1, p2, ...) or PARTITIONS (p1, p2, ...)
-	if p.cur.Kind == kwPARTITION || p.cur.Kind == kwPARTITIONS {
-		p.advance() // consume PARTITION / PARTITIONS
-		partitions, err := p.parsePartitionNameList()
+	// partitionNames? (StarRocks.g4:1205)
+	if p.atPartitionNames() {
+		partitions, temporary, err := p.parsePartitionNames()
 		if err != nil {
 			return nil, err
 		}
 		stmt.Partition = partitions
+		stmt.TemporaryPartition = temporary
 	}
 
 	// optional USING clause
@@ -231,42 +231,26 @@ func isDMLClauseKeyword(t int) bool {
 	return isSelectClauseKeyword(t)
 }
 
-// parsePartitionNameList parses (p1 [, p2 ...]) — the partition name list.
-// The opening '(' is optional in Doris for single-partition DELETE syntax
-// (PARTITION p1) but PARTITIONS always uses '(p1, p2, ...)'. We handle both.
-func (p *Parser) parsePartitionNameList() ([]string, error) {
-	var names []string
-
-	if p.cur.Kind == int('(') {
-		// Parenthesized list: (p1, p2, ...)
-		p.advance() // consume '('
-
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		names = append(names, name)
-
-		for p.cur.Kind == int(',') {
-			p.advance() // consume ','
-			name, _, err = p.parseIdentifier()
-			if err != nil {
-				return nil, err
-			}
-			names = append(names, name)
-		}
-
-		if _, err := p.expect(int(')')); err != nil {
-			return nil, err
-		}
-	} else {
-		// Bare single name: PARTITION p1
-		name, _, err := p.parseIdentifier()
-		if err != nil {
-			return nil, err
-		}
-		names = append(names, name)
+// atPartitionNames reports whether cur starts partitionNames
+// (StarRocks.g4:2268): TEMPORARY, PARTITION or PARTITIONS.
+func (p *Parser) atPartitionNames() bool {
+	switch p.cur.Kind {
+	case kwTEMPORARY, kwPARTITION, kwPARTITIONS:
+		return true
 	}
+	return false
+}
 
-	return names, nil
+// parsePartitionNames reads partitionNames (StarRocks.g4:2268): a list of
+// names or strings, one name or string, or keyPartitions, each name as
+// written for a key partition, and whether TEMPORARY came first.
+func (p *Parser) parsePartitionNames() ([]string, bool, error) {
+	var names ast.AlterTableAction
+	if err := p.parseAlterPartitionNames(&names); err != nil {
+		return nil, false, err
+	}
+	if names.PartitionName != "" {
+		return []string{names.PartitionName}, names.Temporary, nil
+	}
+	return names.PartitionList, names.Temporary, nil
 }

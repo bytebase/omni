@@ -435,7 +435,7 @@ func (p *Parser) parseAdminPartitionLiteral() error {
 		return nil
 	case kwDATE, kwDATETIME:
 		p.advance() // consume DATE / DATETIME
-		_, err := p.expect(tokString)
+		_, err := p.expectDateString()
 		return err
 	}
 	return p.syntaxErrorAtCur()

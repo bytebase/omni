@@ -703,9 +703,6 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 				return err
 			}
 			if p.strictCTAS {
-				if partDesc.RangeExplicit && !partDesc.HasDefinitions {
-					return p.syntaxErrorAtCur()
-				}
 				for _, item := range partDesc.Partitions {
 					switch partDesc.Type {
 					case "RANGE":
@@ -896,8 +893,9 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		// FUNCTION call or partition expression: PARTITION BY functionCall
-		// or PARTITION BY partitionExpr (',' partitionExpr)*.
-		if !isPartitionExprStart(p.cur.Kind) {
+		// or PARTITION BY partitionExpr (',' partitionExpr)*. RANGE takes
+		// any primaryExpression (StarRocks.g4:2595), CURRENT_USER among them.
+		if !isPartitionExprStart(p.cur.Kind) && !(explicitType && isNilaryFunctionKeyword(p.cur.Kind)) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		for {
@@ -911,11 +909,18 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 					return nil, idErr
 				}
 				expr = &ast.ColumnRef{Name: &ast.ObjectName{Parts: []string{name}, Loc: loc}, Loc: loc}
-			} else if explicitType {
-				// Explicit RANGE takes a primaryExpression only.
-				expr, err = p.parsePrimaryExpr()
+			} else if explicitType && p.nilaryBeforeDefinitions() {
+				// RANGE CURRENT_USER () with nothing after: the () is the
+				// definition list, as the parentheses after CURRENT_USER are
+				// optional (StarRocks.g4:2482).
+				tok := p.advance()
+				expr = &ast.FuncCallExpr{Name: &ast.ObjectName{Parts: []string{strings.ToUpper(tok.Str)}, Loc: tok.Loc}, Loc: tok.Loc}
 			} else {
-				expr, err = p.parseExpr()
+				// RANGE takes a primaryExpression, and partitionExpr is an
+				// identifier or a functionCall (StarRocks.g4:2588), so no
+				// operator follows: `PARTITION BY a LIKE b` is
+				// createTableLikeStatement's LIKE.
+				expr, err = p.parsePrimaryExpr()
 			}
 			if err != nil {
 				return nil, err
@@ -989,9 +994,41 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			return nil, err
 		}
 		pd.Loc.End = closeTok.Loc.End
+	} else if pd.RangeExplicit {
+		// PARTITION BY RANGE takes its definition list, empty or not
+		// (StarRocks.g4:2594-2595).
+		return nil, p.syntaxErrorAtCur()
 	}
 
 	return pd, nil
+}
+
+// isNilaryFunctionKeyword reports whether kind is a function word whose
+// parentheses are optional (StarRocks.g4:2482-2491).
+func isNilaryFunctionKeyword(kind TokenKind) bool {
+	switch kind {
+	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP,
+		kwCURRENT_USER, kwCURRENT_ROLE, kwLOCALTIME, kwLOCALTIMESTAMP:
+		return true
+	}
+	return false
+}
+
+// nilaryBeforeDefinitions reports whether cur is such a word followed by
+// () and no further '(': the () can then only be the definition list.
+func (p *Parser) nilaryBeforeDefinitions() bool {
+	if !isNilaryFunctionKeyword(p.cur.Kind) || p.peekNext().Kind != int('(') {
+		return false
+	}
+	mark := p.save()
+	defer p.restore(mark)
+	p.advance() // consume the word
+	p.advance() // consume '('
+	if p.cur.Kind != int(')') {
+		return false
+	}
+	p.advance() // consume ')'
+	return p.cur.Kind != int('(')
 }
 
 // rangeScalarBeforeDefinitions reports whether an identifier at cur is the

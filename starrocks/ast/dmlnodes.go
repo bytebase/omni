@@ -100,9 +100,11 @@ type DeleteStmt struct {
 	Target      *ObjectName // table to delete from
 	TargetAlias string      // optional alias
 	Partition   []string    // optional PARTITION(p1, p2, ...) names
-	Using       []Node      // optional USING clause table references
-	Where       Node        // optional WHERE expression
-	Loc         Loc
+	// TemporaryPartition marks TEMPORARY before PARTITION.
+	TemporaryPartition bool
+	Using              []Node // optional USING clause table references
+	Where              Node   // optional WHERE expression
+	Loc                Loc
 }
 
 // Tag implements Node.
@@ -117,12 +119,13 @@ var _ Node = (*DeleteStmt)(nil)
 
 // TruncateTableStmt represents a TRUNCATE TABLE statement:
 //
-//	TRUNCATE TABLE [db.]name [PARTITION(p1, p2, ...)] [FORCE]
+//	TRUNCATE TABLE [db.]name [[TEMPORARY] PARTITION(p1, p2, ...)]
 type TruncateTableStmt struct {
 	Target    *ObjectName // table name
 	Partition []string    // optional PARTITION(p1, p2, ...) names; nil if absent
-	Force     bool        // optional FORCE flag
-	Loc       Loc
+	// TemporaryPartition marks TEMPORARY before PARTITION.
+	TemporaryPartition bool
+	Loc                Loc
 }
 
 // Tag implements Node.
