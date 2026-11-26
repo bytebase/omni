@@ -1836,7 +1836,7 @@ func (p *Parser) parseQualifiedTrimSubstring(fc *nodes.FuncCallExpr) (nodes.Expr
 	return fc, nil
 }
 
-// parseGroupConcatFunc parses GROUP_CONCAT([DISTINCT] expr [, expr ...] [ORDER BY ...] [SEPARATOR str]).
+// parseGroupConcatFunc parses GROUP_CONCAT([DISTINCT] expr [, expr ...] [ORDER BY ...] [SEPARATOR str] [LIMIT ...]).
 func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, error) {
 	// Parse arguments. The grammar takes an expr_list, so group_concat() is a
 	// syntax error (mariadb:11.8.8: 1064).
@@ -1888,6 +1888,19 @@ func (p *Parser) parseGroupConcatFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, e
 			return nil, err
 		}
 		fc.Separator = &nodes.StringLit{Loc: nodes.Loc{Start: start, End: p.prev.End}, Value: sep}
+	}
+
+	// LIMIT limit_options: the query's own LIMIT forms, `LIMIT n`, `LIMIT
+	// offset, n` and `LIMIT n OFFSET offset`, since MariaDB 10.3.3.
+	//
+	// Ref: glimit_clause in MariaDB 11.8 sql/sql_yacc.yy:11652;
+	// https://mariadb.com/kb/en/group_concat/.
+	if _, ok := p.match(kwLIMIT); ok {
+		limit, err := p.parseLimitClause()
+		if err != nil {
+			return nil, err
+		}
+		fc.Limit = limit
 	}
 
 	if _, err := p.expect(')'); err != nil {
