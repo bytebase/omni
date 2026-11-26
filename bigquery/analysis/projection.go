@@ -303,7 +303,9 @@ func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 // legacy getFieldColumnSource, but resolves RELATION-FIRST rather than column-
 // first, because omni — unlike the legacy resolver — has no catalog to check
 // whether a leading identifier is instead a base-table column:
-//   - 1 part [col]: resolve `col` as a column (name = col).
+//   - 1 part [name]: a range variable when `name` names a leaf relation, which
+//     reads that relation's whole row (rangeVariableSources); else resolve it
+//     as a column (name = col).
 //   - >=2 parts [a, …]: if `a` names a leaf relation, resolve the second part as
 //     that relation's column (name = b; trailing struct sub-fields dropped). Else
 //     if the dialect-bucketed qualifier names a leaf base table (`proj.ds.t.c`),
@@ -319,6 +321,17 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	}
 	if len(parts) == 1 {
 		col := parts[0]
+		// BigQuery resolves a name to a range variable of the current scope
+		// before a column of it: `SELECT a FROM (SELECT 1 AS a) AS a` returns
+		// the row as a struct. An UNNEST alias names its element, which the
+		// relation's one column already is.
+		if rel := w.leaves.find(col); rel != nil && !rel.valueTable {
+			return col, w.rangeVariableSources(rel)
+		}
+		if w.fromUnresolved && w.fromAliases[strings.ToLower(col)] {
+			w.failClosed(fmt.Errorf("range variable %s over a FROM source whose columns are unknown (fail closed)", col))
+			return col, nil
+		}
 		return col, w.resolveColumn("", col)
 	}
 	// `rel.col` where the leading identifier names a leaf relation: resolve the
@@ -340,6 +353,23 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// `s.a.b`): resolve `parts[0]` as a column (dropping the trailing field path),
 	// mirroring the legacy a-as-column attempt for an unqualified field path.
 	return parts[0], w.resolveColumn("", parts[0])
+}
+
+// rangeVariableSources is the lineage of a range variable used as a value:
+// every column of its relation, a base table's listed from metadata. It fails
+// closed when the columns cannot be listed, since an empty lineage would leave
+// the row unmasked.
+func (w *spanWalker) rangeVariableSources(rel *relation) []ColumnRef {
+	cols, ok := w.pipeConcrete(rel.columns)
+	if !ok {
+		w.failClosed(fmt.Errorf("range variable %s over a relation whose columns cannot be listed (fail closed)", rel.name))
+		return nil
+	}
+	var sources refUnion
+	for _, c := range cols {
+		sources.add(c.sources)
+	}
+	return sources.refs
 }
 
 // qualifierNamesBaseRelation reports whether a bucketed column ref's qualifier

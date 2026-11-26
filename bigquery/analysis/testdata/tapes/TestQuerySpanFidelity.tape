@@ -782,6 +782,42 @@
 < raw
 | {"columns":["f0_"],"tables":["omni_span.Customers"]}
 > raw
+| {"op":"query","sql":"SELECT Customers FROM Customers"}
+< raw
+| {"columns":["Customers"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT Name FROM Customers AS Name"}
+< raw
+| {"columns":["Name"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT o FROM Customers c JOIN Orders o USING (CustomerId)"}
+< raw
+| {"columns":["o"],"tables":["omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"SELECT s FROM (SELECT Name, Email FROM Customers) AS s"}
+< raw
+| {"columns":["s"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT s FROM (SELECT * EXCEPT (Email) FROM Customers) AS s"}
+< raw
+| {"columns":["s"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"SELECT r FROM (SELECT c AS r FROM Customers c)"}
+< raw
+| {"columns":["r"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"WITH big AS (SELECT CustomerId, Amount FROM Orders) SELECT big FROM big"}
+< raw
+| {"columns":["big"],"tables":["omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"SELECT v FROM CustomerOrders AS v"}
+< raw
+| {"columns":["v"],"tables":["omni_span.CustomerOrders","omni_span.Customers","omni_span.Orders"]}
+> raw
+| {"op":"query","sql":"SELECT x FROM omni_span.OrdersOf(1) AS x"}
+< raw
+| {"columns":["x"],"tables":["omni_span.Orders"]}
+> raw
 | {"op":"query","sql":"SELECT ANY_VALUE(Ship).City FROM Orders"}
 < raw
 | {"columns":["City"],"tables":["omni_span.Orders"]}
@@ -1117,6 +1153,22 @@
 | {"op":"query","sql":"SELECT c.Name FROM (FROM Customers AS c) AS s"}
 < raw
 | {"error":"invalidQuery","message":"Unrecognized name: c at [1:8]"}
+> raw
+| {"op":"query","sql":"FROM Customers AS c |\u003e SELECT c"}
+< raw
+| {"columns":["c"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers AS c |\u003e EXTEND 1 AS c |\u003e SELECT c"}
+< raw
+| {"columns":["c"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers |\u003e AS c |\u003e SELECT c.Name, c"}
+< raw
+| {"columns":["Name","c"],"tables":["omni_span.Customers"]}
+> raw
+| {"op":"query","sql":"FROM Customers AS c |\u003e SET Name = Email |\u003e SELECT c, Name"}
+< raw
+| {"columns":["c","Name"],"tables":["omni_span.Customers"]}
 > raw
 | {"op":"query","sql":"SELECT table_name FROM omni_span.INFORMATION_SCHEMA.TABLES"}
 < raw
