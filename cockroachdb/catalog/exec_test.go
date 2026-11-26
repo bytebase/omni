@@ -553,3 +553,9 @@ func TestExecRound34(t *testing.T) {
 	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (m mood); CREATE INDEX ix ON t (m) WHERE m = 'sad'; ALTER TYPE mood DROP VALUE 'sad'")
 	require.Equal(t, "2BP01", code(err))
 }
+
+func TestExecRound35(t *testing.T) {
+	c, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad'); CREATE TABLE t (m mood[] DEFAULT ARRAY['sad'::mood]::mood[]); ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'")
+	require.NoError(t, err)
+	require.Equal(t, "ARRAY['blue'::mood]::mood[]", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
+}

@@ -1951,9 +1951,10 @@ func relabelIn(text, typ, from, to string, enumColumns []string) string {
 			}
 		case *tree.CastExpr:
 			if inner, ok := relabelArray(x.Expr, x.Type); ok {
+				// The elements may carry their own casts: visit on.
 				cast := *x
 				cast.Expr = inner
-				return false, &cast, nil
+				return true, &cast, nil
 			}
 			if label(x.Expr, x.Type) {
 				cast := *x
@@ -1964,7 +1965,7 @@ func relabelIn(text, typ, from, to string, enumColumns []string) string {
 			if inner, ok := relabelArray(x.Expr, x.Type); ok {
 				annotation := *x
 				annotation.Expr = inner
-				return false, &annotation, nil
+				return true, &annotation, nil
 			}
 			if label(x.Expr, x.Type) {
 				annotation := *x
