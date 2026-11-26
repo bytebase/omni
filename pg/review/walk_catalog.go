@@ -211,7 +211,7 @@ func setsOwnSettings(node ast.Node) bool {
 // function, found first where the path puts pg_catalog after its schema; an
 // invalid parameter value but an index's, a table's or a view's storage
 // parameter it does not recognize, which an extension may add; a refusal
-// of an index or an added constraint but those (addsKey); a cast, for
+// of an index or an added constraint but those, alone (addsKey); a cast, for
 // a coercion the catalog finds none for (a RETURN that does not
 // fit its routine's kind needs no cast); or, for a missing function,
 // anything but the lookup of a routine node names by its signature, which
@@ -228,7 +228,7 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 		}
 		return err.InCall || err.Code != "42883" && err.Code != "42809" || v.Funccall == nil || !untypedArgs(v.Funccall.Args) || snap.lostRoutines
 	}
-	if addsKey(node) && err.Code != "22023" && err.Code != "42830" {
+	if keys, alone := addsKey(node); keys && (!alone || err.Code != "22023" && err.Code != "42830") {
 		return true
 	}
 	switch err.Code {
@@ -274,22 +274,24 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 
 // addsKey reports whether node creates an index or adds a constraint, of
 // whose refusals only a storage parameter's (22023) and a foreign key's
-// unmatched key (42830) are judged: the catalog does not inline a SQL
-// function before checking an index expression's volatility.
-func addsKey(node ast.Node) bool {
+// unmatched key (42830) are judged, and only when alone: the catalog does
+// not inline a SQL function before checking an index expression's
+// volatility, nor run an ALTER TABLE's index constraints before its
+// foreign keys.
+func addsKey(node ast.Node) (keys, alone bool) {
 	switch v := node.(type) {
 	case *ast.IndexStmt:
-		return true
+		return true, true
 	case *ast.AlterTableStmt:
 		if v.Cmds != nil {
 			for _, item := range v.Cmds.Items {
 				if cmd, ok := item.(*ast.AlterTableCmd); ok && cmd.Subtype == int(ast.AT_AddConstraint) {
-					return true
+					return true, len(v.Cmds.Items) == 1
 				}
 			}
 		}
 	}
-	return false
+	return false, false
 }
 
 // failsLookup reports whether message is the catalog's failure to find a

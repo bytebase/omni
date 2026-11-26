@@ -119,6 +119,8 @@ func TestWalkThroughCatalogRefusals(t *testing.T) {
 		"CREATE INDEX ON t USING bloom (n) WITH (length = 80);",
 		// A foreign key may list a unique key's columns in any order.
 		"ALTER TABLE k ADD FOREIGN KEY (b, a) REFERENCES k (b, a);",
+		// PostgreSQL adds an ALTER TABLE's unique keys before its foreign keys.
+		"ALTER TABLE t ADD FOREIGN KEY (n) REFERENCES t (n), ADD UNIQUE (n);",
 		// PostgreSQL inlines a SQL function before it checks an index's volatility.
 		"CREATE INDEX ON t (f_stable(n));",
 		// A storage parameter's value is parsed as PostgreSQL's parse_int does.
