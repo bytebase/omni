@@ -359,7 +359,7 @@ func (c *Catalog) AlterTableStmt(stmt *nodes.AlterTableStmt) error {
 	// catalog state (preserving pre-existing object pointer identities on
 	// restore) whenever multiple subcommands run or a command recurses to
 	// child relations.
-	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0)
+	needsRollback := len(pending) > 1 || (recurse && len(c.findChildRelations(rel.OID)) > 0) || retypesIdentity(rel, pending)
 	restore := func() {}
 	if needsRollback {
 		restore = c.snapshotForAlterRollback()
@@ -3216,6 +3216,21 @@ func (c *Catalog) prepAlterColumnUsing(rel *Relation, relName string, atc *nodes
 		return nil, errWrongObjectType(relName, "a table")
 	}
 	return c.analyzeAlterColumnTransform(cd.RawDefault, rel)
+}
+
+// retypesIdentity reports whether one of pending changes the type of an
+// identity column, whose sequence then takes the type and may refuse it
+// after the column has changed.
+func retypesIdentity(rel *Relation, pending []pendingATCmd) bool {
+	for _, p := range pending {
+		if nodes.AlterTableType(p.cmd.Subtype) != nodes.AT_AlterColumnType {
+			continue
+		}
+		if ci, ok := rel.colByName[p.cmd.Name]; ok && rel.Columns[ci].Identity != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // atAlterColumnType changes the type of a column. using is the analyzed USING

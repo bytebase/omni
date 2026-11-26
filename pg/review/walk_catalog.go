@@ -3,7 +3,6 @@ package review
 import (
 	"context"
 	"errors"
-	"math"
 	"slices"
 	"strings"
 
@@ -48,12 +47,20 @@ var catalogCodes = map[string]review.FindingCode{
 // in a pg/catalog loaded from the synced schema, and returns a violation at
 // the first statement the catalog refuses with one of catalogCodes, when
 // catalogJudges it, in the session the walk knows for each step. It is
-// asked only when the walk found nothing. The replay ends, accepting, at a schema that does not
-// load in full, at any other refusal, and after a CALL or DO, whose effects
-// the catalog does not follow, or a change to event triggers.
+// asked only when the walk found nothing. The replay judges nothing where
+// the sync may have lost partitions or a session's path names a schema the
+// sync leaves out, which may hold what a name resolves to. It ends,
+// accepting, at a schema that does not load in full, at any other refusal,
+// and after a CALL or DO, whose effects the catalog does not follow, or a
+// change to event triggers.
 func catalogRefusal(ctx context.Context, stmts []statement, steps []step, sessions []catalogSession, target review.Target, snap *pgSnapshot) *walk.Violation {
-	if len(steps) == 0 || target.Schema == nil || target.OtherSpecs {
+	if len(steps) == 0 || target.Schema == nil || target.OtherSpecs || snap == nil || snap.lost {
 		return nil
+	}
+	for _, session := range sessions {
+		if slices.ContainsFunc(session.path, func(s string) bool { return s != "$user" && s != "pg_catalog" && !trustedSchemaName(s) }) {
+			return nil
+		}
 	}
 	c := pgcatalog.New()
 	if user := sessions[0].user; user != "" {
@@ -129,12 +136,17 @@ type catalogSession struct {
 }
 
 // namesUntrustedRoutine reports whether node names a routine the sync may
-// leave out (trustedRoutineName), which a call or a definition may resolve
-// to without the catalog knowing it.
+// leave out, by its name (trustedRoutineName) or a schema the sync leaves
+// out, which a call or a definition may resolve to without the catalog
+// knowing it.
 func namesUntrustedRoutine(node ast.Node) bool {
 	untrusted := false
 	check := func(names *ast.List) {
-		if parts := nameParts(names); len(parts) > 0 && !trustedRoutineName(parts[len(parts)-1]) {
+		parts := nameParts(names)
+		if len(parts) > 0 && !trustedRoutineName(parts[len(parts)-1]) {
+			untrusted = true
+		}
+		if len(parts) > 1 && parts[len(parts)-2] != "pg_catalog" && !trustedSchemaName(parts[len(parts)-2]) {
 			untrusted = true
 		}
 	}
@@ -150,6 +162,10 @@ func namesUntrustedRoutine(node ast.Node) bool {
 			check(v.Funcname)
 		case *ast.CreateEventTrigStmt:
 			check(v.Funcname)
+		case *ast.DefElem:
+			if names, ok := v.Arg.(*ast.List); ok && strings.EqualFold(v.Defname, "support") {
+				check(names)
+			}
 		}
 		return !untrusted
 	})
@@ -185,26 +201,35 @@ func setsOwnSettings(node ast.Node) bool {
 // statements whose names the walk cannot check against the sync, under a
 // search path of their own, so only RAISE EXCEPTION, a DO block's syntax,
 // which PL/pgSQL compiles before it runs, and a CALL's failure to resolve
-// its procedure hold. Otherwise: a user routine named as a
-// built-in aggregate or window function, found first where the path puts
-// pg_catalog after its schema; a cast, for a coercion the catalog finds
-// none for (a RETURN that does not fit its routine's kind needs no cast);
-// or, for a missing function, anything but a routine node names by its
-// signature, which the sync lists unless it may have lost routines: an
-// operator, a call in an expression (an aggregate, or a domain's
-// function-style cast) or in a body, a CALL's argument an implicit cast
-// may carry, and an aggregate that DROP ROUTINE or renaming a function or
-// routine finds by its signature.
+// its procedure hold, when every argument is a quoted literal or NULL, which
+// no cast the sync leaves out can carry to another routine. Otherwise: a
+// column named by a qualified name, which may be a function called in
+// attribute notation (t.f for f(t)), or in a routine's body, for an
+// undefined column; a user routine named as a built-in aggregate or window
+// function, found first where the path puts pg_catalog after its schema; a
+// cast, for a coercion the catalog finds none for (a RETURN that does not
+// fit its routine's kind needs no cast); or, for a missing function,
+// anything but the lookup of a routine node names by its signature, which
+// the sync lists unless it may have lost routines or the routine is a range
+// type's constructor: an aggregate, which ALTER, DROP or RENAME of a routine
+// and renaming a function find too.
 func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []string) bool {
 	switch v := node.(type) {
 	case *ast.DoStmt:
 		return err.Code != "P0001" && err.Code != "42601"
 	case *ast.CallStmt:
-		if err.Code != "P0001" && !resolvesCall(err, v) {
-			return true
+		if err.Code == "P0001" {
+			return false
 		}
+		return err.InCall || err.Code != "42883" && err.Code != "42809" || v.Funccall == nil || !untypedArgs(v.Funccall.Args) || snap.lostRoutines
 	}
 	switch err.Code {
+	case "42703":
+		switch node.(type) {
+		case *ast.AlterTableStmt, *ast.CreateTrigStmt:
+			return namesQualifiedColumn(node)
+		}
+		return true
 	case "42803", "42P20":
 		return slices.Index(path, "pg_catalog") > 0
 	case "42846":
@@ -223,86 +248,67 @@ func curable(err *pgcatalog.Error, node ast.Node, snap *pgSnapshot, path []strin
 			if ast.ObjectType(v.RemoveType) == ast.OBJECT_ROUTINE {
 				return true
 			}
-		case *ast.CallStmt:
-			if v.Funccall != nil && !untypedArgs(v.Funccall.Args) {
-				// An implicit cast the sync does not list may let an
-				// argument of a known type reach the procedure.
+		case *ast.AlterFunctionStmt:
+			if v.Objtype == ast.OBJECT_ROUTINE {
 				return true
 			}
 		}
-		return snap == nil || snap.lostRoutines || !namesAny(err.Message, signatureNames(node))
+		return snap.lostRoutines || !failsLookup(err.Message, node, snap)
 	}
 	return false
 }
 
-// resolvesCall reports whether err is call's failure to resolve the
-// procedure it names, rather than a refusal of a statement the procedure's
-// body runs: it must be checkCall's wording, with the types of call's own
-// arguments, each a literal.
-func resolvesCall(err *pgcatalog.Error, call *ast.CallStmt) bool {
-	if call.Funccall == nil {
-		return false
-	}
-	parts := nameParts(call.Funccall.Funcname)
-	if len(parts) == 0 {
-		return false
-	}
-	types, ok := literalArgTypes(call.Funccall.Args)
-	if !ok {
-		return false
-	}
-	signature := parts[len(parts)-1] + "(" + strings.Join(types, ", ") + ")"
-	switch err.Code {
-	case "42883":
-		return err.Message == "procedure "+signature+" does not exist"
-	case "42809":
-		return err.Message == signature+" is not a procedure"
-	}
-	return false
-}
-
-// literalArgTypes returns the type PostgreSQL gives each argument, when
-// each is a literal: a quoted string or NULL is unknown, an integer that
-// fits integer is integer.
-func literalArgTypes(args *ast.List) ([]string, bool) {
-	var types []string
-	if args == nil {
-		return types, true
-	}
-	for _, item := range args.Items {
-		if named, ok := item.(*ast.NamedArgExpr); ok {
-			item = named.Arg
+// failsLookup reports whether message is the catalog's failure to find a
+// routine node names by its signature, in the wording of that lookup: a
+// trigger's or event trigger's function, or a routine an ALTER, DROP or
+// RENAME names, none of them a range type's constructor, which the sync
+// does not list.
+func failsLookup(message string, node ast.Node, snap *pgSnapshot) bool {
+	name := func(list *ast.List) string {
+		parts := nameParts(list)
+		if len(parts) == 0 {
+			return ""
 		}
-		c, ok := item.(*ast.A_Const)
-		if !ok {
-			return nil, false
-		}
-		switch v := c.Val.(type) {
-		case *ast.String:
-			types = append(types, "unknown")
-		case *ast.Integer:
-			if v.Ival < math.MinInt32 || v.Ival > math.MaxInt32 {
-				return nil, false
+		for key := range snap.rangeConstructors {
+			if key[1] == parts[len(parts)-1] {
+				return ""
 			}
-			types = append(types, "integer")
-		default:
-			if !c.Isnull {
-				return nil, false
-			}
-			types = append(types, "unknown")
 		}
+		return parts[len(parts)-1]
 	}
-	return types, true
-}
-
-// namesAny reports whether a refusal's message names one of the routines.
-func namesAny(message string, names []string) bool {
-	for _, name := range names {
-		if strings.Contains(message, name+"(") || strings.Contains(message, `"`+name+`"`) {
-			return true
-		}
+	switch v := node.(type) {
+	case *ast.CreateTrigStmt:
+		n := name(v.Funcname)
+		return n != "" && message == `function "`+n+`" does not exist`
+	case *ast.CreateEventTrigStmt:
+		n := name(v.Funcname)
+		return n != "" && message == "function "+n+"() does not exist"
+	case *ast.AlterFunctionStmt, *ast.DropStmt, *ast.RenameStmt:
+		found := false
+		ast.Inspect(node, func(n ast.Node) bool {
+			if owa, ok := n.(*ast.ObjectWithArgs); ok {
+				if n := name(owa.Objname); n != "" && strings.HasPrefix(message, "could not find a ") && strings.HasSuffix(message, ` named "`+n+`"`) {
+					found = true
+				}
+			}
+			return !found
+		})
+		return found
 	}
 	return false
+}
+
+// namesQualifiedColumn reports whether node names a column by a qualified
+// name.
+func namesQualifiedColumn(node ast.Node) bool {
+	found := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		if ref, ok := n.(*ast.ColumnRef); ok && ref.Fields != nil && len(ref.Fields.Items) > 1 {
+			found = true
+		}
+		return !found
+	})
+	return found
 }
 
 // untypedArgs reports whether every argument is a quoted literal or NULL,
@@ -326,36 +332,6 @@ func untypedArgs(args *ast.List) bool {
 	return true
 }
 
-// signatureNames lists the routines node names by signature, which the
-// catalog looks up as such: the procedure a CALL names, a routine an ALTER,
-// DROP or RENAME names, and a trigger's or event trigger's function.
-func signatureNames(node ast.Node) []string {
-	var names []string
-	add := func(list *ast.List) {
-		if parts := nameParts(list); len(parts) > 0 {
-			names = append(names, parts[len(parts)-1])
-		}
-	}
-	switch v := node.(type) {
-	case *ast.CallStmt:
-		if v.Funccall != nil {
-			add(v.Funccall.Funcname)
-		}
-	case *ast.CreateTrigStmt:
-		add(v.Funcname)
-	case *ast.CreateEventTrigStmt:
-		add(v.Funcname)
-	case *ast.AlterFunctionStmt, *ast.DropStmt, *ast.RenameStmt:
-		ast.Inspect(node, func(n ast.Node) bool {
-			if owa, ok := n.(*ast.ObjectWithArgs); ok {
-				add(owa.Objname)
-			}
-			return true
-		})
-	}
-	return names
-}
-
 // catalogJudges reports whether the catalog's refusal of node is reported:
 // a view's query; what defines, changes, calls or drops a routine or a
 // trigger; dropping a table, view or type, or a column or its type, that a
@@ -374,7 +350,7 @@ func catalogJudges(node ast.Node) bool {
 			return true
 		}
 	case *ast.AlterTableStmt:
-		if v.Cmds == nil {
+		if ast.ObjectType(v.ObjType) != ast.OBJECT_TABLE || v.Cmds == nil || len(v.Cmds.Items) == 0 {
 			return false
 		}
 		for _, item := range v.Cmds.Items {

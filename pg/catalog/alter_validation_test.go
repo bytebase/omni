@@ -135,6 +135,21 @@ func TestAlterColumnTypeOnIdentityColumn(t *testing.T) {
 	if rel.Columns[0].TypeOID != INT8OID {
 		t.Errorf("column type after the refused change = %d, want bigint", rel.Columns[0].TypeOID)
 	}
+
+	// The sequence refuses a type its bounds do not fit, after the column
+	// has changed: the change is undone.
+	c, err = LoadSQL("CREATE TABLE t (id int GENERATED ALWAYS AS IDENTITY (MAXVALUE 100000));")
+	if err != nil {
+		t.Fatal(err)
+	}
+	results, err = c.Exec("ALTER TABLE t ALTER COLUMN id TYPE smallint;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertErrorCode(t, results[0].Error, CodeInvalidParameterValue)
+	if rel := c.GetRelation("", "t"); rel.Columns[0].TypeOID != INT4OID {
+		t.Errorf("column type after the refused narrowing = %d, want integer", rel.Columns[0].TypeOID)
+	}
 }
 
 func TestAlterColumnTypeWithDependentView(t *testing.T) {
