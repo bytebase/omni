@@ -609,7 +609,9 @@ func (b *builder) set(v *ast.SetStmt) bool {
 		case global:
 			continue
 		}
-		if (name == "sql_mode" || name == "innodb_strict_mode") && !b.sqlModeOption {
+		// A SET STATEMENT of sql_mode puts sql_mode back after the SET it
+		// wraps, and the SET's own assignment of it with it.
+		if name == "sql_mode" && !b.sqlModeOption || name == "innodb_strict_mode" {
 			b.Session(func() { b.w.sqlModeSet = true })
 			continue
 		}

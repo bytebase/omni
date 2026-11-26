@@ -344,9 +344,13 @@ func (b *builder) alterFormFails(v *ast.AlterTableStmt) bool {
 		if c == nil {
 			continue
 		}
-		if con := c.Constraint; con != nil && !c.IfNotExists && !con.IfNotExists && (con.Type == ast.ConstrIndex || con.Type == ast.ConstrUnique || con.Type == ast.ConstrPrimaryKey) && usesRTree(con.IndexType, con.IndexOptions) {
-			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, notRTree)
-			return true
+		if !c.IfNotExists {
+			for _, con := range append([]*ast.Constraint{c.Constraint}, c.Constraints...) {
+				if con != nil && !con.IfNotExists && rtreeKey(con) {
+					b.fail(rangeOf(con.Loc), nil, review.UnsupportedForm, notRTree)
+					return true
+				}
+			}
 		}
 		if (c.Type != ast.ATChangeColumn && c.Type != ast.ATModifyColumn) || c.IfExists || c.After == "" || c.Column == nil {
 			continue
@@ -361,6 +365,15 @@ func (b *builder) alterFormFails(v *ast.AlterTableStmt) bool {
 			b.fail(rangeOf(c.Loc), nil, review.UnsupportedForm, "Column "+review.Code(ident(name))+" can't be placed after itself.")
 			return true
 		}
+	}
+	return false
+}
+
+// rtreeKey reports whether a key that is no SPATIAL key is declared RTREE.
+func rtreeKey(con *ast.Constraint) bool {
+	switch con.Type {
+	case ast.ConstrIndex, ast.ConstrUnique, ast.ConstrPrimaryKey:
+		return usesRTree(con.IndexType, con.IndexOptions)
 	}
 	return false
 }

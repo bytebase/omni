@@ -338,11 +338,18 @@ func (w *walker) lower(i int, l *walk.Ledger) *walk.Step {
 		w.fkChecks, b.fkOption = on, true
 	}
 	// SET STATEMENT sql_mode and innodb_strict_mode hold for this
-	// statement alone too.
+	// statement alone too. sqlModeOption marks sql_mode alone: a SET it
+	// wraps still counts its own assignment of innodb_strict_mode.
 	modeSet := w.sqlModeSet
 	for _, a := range w.stmts[i].options {
-		if a.Column != nil && a.Column.Table == "" && (strings.EqualFold(a.Column.Column, "sql_mode") || strings.EqualFold(a.Column.Column, "innodb_strict_mode")) {
+		if a.Column == nil || a.Column.Table != "" {
+			continue
+		}
+		switch {
+		case strings.EqualFold(a.Column.Column, "sql_mode"):
 			w.sqlModeSet, b.sqlModeOption = true, true
+		case strings.EqualFold(a.Column.Column, "innodb_strict_mode"):
+			w.sqlModeSet = true
 		}
 	}
 	lowered := b.statement(w.stmts[i].node)
