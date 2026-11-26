@@ -108,6 +108,7 @@ SELECT * FROM orders AS o JOIN (SELECT order_id AS id, sku FROM items) AS i USIN
 SELECT id, sku FROM orders AS o JOIN (SELECT order_id AS id, sku FROM items) AS i USING id
 SELECT a.name, b.name FROM customers AS a JOIN customers AS b ON a.id = b.id
 SELECT * FROM customers AS a, customers AS b
+SELECT b.id FROM customers AS a JOIN customers AS b USING (id)
 SELECT c.name FROM customers AS c LEFT SEMI JOIN orders AS o ON o.customer_id = c.id
 SELECT c.name FROM customers AS c LEFT ANTI JOIN orders AS o ON o.customer_id = c.id
 SELECT c.name, o.amount FROM customers AS c ANY LEFT JOIN orders AS o ON o.customer_id = c.id
@@ -144,6 +145,8 @@ WITH upper(name) AS n SELECT n, email FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT name FROM c UNION ALL SELECT sku FROM items
 WITH customers AS (SELECT order_id AS id FROM items) SELECT id FROM customers
 WITH c AS (SELECT id, name FROM customers) SELECT count() FROM c WHERE name != ''
+WITH 1 AS x, c AS (SELECT x) SELECT * FROM c
+WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
 WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 WITH RECURSIVE r AS (SELECT id, customer_id AS parent FROM orders UNION ALL SELECT o.id, r.parent FROM orders AS o JOIN r ON o.customer_id = r.id) SELECT * FROM r
 
@@ -169,6 +172,9 @@ SELECT name FROM customers WHERE id NOT IN (SELECT customer_id FROM orders WHERE
 SELECT name FROM customers WHERE EXISTS (SELECT 1 FROM orders)
 SELECT name, NOT EXISTS (SELECT 1 FROM orders WHERE amount > 0) AS none FROM customers
 SELECT name FROM customers WHERE id GLOBAL IN (SELECT customer_id FROM orders)
+WITH ids AS (SELECT customer_id FROM orders) SELECT name FROM customers WHERE id IN ids
+WITH ids AS (SELECT customer_id FROM orders) SELECT name, id IN ids AS has_orders FROM customers
+SELECT name FROM customers WHERE id IN nope
 SELECT id, (SELECT count() FROM items) AS n FROM orders
 SELECT name FROM customers WHERE id = (SELECT min(customer_id) FROM orders)
 SELECT id FROM orders WHERE customer_id IN (SELECT id FROM customers WHERE country IN (SELECT country FROM customers WHERE id = 1))
@@ -195,6 +201,8 @@ SELECT id FROM customers WHERE id IN (SELECT customer_id FROM vip)
 SELECT id, tag FROM orders ARRAY JOIN tags AS tag
 SELECT id, tags FROM orders ARRAY JOIN tags
 SELECT id, tag FROM orders LEFT ARRAY JOIN tags AS tag
+SELECT * FROM orders ARRAY JOIN tags
+SELECT * FROM orders ARRAY JOIN tags AS tag
 SELECT tag, n FROM orders ARRAY JOIN tags AS tag, arrayEnumerate(tags) AS n
 SELECT arrayMap(x -> upper(x), tags) FROM orders
 SELECT arrayFilter(x -> x != status, tags) FROM orders
@@ -221,6 +229,10 @@ SELECT * EXCEPT (email, country) FROM customers
 SELECT * REPLACE (upper(name) AS name) FROM customers
 SELECT c.* EXCEPT (id) FROM customers AS c
 SELECT * APPLY (toString) FROM items
+SELECT * APPLY (x -> concat(toString(x), status)) FROM orders
+SELECT * EXCEPT (sku) APPLY (max) FROM items
+SELECT * EXCEPT ('mail') FROM customers
+SELECT untuple((id, email)) FROM customers
 SELECT COLUMNS('^c') FROM customers
 
 -- Aliases resolve before columns, anywhere in the query.
@@ -233,6 +245,7 @@ SELECT country AS c, count() FROM customers GROUP BY c
 SELECT (amount + 1 AS a) * 2, a FROM orders
 SELECT id AS x, x * 2 AS y, y + 1 FROM orders
 SELECT customer_id AS amount, amount FROM orders
+SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
 
 -- ClickHouse's own clauses.
 FROM customers SELECT name
@@ -286,3 +299,11 @@ SELECT dept_id, avg(salary) FROM employees GROUP BY dept_id
 WITH d AS (SELECT id, title FROM depts) SELECT e.name, d.title FROM employees AS e JOIN d ON d.id = e.dept_id
 SELECT * FROM shop.vip
 SELECT name FROM customers
+
+-- fixture: nested
+-- session: lab
+SELECT attrs.k FROM events
+SELECT events.attrs.v FROM events
+SELECT * FROM events
+SELECT id, k FROM events ARRAY JOIN attrs.k AS k
+SELECT id, attrs.k FROM events ARRAY JOIN attrs

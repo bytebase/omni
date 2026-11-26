@@ -33,9 +33,12 @@ possibly more.
 - **lineage.** A column of a table function (`numbers(10)`) is `~`: the tree
   names the function, not what it reads. A table function's own rows read no
   table, which is what omni answers.
+- **lineage.** A recursive CTE's working table is a temporary table named
+  afresh for each query, so a column read from it is `~`; the CTE's arms
+  name the tables it reads.
 - **tables.** query_log's `system.one`, which a query without `FROM` reads,
-  and its `_table_function.*` entries are dropped: neither is a table the
-  query names.
+  its `_table_function.*` entries, and a recursive CTE's temporary table are
+  dropped: none is a table the query names.
 
 The conversation with ClickHouse is on `tapes/TestQuerySpanFidelity.tape`
 (see `clickhouse/internal/testcontainer/span.go`), so the test starts no

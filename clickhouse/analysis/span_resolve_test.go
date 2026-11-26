@@ -67,3 +67,10 @@ func TestResolveQuerySpanNotAQuery(t *testing.T) {
 		t.Fatalf("got %+v", got)
 	}
 }
+
+// A window that inherits itself, which ClickHouse refuses, still ends.
+func TestResolveQuerySpanWindowCycle(t *testing.T) {
+	if _, err := ResolveQuerySpan("SELECT count() OVER w FROM t WINDOW w AS (w)", ResolveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+}

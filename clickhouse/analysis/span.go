@@ -103,6 +103,7 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 		return out, nil
 	}
 	r := newSpanResolver(opts, seg.Text)
+	r.preferColumns = preferColumns(query)
 	cols := r.query(query, nil, nil)
 	if r.err != nil {
 		return nil, r.err
@@ -124,6 +125,27 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 		})
 	}
 	return out, nil
+}
+
+// preferColumns reports whether a query's SETTINGS turn on
+// prefer_column_name_to_alias.
+func preferColumns(q *parser.SelectUnionStmt) bool {
+	settings := []*parser.SettingExpr{}
+	if q.Output != nil {
+		settings = append(settings, q.Output.Settings...)
+	}
+	for _, s := range q.Items {
+		settings = append(settings, s.Settings...)
+	}
+	for _, st := range settings {
+		if !strings.EqualFold(st.Name, "prefer_column_name_to_alias") {
+			continue
+		}
+		if lit, ok := st.Value.(*parser.LiteralExpr); ok {
+			return lit.Val == "1" || strings.EqualFold(lit.Val, "true")
+		}
+	}
+	return false
 }
 
 // spanColumn is one column a relation or a query produces.
@@ -221,6 +243,9 @@ type spanResolver struct {
 	// subqueries counts the unnamed subqueries the select lists name
 	// _subquery_N.
 	subqueries int
+	// preferColumns is the query's prefer_column_name_to_alias: a column
+	// name resolves to the column before an alias of that name.
+	preferColumns bool
 	// err is why a view's definition could not be read: the span fails
 	// rather than omit what the view reads.
 	err   error
@@ -271,20 +296,24 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 	if s.Nested != nil {
 		return r.query(s.Nested, outer, ctes)
 	}
-	sc := &spanScope{aliases: map[string]parser.Expr{}, windows: map[string]*parser.WindowSpec{}, parent: outer}
+	// The WITH clause's expression aliases are visible to its CTEs too, so
+	// they are a scope of their own, between the SELECT's and the outer
+	// query's.
+	with := &spanScope{aliases: map[string]parser.Expr{}, parent: outer}
+	sc := &spanScope{aliases: map[string]parser.Expr{}, windows: map[string]*parser.WindowSpec{}, parent: with}
 	for _, w := range s.Windows {
 		sc.windows[w.Name] = w.Spec
 	}
 	for _, w := range s.With {
 		switch {
 		case w.Subquery != nil:
-			ctes = &cteBinding{name: w.Alias, query: w.Subquery, scope: outer, parent: ctes}
+			ctes = &cteBinding{name: w.Alias, query: w.Subquery, scope: with, parent: ctes}
 			ctes.ctes = ctes.parent
 			if w.Recursive {
 				ctes.ctes = ctes
 			}
 		case w.Alias != "":
-			sc.aliases[w.Alias] = w.Expr
+			with.aliases[w.Alias] = w.Expr
 		}
 	}
 	for _, c := range s.Columns {
@@ -294,21 +323,20 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 		r.from(s.From, sc, outer, ctes)
 	}
 	if s.ArrayJoin != nil {
-		// An ARRAY JOIN column is an element of the array it names: an
-		// alias names a new column, and a bare column is the array's own
-		// name, read again element by element.
+		// An ARRAY JOIN column is an element of the array it names. An
+		// alias names a new column, which * does not expand to; a bare
+		// column keeps its name and its place, and reads what the array
+		// reads.
 		rel := &relation{arrayJoin: true}
 		for _, e := range s.ArrayJoin.Exprs {
-			name, inner := "", e
 			if a, ok := e.(*parser.AliasExpr); ok {
-				name, inner = a.Alias, a.Expr
-			} else if id, ok := e.(*parser.IdentExpr); ok {
-				name = id.Parts[len(id.Parts)-1]
+				rel.columns = append(rel.columns, spanColumn{name: a.Alias, sources: r.expr(a.Expr, sc, ctes)})
+				continue
 			}
-			sources := r.expr(inner, sc, ctes)
-			if name != "" {
-				rel.columns = append(rel.columns, spanColumn{name: name, sources: sources})
+			if parts, ok := identParts(e); ok && !r.resolvesAsName(parts, sc) && nestedGroup(sc, strings.Join(parts, ".")) {
+				continue
 			}
+			r.expr(e, sc, ctes)
 		}
 		sc.relations = append([]*relation{rel}, sc.relations...)
 	}
@@ -323,16 +351,28 @@ func (r *spanResolver) selectStmt(s *parser.SelectStmt, outer *spanScope, ctes *
 			out = append(out, r.matching(re, sc)...)
 			continue
 		}
+		if items, ok := untupled(item); ok {
+			// untuple(t) is one result column per element of t, each
+			// taken from the whole tuple.
+			arg := item.(*parser.FuncCallExpr).Args[0]
+			name, sources := (&namer{r: r}).name(arg), r.expr(arg, sc, ctes)
+			for i := range items {
+				out = append(out, spanColumn{name: fmt.Sprintf("tupleElement(%s, '%d')", name, i+1), sources: sources})
+			}
+			continue
+		}
 		c := spanColumn{
 			name:    r.projectionName(item),
 			sources: r.expr(item, sc, ctes),
 			plain:   isPlainColumn(item),
 		}
-		if parts, ok := identParts(item); ok && len(parts) > 1 {
-			// A qualified column keeps its qualifier unless its bare name
-			// reads the same column.
-			if found, ok := lookup(parts, sc); ok == found1 {
-				if bare, ok := lookup(parts[len(parts)-1:], sc); ok != found1 || bare.rel != found.rel {
+		if parts, ok := identParts(item); ok && !r.isAlias(parts, sc) {
+			// A column is named by its own name (a Nested column's is
+			// dotted), and a qualified one keeps its qualifier unless the
+			// bare name reads the same column.
+			if found, ok := lookup(parts, sc); ok == found1 && found.rel != nil && found.name == strings.Join(parts[len(parts)-len(strings.Split(found.name, ".")):], ".") {
+				c.name = found.name
+				if len(parts) > len(strings.Split(found.name, ".")) && !bareNames(found, sc) {
 					c.name = strings.Join(parts, ".")
 				}
 			}
@@ -391,7 +431,8 @@ func collectAliases(e parser.Expr, into map[string]parser.Expr) {
 			if _, ok := into[n.Alias]; !ok {
 				into[n.Alias] = n.Expr
 			}
-		case *parser.SubqueryExpr, *parser.LambdaExpr:
+		case *parser.SubqueryExpr, *parser.LambdaExpr, *parser.StarExpr:
+			// A star's REPLACE (e AS c) names a column, not an alias.
 			return false
 		}
 		return true
@@ -646,7 +687,7 @@ func viewQuery(definition string) (*parser.SelectUnionStmt, error) {
 func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding) []spanColumn {
 	var out []spanColumn
 	for _, rel := range sc.relations {
-		if len(s.Qualifier) > 0 && !qualifies(rel, s.Qualifier) {
+		if rel.arrayJoin || len(s.Qualifier) > 0 && !qualifies(rel, s.Qualifier) {
 			continue
 		}
 		if rel.open && len(rel.columns) == 0 {
@@ -670,19 +711,31 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 		r.missing(NotFoundError{Table: &q})
 	}
 	except := map[string]bool{}
+	var exceptRe []*regexp.Regexp
+	addRe := func(pattern string) {
+		if re, err := regexp.Compile(pattern); pattern != "" && err == nil {
+			exceptRe = append(exceptRe, re)
+		}
+	}
 	for _, c := range s.Except {
 		except[c] = true
 	}
+	addRe(s.ExceptRe)
 	for _, t := range s.Transformers {
 		if t.Kind == "EXCEPT" {
 			for _, c := range t.Columns {
 				except[c] = true
 			}
+			addRe(t.Regex)
 		}
 	}
 	var kept []spanColumn
 	for _, c := range out {
-		if !except[c.name] {
+		excluded := except[c.name]
+		for _, re := range exceptRe {
+			excluded = excluded || re.MatchString(c.name)
+		}
+		if !excluded {
 			kept = append(kept, c)
 		}
 	}
@@ -698,12 +751,11 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 				}
 			}
 		case "APPLY":
-			r.expr(t.ApplyExpr, sc, ctes)
-			if t.ApplyFunc == "" {
-				continue
-			}
+			// Each column is the function, or the lambda, applied to it.
+			applied := r.expr(t.ApplyExpr, sc, ctes)
 			for i := range kept {
-				kept[i].name = t.ApplyFunc + "(" + kept[i].name + ")"
+				kept[i].name = (&namer{r: r}).apply(t, kept[i].name)
+				kept[i].sources = union(kept[i].sources, applied)
 				kept[i].plain = false
 			}
 		}
@@ -725,10 +777,78 @@ func qualifies(rel *relation, q []string) bool {
 // name does not read it (another joined relation's column has it), when it
 // is relation.column, as ClickHouse names it.
 func starName(c spanColumn, sc *spanScope) string {
-	if bare, ok := lookup([]string{c.name}, sc); ok == found1 && bare.rel == c.rel {
+	if bareNames(c, sc) {
 		return c.name
 	}
 	return c.rel.name + "." + c.name
+}
+
+// bareNames reports whether a column's bare name reads it: no alias has the
+// name, and no relation before the column's has a column of that name.
+func bareNames(c spanColumn, sc *spanScope) bool {
+	for s := sc; s != nil; s = s.parent {
+		if _, ok := s.aliases[c.name]; ok {
+			return false
+		}
+	}
+	bare, ok := lookup([]string{c.name}, sc)
+	return ok == found1 && bare.rel == c.rel
+}
+
+// isAlias reports whether a name is an alias the scope resolves before its
+// columns.
+func (r *spanResolver) isAlias(parts []string, sc *spanScope) bool {
+	if len(parts) != 1 || r.preferColumns {
+		return false
+	}
+	for s := sc; s != nil; s = s.parent {
+		if _, ok := s.aliases[parts[0]]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// nestedGroup unrolls ARRAY JOIN of a Nested column's name: its arrays
+// (name.a, name.b, ...) unroll together, so each of them reads them all. It
+// reports whether any relation has the group.
+func nestedGroup(sc *spanScope, name string) bool {
+	found := false
+	for _, rel := range sc.relations {
+		group := SourceColumnSet{}
+		for _, c := range rel.columns {
+			if strings.HasPrefix(c.name, name+".") {
+				group = union(group, c.sources)
+			}
+		}
+		if len(group) == 0 {
+			continue
+		}
+		found = true
+		for k, c := range rel.columns {
+			if strings.HasPrefix(c.name, name+".") {
+				rel.columns[k].sources = group
+			}
+		}
+	}
+	return found
+}
+
+// untupled is the elements of an untuple((a, b)) item.
+func untupled(e parser.Expr) ([]parser.Expr, bool) {
+	f, ok := e.(*parser.FuncCallExpr)
+	if !ok || !strings.EqualFold(f.Name, "untuple") || len(f.Args) != 1 {
+		return nil, false
+	}
+	switch t := f.Args[0].(type) {
+	case *parser.TupleExpr:
+		return t.Items, len(t.Items) > 0
+	case *parser.FuncCallExpr:
+		if strings.EqualFold(t.Name, "tuple") {
+			return t.Args, len(t.Args) > 0
+		}
+	}
+	return nil, false
 }
 
 // columnsMatcher is the regular expression of a COLUMNS('re') item.
@@ -749,6 +869,9 @@ func columnsMatcher(e parser.Expr) (*regexp.Regexp, bool) {
 func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 	var out []spanColumn
 	for _, rel := range sc.relations {
+		if rel.arrayJoin {
+			continue
+		}
 		for _, c := range rel.columns {
 			if !c.hidden && re.MatchString(c.name) {
 				c.rel = rel
@@ -795,10 +918,21 @@ func (r *spanResolver) expr(e parser.Expr, sc *spanScope, ctes *cteBinding) Sour
 		if n.OverName != "" {
 			over = sc.window(n.OverName)
 		}
-		for ; over != nil; over = sc.window(over.BaseWindow) {
+		// A window may inherit another; a name that inherits itself is
+		// read once.
+		seen := map[*parser.WindowSpec]bool{}
+		for ; over != nil && !seen[over]; over = sc.window(over.BaseWindow) {
+			seen[over] = true
 			out = union(out, r.window(over, sc, ctes))
 		}
 		return out
+	case *parser.InExpr:
+		out = r.expr(n.Left, sc, ctes)
+		if parts, ok := identParts(n.Right); ok && len(parts) <= 2 && !r.resolvesAsName(parts, sc) {
+			// x IN t reads table t, as x IN (SELECT * FROM t) does.
+			return union(out, r.inTable(parts, sc, ctes))
+		}
+		return union(out, r.expr(n.Right, sc, ctes))
 	}
 	for _, c := range children(e) {
 		out = union(out, r.expr(c, sc, ctes))
@@ -846,11 +980,19 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 			return SourceColumnSet{}
 		}
 	}
+	if len(parts) == 1 && r.preferColumns {
+		for s := sc; s != nil; s = s.parent {
+			if c, found := lookup(parts, s); found == found1 {
+				return c.sources
+			}
+		}
+	}
 	if len(parts) == 1 {
 		for s := sc; s != nil; s = s.parent {
 			if e, ok := s.aliases[parts[0]]; ok && !r.resolving[e] {
+				// An alias stands for its expression where it is used.
 				r.resolving[e] = true
-				out := r.expr(e, s, ctes)
+				out := r.expr(e, sc, ctes)
 				delete(r.resolving, e)
 				return out
 			}
@@ -872,6 +1014,57 @@ func (r *spanResolver) ident(parts []string, sc *spanScope, ctes *cteBinding) So
 	return SourceColumnSet{}
 }
 
+// resolvesAsName reports whether parts name a lambda parameter, an alias or
+// a column in scope, without reporting anything.
+func (r *spanResolver) resolvesAsName(parts []string, sc *spanScope) bool {
+	for s := sc; s != nil; s = s.parent {
+		if s.lambda[parts[0]] {
+			return true
+		}
+		if _, ok := s.aliases[parts[0]]; ok && len(parts) == 1 {
+			return true
+		}
+		if _, found := lookup(parts, s); found != foundNone {
+			return true
+		}
+	}
+	return false
+}
+
+// inTable resolves the table of x IN t: a CTE, or a table or view of the
+// catalog. A name that is neither is a missing identifier, as ClickHouse
+// reports it.
+func (r *spanResolver) inTable(parts []string, sc *spanScope, ctes *cteBinding) SourceColumnSet {
+	t := &parser.TableExpr{Table: parts[len(parts)-1]}
+	if len(parts) == 2 {
+		t.Database = parts[0]
+	} else if cte := ctes.find(t.Table); cte == nil && !r.tableExists(r.database, t.Table) {
+		name := strings.Join(parts, ".")
+		r.missing(NotFoundError{Column: &name})
+		return SourceColumnSet{}
+	}
+	out := SourceColumnSet{}
+	if rel := r.tableExpr(t, sc, ctes); rel != nil {
+		for _, c := range rel.columns {
+			out = union(out, c.sources)
+		}
+	}
+	return out
+}
+
+// tableExists reports whether the catalog has a table or view, or cannot
+// say.
+func (r *spanResolver) tableExists(database, table string) bool {
+	if systemDatabases[database] || r.opts.Catalog.GetDatabase == nil {
+		return true
+	}
+	db, err := r.opts.Catalog.GetDatabase(database)
+	if err != nil || db == nil {
+		return false
+	}
+	return db.GetTable(table) != nil || db.GetView(table) != nil
+}
+
 // How many relations of a scope a name finds.
 type found int
 
@@ -891,7 +1084,7 @@ const (
 // column is returned, and the name is ambiguous unless the FROM clause
 // joins once.
 func lookup(parts []string, sc *spanScope) (spanColumn, found) {
-	try := func(rels []*relation, name string) (spanColumn, found) {
+	try := func(rels []*relation, name string, qualified bool) (spanColumn, found) {
 		var (
 			first spanColumn
 			n     int
@@ -901,7 +1094,7 @@ func lookup(parts []string, sc *spanScope) (spanColumn, found) {
 				continue
 			}
 			c, ok := rel.column(name)
-			if !ok || c.hidden {
+			if !ok || c.hidden && !qualified {
 				continue
 			}
 			if rel.arrayJoin {
@@ -934,6 +1127,16 @@ func lookup(parts []string, sc *spanScope) (spanColumn, found) {
 		}
 		return c, found1
 	}
+	// rest names a column of rels: a Nested column's dotted name whole,
+	// else its first part, whose subcolumn the others are.
+	column := func(rels []*relation, rest []string, qualified bool) (spanColumn, found) {
+		if len(rest) > 1 {
+			if c, f := try(rels, strings.Join(rest, "."), qualified); f != foundNone && !c.rel.open {
+				return c, f
+			}
+		}
+		return try(rels, rest[0], qualified)
+	}
 	named := func(q []string) []*relation {
 		var out []*relation
 		for _, rel := range sc.relations {
@@ -945,15 +1148,15 @@ func lookup(parts []string, sc *spanScope) (spanColumn, found) {
 	}
 	if len(parts) >= 3 {
 		if rels := named(parts[:2]); len(rels) > 0 {
-			return try(rels, parts[2])
+			return column(rels, parts[2:], true)
 		}
 	}
 	if len(parts) >= 2 {
 		if rels := named(parts[:1]); len(rels) > 0 {
-			return try(rels, parts[1])
+			return column(rels, parts[1:], true)
 		}
 	}
-	return try(sc.relations, parts[0])
+	return column(sc.relations, parts, false)
 }
 
 func union(a, b SourceColumnSet) SourceColumnSet {

@@ -20,7 +20,37 @@ func (r *spanResolver) projectionName(e parser.Expr) string {
 	return (&namer{r: r}).name(e)
 }
 
-type namer struct{ r *spanResolver }
+type namer struct {
+	r *spanResolver
+	// subst names a lambda's parameter by the column APPLY applies it to.
+	subst map[string]string
+}
+
+// apply is the name of a column a star's APPLY transformer applies to: the
+// function's call on it, or the lambda's body with the column for its
+// parameter.
+func (n *namer) apply(t *parser.StarTransformer, column string) string {
+	arg := &parser.IdentExpr{Parts: []string{column}}
+	switch f := t.ApplyExpr.(type) {
+	case *parser.LambdaExpr:
+		if len(f.Params) == 1 {
+			sub := &namer{r: n.r, subst: map[string]string{f.Params[0]: column}}
+			return sub.name(f.Body)
+		}
+	case *parser.FuncCallExpr:
+		// APPLY(f) calls f(column); APPLY(f(p)) calls the parametric f(p)(column).
+		call := *f
+		call.Params, call.Args = f.Args, []parser.Expr{arg}
+		if len(f.Args) == 0 {
+			call.Params = nil
+		}
+		return n.funcName(&call)
+	}
+	if t.ApplyFunc != "" {
+		return t.ApplyFunc + "(" + column + ")"
+	}
+	return column
+}
 
 // binaryFunctions are the functions ClickHouse's operators call.
 var binaryFunctions = map[string]string{
@@ -56,6 +86,11 @@ func (n *namer) name(e parser.Expr) string {
 	case *parser.AliasExpr:
 		return x.Alias
 	case *parser.IdentExpr:
+		if len(x.Parts) == 1 {
+			if v, ok := n.subst[x.Parts[0]]; ok {
+				return v
+			}
+		}
 		return strings.Join(x.Parts, ".")
 	case *parser.LiteralExpr:
 		return literalName(x)

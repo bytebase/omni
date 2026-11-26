@@ -503,6 +503,11 @@
 | {"columns":["id","name","email","country","created","b.id","b.name","b.email","b.country","b.created"],"lineage":[["shop.customers.id"],["shop.customers.name"],["shop.customers.email"],["shop.customers.country"],["shop.customers.created"],["shop.customers.id"],["shop.customers.name"],["shop.customers.email"],["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
 > raw
 | span shop
+| SELECT b.id FROM customers AS a JOIN customers AS b USING (id)
+< raw
+| {"columns":["b.id"],"lineage":[["shop.customers.id"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT c.name FROM customers AS c LEFT SEMI JOIN orders AS o ON o.customer_id = c.id
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers","shop.orders"]}
@@ -663,6 +668,16 @@
 | {"columns":["count()"],"lineage":[null],"tables":["shop.customers"]}
 > raw
 | span shop
+| WITH 1 AS x, c AS (SELECT x) SELECT * FROM c
+< raw
+| {"columns":["c.x"],"lineage":[null]}
+> raw
+| span shop
+| WITH 2 AS k, c AS (SELECT id * k AS n FROM customers) SELECT n FROM c
+< raw
+| {"columns":["n"],"lineage":[["shop.customers.id"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM r WHERE n < 3) SELECT n FROM r
 < raw
 | {"columns":["n"],"lineage":[["~"]]}
@@ -766,6 +781,21 @@
 | SELECT name FROM customers WHERE id GLOBAL IN (SELECT customer_id FROM orders)
 < raw
 | {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers","shop.orders"]}
+> raw
+| span shop
+| WITH ids AS (SELECT customer_id FROM orders) SELECT name FROM customers WHERE id IN ids
+< raw
+| {"columns":["name"],"lineage":[["shop.customers.name"]],"tables":["shop.customers","shop.orders"]}
+> raw
+| span shop
+| WITH ids AS (SELECT customer_id FROM orders) SELECT name, id IN ids AS has_orders FROM customers
+< raw
+| {"columns":["name","has_orders"],"lineage":[["shop.customers.name"],["shop.customers.id","shop.orders.customer_id"]],"tables":["shop.customers","shop.orders"]}
+> raw
+| span shop
+| SELECT name FROM customers WHERE id IN nope
+< raw
+| {"error":"UNKNOWN_IDENTIFIER"}
 > raw
 | span shop
 | SELECT id, (SELECT count() FROM items) AS n FROM orders
@@ -878,6 +908,16 @@
 | {"columns":["id","tag"],"lineage":[["shop.orders.id"],["shop.orders.tags"]],"tables":["shop.orders"]}
 > raw
 | span shop
+| SELECT * FROM orders ARRAY JOIN tags
+< raw
+| {"columns":["id","customer_id","amount","status","tags","created"],"lineage":[["shop.orders.id"],["shop.orders.customer_id"],["shop.orders.amount"],["shop.orders.status"],["shop.orders.tags"],["shop.orders.created"]],"tables":["shop.orders"]}
+> raw
+| span shop
+| SELECT * FROM orders ARRAY JOIN tags AS tag
+< raw
+| {"columns":["id","customer_id","amount","status","tags","created"],"lineage":[["shop.orders.id"],["shop.orders.customer_id"],["shop.orders.amount"],["shop.orders.status"],["shop.orders.tags"],["shop.orders.created"]],"tables":["shop.orders"]}
+> raw
+| span shop
 | SELECT tag, n FROM orders ARRAY JOIN tags AS tag, arrayEnumerate(tags) AS n
 < raw
 | {"columns":["tag","n"],"lineage":[["shop.orders.tags"],["shop.orders.tags"]],"tables":["shop.orders"]}
@@ -988,6 +1028,26 @@
 | {"columns":["toString(order_id)","toString(sku)","toString(qty)","toString(price)"],"lineage":[["shop.items.order_id"],["shop.items.sku"],["shop.items.qty"],["shop.items.price"]],"tables":["shop.items"]}
 > raw
 | span shop
+| SELECT * APPLY (x -> concat(toString(x), status)) FROM orders
+< raw
+| {"columns":["concat(toString(id), status)","concat(toString(customer_id), status)","concat(toString(amount), status)","concat(toString(status), status)","concat(toString(tags), status)","concat(toString(created), status)"],"lineage":[["shop.orders.id","shop.orders.status"],["shop.orders.customer_id","shop.orders.status"],["shop.orders.amount","shop.orders.status"],["shop.orders.status"],["shop.orders.status","shop.orders.tags"],["shop.orders.created","shop.orders.status"]],"tables":["shop.orders"]}
+> raw
+| span shop
+| SELECT * EXCEPT (sku) APPLY (max) FROM items
+< raw
+| {"columns":["max(order_id)","max(qty)","max(price)"],"lineage":[["shop.items.order_id"],["shop.items.qty"],["shop.items.price"]],"tables":["shop.items"]}
+> raw
+| span shop
+| SELECT * EXCEPT ('mail') FROM customers
+< raw
+| {"columns":["id","name","country","created"],"lineage":[["shop.customers.id"],["shop.customers.name"],["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
+> raw
+| span shop
+| SELECT untuple((id, email)) FROM customers
+< raw
+| {"columns":["tupleElement((id, email), '1')","tupleElement((id, email), '2')"],"lineage":[["shop.customers.email","shop.customers.id"],["shop.customers.email","shop.customers.id"]],"tables":["shop.customers"]}
+> raw
+| span shop
 | SELECT COLUMNS('^c') FROM customers
 < raw
 | {"columns":["country","created"],"lineage":[["shop.customers.country"],["shop.customers.created"]],"tables":["shop.customers"]}
@@ -1036,6 +1096,11 @@
 | SELECT customer_id AS amount, amount FROM orders
 < raw
 | {"columns":["amount","amount"],"lineage":[["shop.orders.customer_id"],["shop.orders.customer_id"]],"tables":["shop.orders"]}
+> raw
+| span shop
+| SELECT toString(id) AS status, concat(status, '') AS s FROM orders SETTINGS prefer_column_name_to_alias = 1
+< raw
+| {"columns":["status","s"],"lineage":[["shop.orders.id"],["shop.orders.status"]],"tables":["shop.orders"]}
 > raw
 | span shop
 | FROM customers SELECT name
@@ -1251,3 +1316,34 @@
 | SELECT name FROM customers
 < raw
 | {"error":"UNKNOWN_TABLE"}
+> raw
+| fixture
+| CREATE DATABASE lab
+| CREATE TABLE lab.events (id UInt32, attrs Nested(k String, v UInt32)) ENGINE = MergeTree ORDER BY id
+< raw
+| {"databases":[{"name":"lab","tables":[{"name":"events","columns":["id","attrs.k","attrs.v"]}],"views":null}]}
+> raw
+| span lab
+| SELECT attrs.k FROM events
+< raw
+| {"columns":["attrs.k"],"lineage":[["lab.events.attrs.k"]],"tables":["lab.events"]}
+> raw
+| span lab
+| SELECT events.attrs.v FROM events
+< raw
+| {"columns":["attrs.v"],"lineage":[["lab.events.attrs.v"]],"tables":["lab.events"]}
+> raw
+| span lab
+| SELECT * FROM events
+< raw
+| {"columns":["id","attrs.k","attrs.v"],"lineage":[["lab.events.id"],["lab.events.attrs.k"],["lab.events.attrs.v"]],"tables":["lab.events"]}
+> raw
+| span lab
+| SELECT id, k FROM events ARRAY JOIN attrs.k AS k
+< raw
+| {"columns":["id","k"],"lineage":[["lab.events.id"],["lab.events.attrs.k"]],"tables":["lab.events"]}
+> raw
+| span lab
+| SELECT id, attrs.k FROM events ARRAY JOIN attrs
+< raw
+| {"columns":["id","attrs.k"],"lineage":[["lab.events.id"],["lab.events.attrs.k","lab.events.attrs.v"]],"tables":["lab.events"]}
