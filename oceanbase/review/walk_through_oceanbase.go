@@ -510,6 +510,9 @@ func (b *builder) columnDefFailsOB(col *ast.ColumnDef, rng review.Range, inAlter
 		b.fail(rng, nil, review.UnsupportedForm, b.engine()+" refuses this collection element type on column "+review.Code(ident(col.Name))+".")
 		return true
 	}
+	if b.checkCharsetNameOB(col.TypeName.Charset, rng) {
+		return true
+	}
 	if col.Generated != nil {
 		for _, cc := range col.Constraints {
 			if inAlter && cc.Type == ast.ColConstrCheck {
@@ -1780,8 +1783,8 @@ func isPartitioned(kind string) bool {
 //     TRUNCATE, REORGANIZE and EXCHANGE PARTITION, DROP, TRUNCATE and ADD
 //     SUBPARTITION, and a partition's storage cache policy;
 //   - managing the subpartitions of a table that has none (5875);
-//   - DROP PARTITION of a partition the table doesn't have (1507), and ADD
-//     PARTITION of one it has (1517);
+//   - DROP or TRUNCATE PARTITION of a partition the table doesn't have
+//     (1507), and ADD PARTITION of one it has (1517);
 //   - dropping or renaming a column the partitioning reads (3855).
 //
 // It records what the statement leaves: PARTITION BY a partitioned table,
@@ -1829,7 +1832,12 @@ func (b *builder) partitionedFails(r tableRef, v *ast.AlterTableStmt) bool {
 			b.fail(rng, nil, review.UnsupportedForm, "Table "+review.Code(r.written)+" has no subpartitions.")
 			return true
 		}
-	case ast.ATDropPartition:
+	case ast.ATDropPartition, ast.ATTruncatePartition:
+		// TRUNCATE PARTITION may name a subpartition, which the facts
+		// do not list.
+		if c.Type == ast.ATTruncatePartition && facts.sub {
+			break
+		}
 		for _, n := range c.PartitionNames {
 			if !has(n) {
 				b.fail(rng, nil, review.ObjectNotFound, notFound("partition", ident(n), r.written))
