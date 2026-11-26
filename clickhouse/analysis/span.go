@@ -655,12 +655,21 @@ func (r *spanResolver) tableExpr(t *parser.TableExpr, outer *spanScope, ctes *ct
 			return derived(name, renamed(view, t.ColumnAliases))
 		}
 		if col, ok := tableFunctionColumns[strings.ToLower(t.Func.Name)]; ok {
-			return &relation{name: name, columns: []spanColumn{{name: col, sources: SourceColumnSet{}, plain: true}}}
+			return &relation{name: name, columns: renamed([]spanColumn{{name: col, sources: SourceColumnSet{}, plain: true}}, t.ColumnAliases)}
 		}
 		if strings.EqualFold(t.Func.Name, "merge") {
-			return r.merge(t.Func, name)
+			rel := r.merge(t.Func, name)
+			if rel != nil {
+				rel.columns = renamed(rel.columns, t.ColumnAliases)
+			}
+			return rel
 		}
-		if dict, ok := dictionaryName(t.Func); ok {
+		if strings.EqualFold(t.Func.Name, "dictionary") {
+			dict, ok := dictionaryName(t.Func)
+			if !ok {
+				r.err = errors.Join(r.err, errors.New("dictionary() with a name that is not a string literal"))
+				return nil
+			}
 			// dictionary('db.d') reads the dictionary's rows: each column
 			// is that attribute of it.
 			database, table := r.database, dict
@@ -722,8 +731,10 @@ func dictionaryName(f *parser.FuncCallExpr) (string, bool) {
 	if !strings.EqualFold(f.Name, "dictionary") || len(f.Args) != 1 {
 		return "", false
 	}
-	lit, ok := f.Args[0].(*parser.LiteralExpr)
-	return lit.Val, ok && lit.Kind == "STRING"
+	if lit, ok := f.Args[0].(*parser.LiteralExpr); ok && lit.Kind == "STRING" {
+		return lit.Val, true
+	}
+	return "", false
 }
 
 // tableFunctionColumns are the one column of the table functions that read

@@ -483,3 +483,23 @@ func TestResolveQuerySpanDictionaryTableFunction(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+// dictionary() of a computed name fails the span; it does not panic.
+func TestResolveQuerySpanDictionaryComputedName(t *testing.T) {
+	if _, err := ResolveQuerySpan("SELECT email FROM dictionary(concat('shop.', 'd'))", ResolveOptions{DefaultDatabase: "shop"}); err == nil {
+		t.Fatal("no error for a computed dictionary name")
+	}
+}
+
+// A column alias list renames a table function's columns.
+func TestResolveQuerySpanTableFunctionColumnAliases(t *testing.T) {
+	for _, q := range []string{"SELECT x FROM numbers(1) AS n(x)", "SELECT * FROM numbers(1) AS n(x)"} {
+		got, err := ResolveQuerySpan(q, ResolveOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.NotFoundError != nil || len(got.Results) != 1 || got.Results[0].Name != "x" {
+			t.Errorf("%s: %+v", q, got)
+		}
+	}
+}
