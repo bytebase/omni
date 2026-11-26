@@ -90,3 +90,13 @@ func TestExecRenamesFollowIDs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "nextval('public.sq2')::STRING || 'public.sq'", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 }
+
+func TestExecDropsDependents(t *testing.T) {
+	c, err := execLast(t, "CREATE SCHEMA s; CREATE VIEW s.v AS SELECT 1 AS a; CREATE VIEW public.w AS SELECT a FROM s.v; DROP SCHEMA s CASCADE")
+	require.NoError(t, err)
+	require.Len(t, c.Metadata().Schemas, 1)
+	require.Empty(t, c.Metadata().Schemas[0].Views)
+	c, err = execLast(t, "CREATE TABLE t (id INT8 PRIMARY KEY, a INT8); CREATE SEQUENCE sq OWNED BY t.a; ALTER TABLE t DROP COLUMN a")
+	require.NoError(t, err)
+	require.Empty(t, c.Metadata().Schemas[0].Sequences)
+}

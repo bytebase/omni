@@ -377,12 +377,35 @@ func (c *Catalog) dropSchema(n *tree.DropSchema) error {
 		if !empty && n.DropBehavior != tree.DropCascade {
 			return refuse(codeDependentObjects, "schema %q is not empty and CASCADE was not specified", name)
 		}
-		var names tree.TableNames
-		for _, table := range s.Tables {
-			names = append(names, tree.MakeTableNameWithSchema("", tree.Name(name), tree.Name(table.Name)))
+		// Each relation goes with what CASCADE takes along, in other
+		// schemas too.
+		in := func(names ...string) tree.TableNames {
+			var out tree.TableNames
+			for _, n := range names {
+				out = append(out, tree.MakeTableNameWithSchema("", tree.Name(name), tree.Name(n)))
+			}
+			return out
 		}
-		if err := c.dropRelations(names, true, tree.DropCascade, relTable, true); err != nil {
-			return err
+		var tables, views, matviews, sequences []string
+		for _, x := range s.Tables {
+			tables = append(tables, x.Name)
+		}
+		for _, x := range s.Views {
+			views = append(views, x.Name)
+		}
+		for _, x := range s.MaterializedViews {
+			matviews = append(matviews, x.Name)
+		}
+		for _, x := range s.Sequences {
+			sequences = append(sequences, x.Name)
+		}
+		for _, drop := range []struct {
+			names []string
+			kind  relKind
+		}{{views, relView}, {matviews, relMaterializedView}, {tables, relTable}, {sequences, relSequence}} {
+			if err := c.dropRelations(in(drop.names...), true, tree.DropCascade, drop.kind, true); err != nil {
+				return err
+			}
 		}
 		delete(c.l.schemas, name)
 		c.l.meta.Schemas = slices.DeleteFunc(c.l.meta.Schemas, func(x *metadatapb.SchemaMetadata) bool { return x == s })
@@ -1924,7 +1947,14 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 		return err == nil && checkColumns(map[string]bool{}, expr) != nil && exprReads(expr, name)
 	})
 	table.ForeignKeys = slices.DeleteFunc(table.ForeignKeys, func(fk *metadatapb.ForeignKeyMetadata) bool { return slices.Contains(fk.Columns, name) })
-	return nil
+	// A sequence the column owns goes with it.
+	var owned tree.TableNames
+	for _, sequence := range c.l.schemas[schema].GetSequences() {
+		if sequence.OwnerTable == table.Name && sequence.OwnerColumn == name {
+			owned = append(owned, tree.MakeTableNameWithSchema("", tree.Name(schema), tree.Name(sequence.Name)))
+		}
+	}
+	return c.dropRelations(owned, true, behavior, relSequence, false)
 }
 
 // indexReads reports whether an index keys, stores or filters on a column.
