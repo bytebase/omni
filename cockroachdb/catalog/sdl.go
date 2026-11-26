@@ -53,16 +53,29 @@ func LoadSDL(text string) (*metadatapb.DatabaseSchemaMetadata, error) {
 	if err != nil {
 		return nil, err
 	}
-	l := &sdlLoader{meta: &metadatapb.DatabaseSchemaMetadata{}, schemas: make(map[string]*metadatapb.SchemaMetadata)}
+	l := newSDLLoader()
 	for _, stmt := range stmts {
 		if err := l.load(stmt.AST); err != nil {
 			return nil, fmt.Errorf("%s: %w", stmt.SQL, err)
 		}
 	}
+	if err := l.resolveKeyless(); err != nil {
+		return nil, err
+	}
+	return l.meta, nil
+}
+
+func newSDLLoader() *sdlLoader {
+	return &sdlLoader{meta: &metadatapb.DatabaseSchemaMetadata{}, schemas: make(map[string]*metadatapb.SchemaMetadata)}
+}
+
+// resolveKeyless gives each foreign key that names no referenced columns the
+// referenced table's primary key.
+func (l *sdlLoader) resolveKeyless() error {
 	for _, fk := range l.keyless {
 		referenced := schemaTable(l.schema(fk.ReferencedSchema), fk.ReferencedTable)
 		if referenced == nil {
-			return nil, fmt.Errorf("foreign key %s references table %s.%s, which is not created", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
+			return fmt.Errorf("foreign key %s references table %s.%s, which is not created", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
 		}
 		for _, index := range referenced.Indexes {
 			if index.Primary {
@@ -71,10 +84,11 @@ func LoadSDL(text string) (*metadatapb.DatabaseSchemaMetadata, error) {
 		}
 		if len(fk.ReferencedColumns) == 0 {
 			// Its key is the hidden rowid, which the sync does not read.
-			return nil, fmt.Errorf("foreign key %s references table %s.%s, which declares no primary key", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
+			return fmt.Errorf("foreign key %s references table %s.%s, which declares no primary key", fk.Name, fk.ReferencedSchema, fk.ReferencedTable)
 		}
 	}
-	return l.meta, nil
+	l.keyless = nil
+	return nil
 }
 
 type sdlLoader struct {
@@ -151,8 +165,14 @@ func (l *sdlLoader) starNames(query *tree.Select) []string {
 	for _, expr := range sel.Exprs {
 		if star(expr.Expr) && expr.As == "" {
 			names = append(names, relation...)
+			// CockroachDB writes each column the star stands for under the
+			// relation's name or alias: t.id.
+			qualifier := name
+			if aliased.As.Alias != "" {
+				qualifier = string(aliased.As.Alias)
+			}
 			for _, column := range relation {
-				exprs = append(exprs, tree.SelectExpr{Expr: &tree.UnresolvedName{NumParts: 1, Parts: tree.NameParts{column}}})
+				exprs = append(exprs, tree.SelectExpr{Expr: &tree.UnresolvedName{NumParts: 2, Parts: tree.NameParts{column, qualifier}}})
 			}
 			continue
 		}
@@ -362,6 +382,7 @@ func (l *sdlLoader) createType(n *tree.CreateType) error {
 // whatever the sequence's type: v25.2.3 does both.
 func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.SequenceOptions, create bool) error {
 	minStated, maxStated := false, false
+	oldLimit := sequenceLimit(sequence.DataType)
 	for _, option := range options {
 		value := ""
 		if option.IntVal != nil {
@@ -397,6 +418,16 @@ func applySequenceOptions(sequence *metadatapb.SequenceMetadata, options tree.Se
 	}
 	if !create {
 		limit := sequenceLimit(sequence.DataType)
+		if limit != oldLimit {
+			// AS moves a bound at the old type's limit to the new type's.
+			if !minStated && sequence.MinValue == strconv.FormatInt(-oldLimit-1, 10) {
+				sequence.MinValue = strconv.FormatInt(-limit-1, 10)
+			}
+			if !maxStated && sequence.MaxValue == strconv.FormatInt(oldLimit, 10) {
+				sequence.MaxValue = strconv.FormatInt(limit, 10)
+			}
+			return nil
+		}
 		if !minStated && sequence.MinValue == strconv.FormatInt(-limit-1, 10) {
 			sequence.MinValue = strconv.FormatInt(math.MinInt64, 10)
 		}
@@ -459,8 +490,12 @@ func sdlType(ref tree.ResolvableTypeReference) (string, string) {
 		return schemaQualified(ref).SQLString(), ""
 	}
 	if t.Family() == types.CollatedStringFamily {
-		locale := t.Locale()
-		return strings.TrimSuffix(t.SQLString(), " COLLATE "+tree.NameString(locale)), locale
+		// The type writes its locale as CockroachDB stores it, en_US for
+		// "en_US" and en_us alike.
+		if typ, locale, ok := strings.Cut(t.SQLString(), " COLLATE "); ok {
+			return typ, strings.Trim(locale, `"`)
+		}
+		return t.SQLString(), t.Locale()
 	}
 	return t.SQLString(), ""
 }
@@ -617,7 +652,9 @@ func (l *sdlLoader) addColumn(schema string, table *metadatapb.TableMetadata, co
 	}
 	if column.Unique.IsUnique {
 		index := &tree.CreateIndex{Unique: true, Columns: tree.IndexElemList{{Column: column.Name}}, Name: column.Unique.ConstraintName}
-		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, index))
+		key := sdlIndex(schema, table.Name, table.Indexes, index)
+		key.IsConstraint = true
+		table.Indexes = append(table.Indexes, key)
 	}
 	for _, check := range column.CheckExprs {
 		table.CheckConstraints = append(table.CheckConstraints, sdlCheck(table, string(check.ConstraintName), check.Expr))
@@ -653,7 +690,9 @@ func (l *sdlLoader) addTableDef(schema string, table *metadatapb.TableMetadata, 
 			return nil
 		}
 		index.Unique = true
-		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, index))
+		key := sdlIndex(schema, table.Name, table.Indexes, index)
+		key.IsConstraint = true
+		table.Indexes = append(table.Indexes, key)
 	case *tree.IndexTableDef:
 		table.Indexes = append(table.Indexes, sdlIndex(schema, table.Name, table.Indexes, indexOf(d)))
 	case *tree.CheckConstraintTableDef:
@@ -702,6 +741,10 @@ func sdlIndex(schema, table string, existing []*metadatapb.IndexMetadata, n *tre
 	index.Table.ExplicitCatalog = false
 	index.IfNotExists = false
 	index.Concurrently = false
+	if index.Sharded != nil && (index.Sharded.ShardBuckets == nil || index.Sharded.ShardBuckets == tree.DefaultVal{}) && !slices.ContainsFunc(index.StorageParams, func(p tree.StorageParam) bool { return p.Key == "bucket_count" }) {
+		// CockroachDB stores a hash-sharded index's default bucket count.
+		index.StorageParams = append(slices.Clone(index.StorageParams), tree.StorageParam{Key: "bucket_count", Value: tree.NewDInt(16)})
+	}
 	index.Columns = make(tree.IndexElemList, len(n.Columns))
 	copy(index.Columns, n.Columns)
 	var names []string
@@ -915,6 +958,11 @@ func (l *sdlLoader) createView(n *tree.CreateView) error {
 		columns = append(columns, &metadatapb.ColumnMetadata{Name: name})
 	}
 	if n.Materialized {
+		// CockroachDB lists the hidden rowid key it gives a materialized view
+		// among the view's columns, (b, rowid), where the query has none.
+		if query := outputNames(n.AsSource); len(query) == len(columns)-1 && columns[len(columns)-1].Name == "rowid" {
+			columns = columns[:len(columns)-1]
+		}
 		view := &metadatapb.MaterializedViewMetadata{Name: string(n.Name.ObjectName), Definition: definition, DependencyColumns: dependencies, Columns: columns}
 		s.MaterializedViews = append(s.MaterializedViews, view)
 		return nil

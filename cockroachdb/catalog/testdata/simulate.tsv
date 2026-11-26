@@ -1,0 +1,932 @@
+# pin: default cockroachdb/cockroach:v25.2.3 sha256:4a412731d1cfc5d6dea7431b7ce383b502966c9d589163d63db9e1ff7b51495a v25.2.3
+# columns: omni, expected, source, fixture, rule, statement
+ok:ffda54c42a05	ok:ffda54c42a05	engine	empty	schema/create	CREATE SCHEMA s
+ok:ffda54c42a05	ok:ffda54c42a05	engine	empty	schema/create	CREATE SCHEMA IF NOT EXISTS s
+ok:655130f0a754	ok:655130f0a754	engine	empty	schema/create	CREATE SCHEMA s2
+ok:53962e6e469f	ok:53962e6e469f	engine	empty	schema/create	CREATE SCHEMA "Mixed Case"
+3F000	3F000	engine	empty	schema/alter	ALTER SCHEMA s RENAME TO s2
+3F000	3F000	engine	empty	schema/alter	ALTER SCHEMA s RENAME TO public
+3F000	3F000	engine	empty	schema/alter	ALTER SCHEMA missing RENAME TO s2
+3F000	3F000	engine	empty	schema/drop	DROP SCHEMA s
+3F000	3F000	engine	empty	schema/drop	DROP SCHEMA s CASCADE
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	schema/drop	DROP SCHEMA IF EXISTS s
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	schema/drop	DROP SCHEMA IF EXISTS missing
+3F000	3F000	engine	empty	schema/drop	DROP SCHEMA missing
+3F000	3F000	engine	empty	schema/drop	DROP SCHEMA public
+3F000	3F000	engine	empty	schema/comment	COMMENT ON SCHEMA s IS 'a schema'
+ok:6e210d2f58d0	ok:6e210d2f58d0	engine	empty	schema/comment	COMMENT ON SCHEMA public IS 'the default'
+ok:a03f996d1b30	ok:a03f996d1b30	engine	empty	table/create	CREATE TABLE t (id INT8 PRIMARY KEY)
+ok:a03f996d1b30	ok:a03f996d1b30	engine	empty	table/create	CREATE TABLE IF NOT EXISTS t (id INT8 PRIMARY KEY)
+ok:5a18154b44f2	ok:5a18154b44f2	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v STRING NOT NULL)
+ok:ef298f101bb2	ok:ef298f101bb2	engine	empty	table/create	CREATE TABLE n (x INT8, y STRING)
+ok:85a29ecb14c0	ok:85a29ecb14c0	engine	empty	table/create	CREATE TABLE n (x INT8 NOT NULL, y INT8 NOT NULL, PRIMARY KEY (x, y DESC))
+ok:8b8e7ebeda51	ok:8b8e7ebeda51	engine	empty	table/create	CREATE TABLE n (id INT8, CONSTRAINT n_key PRIMARY KEY (id))
+ok:f9397ceecbed	ok:f9397ceecbed	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 DEFAULT 7, b STRING DEFAULT 'x', c TIMESTAMPTZ DEFAULT now())
+ok:bc5461bf5afe	ok:bc5461bf5afe	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0), b INT8, CHECK (b < 10), CONSTRAINT n_ab CHECK (a < b))
+ok:8df28a511164	ok:8df28a511164	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, e STRING UNIQUE, f STRING, UNIQUE (f))
+ok:6972bf2bc20f	ok:6972bf2bc20f	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8, INDEX (a), INDEX n_named (a DESC))
+ok:5c36b9612a7a	ok:5c36b9612a7a	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, price DECIMAL(10, 2), cents INT8 AS ((price * 100)::INT8) STORED, twice DECIMAL AS (price * 2) VIRTUAL)
+ok:887a1ee4e1bf	ok:887a1ee4e1bf	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, secret STRING NOT VISIBLE, tags STRING[], doc JSONB, name VARCHAR(20) COLLATE "en_US")
+ok:8d06473c1d98	ok:8d06473c1d98	engine	empty	table/create	CREATE TABLE n (id SERIAL PRIMARY KEY, v STRING)
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t (id))
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t)
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8, CONSTRAINT n_t FOREIGN KEY (t_id) REFERENCES t (id) ON DELETE CASCADE ON UPDATE SET NULL)
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES missing (id))
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, k_x INT8 REFERENCES k (x))
+42704	42704	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m mood DEFAULT 'sad', p pair)
+42704	42704	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m missing_type)
+42P01	42P01	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v INT8 DEFAULT nextval('sq'))
+42701	42701	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, id INT8)
+42703	42703	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (missing > 0))
+42703	42703	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, INDEX (missing))
+error	ok:3f3abd0a54d0	engine	empty	table/create	CREATE TABLE n (id INT8 PRIMARY KEY) WITH (ttl_expire_after = '1 day')
+3F000	3F000	engine	empty	table/create	CREATE TABLE s.n (id INT8 PRIMARY KEY)
+3F000	3F000	engine	empty	table/create	CREATE TABLE s.u (id INT8 PRIMARY KEY)
+3F000	3F000	engine	empty	table/create	CREATE TABLE missing.n (id INT8 PRIMARY KEY)
+ok:410f648f4a66	ok:410f648f4a66	engine	empty	table/create	CREATE TABLE v (id INT8 PRIMARY KEY)
+ok:443229d542e1	ok:443229d542e1	engine	empty	table/create	CREATE TABLE sq (id INT8 PRIMARY KEY)
+ok:b162c1ab5eb1	ok:b162c1ab5eb1	engine	empty	table/create	CREATE TABLE "Mixed" ("Id" INT8 PRIMARY KEY, "Some Value" STRING)
+error	ok:b847249747c9	engine	empty	table/create	CREATE TABLE n AS SELECT 1 AS x
+XCEXF	XCEXF	engine	empty	table/create	CREATE TEMP TABLE n (id INT8 PRIMARY KEY)
+42P01	42P01	engine	empty	table/alter	ALTER TABLE t RENAME TO t2
+42P01	42P01	engine	empty	table/alter	ALTER TABLE t RENAME TO c
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	table/alter	ALTER TABLE IF EXISTS t RENAME TO t2
+42P01	42P01	engine	empty	table/alter	ALTER TABLE missing RENAME TO t2
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	table/alter	ALTER TABLE IF EXISTS missing RENAME TO t2
+42P01	42P01	engine	empty	table/alter	ALTER TABLE t SET SCHEMA s
+42P01	42P01	engine	empty	table/alter	ALTER TABLE k SET SCHEMA s
+42P01	42P01	engine	empty	table/alter	ALTER TABLE s.u RENAME TO u2
+42P01	42P01	engine	empty	table/drop	DROP TABLE t
+42P01	42P01	engine	empty	table/drop	DROP TABLE t CASCADE
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	table/drop	DROP TABLE IF EXISTS t
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	table/drop	DROP TABLE IF EXISTS missing
+42P01	42P01	engine	empty	table/drop	DROP TABLE missing
+42P01	42P01	engine	empty	table/drop	DROP TABLE c
+42P01	42P01	engine	empty	table/drop	DROP TABLE c, t
+42P01	42P01	engine	empty	table/drop	DROP TABLE k
+42P01	42P01	engine	empty	table/drop	DROP TABLE s.u
+42P01	42P01	engine	empty	table/drop	DROP TABLE v
+42P01	42P01	engine	empty	table/truncate	TRUNCATE t
+42P01	42P01	engine	empty	table/comment	COMMENT ON TABLE t IS 'changed'
+42P01	42P01	engine	empty	table/comment	COMMENT ON TABLE t IS NULL
+42P01	42P01	engine	empty	table/comment	COMMENT ON TABLE missing IS 'x'
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD n INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL DEFAULT 5
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n STRING DEFAULT 'x' CHECK (n <> '')
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n STRING UNIQUE
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 REFERENCES t (id)
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) STORED
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) VIRTUAL
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n mood
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT VISIBLE
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8 DEFAULT nextval('sq')
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN a INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS a INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS n INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE t ADD COLUMN n INT8, ADD COLUMN o STRING
+42P01	42P01	engine	empty	column/add	ALTER TABLE missing ADD COLUMN n INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE k ADD COLUMN n INT8
+42P01	42P01	engine	empty	column/add	ALTER TABLE v ADD COLUMN n INT8
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN b
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP b
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN a
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN a CASCADE
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN m
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN id
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN missing
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS missing
+42P01	42P01	engine	empty	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS b
+42P01	42P01	engine	empty	column/drop	ALTER TABLE c DROP COLUMN t_id
+42P01	42P01	engine	empty	column/drop	ALTER TABLE c DROP COLUMN note
+42P01	42P01	engine	empty	column/drop	ALTER TABLE k DROP COLUMN y
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT NULL
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a DROP NOT NULL
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN id DROP NOT NULL
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN missing SET NOT NULL
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b TYPE STRING(100)
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET DATA TYPE VARCHAR(50)
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a TYPE INT4
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a TYPE STRING
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN missing TYPE STRING
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT VISIBLE
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET VISIBLE
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME COLUMN b TO z
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME b TO z
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME COLUMN a TO z
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME COLUMN id TO z
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME COLUMN b TO a
+42P01	42P01	engine	empty	column/rename	ALTER TABLE t RENAME COLUMN missing TO z
+42P01	42P01	engine	empty	column/rename	ALTER TABLE c RENAME COLUMN t_id TO parent
+42P01	42P01	engine	empty	column/comment	COMMENT ON COLUMN t.b IS 'bee'
+42P01	42P01	engine	empty	column/comment	COMMENT ON COLUMN t.a IS NULL
+42P01	42P01	engine	empty	column/comment	COMMENT ON COLUMN t.missing IS 'x'
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CHECK (a < 1000)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1) NOT VALID
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_a_check CHECK (a > 1)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad CHECK (missing > 0)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_unique UNIQUE (b)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD UNIQUE (a, b)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_key UNIQUE (b)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad UNIQUE (missing)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_self FOREIGN KEY (a) REFERENCES t (id)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t (id) ON DELETE CASCADE
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES missing (id)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES t (b)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE c ADD CONSTRAINT c_note CHECK (note <> '')
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE k ADD PRIMARY KEY (x)
+42P01	42P01	engine	empty	constraint/add	ALTER TABLE t ADD PRIMARY KEY (a)
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_a_check
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS t_a_check
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS missing
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT missing
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_b_key
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_pkey
+42P01	42P01	engine	empty	constraint/drop	ALTER TABLE c DROP CONSTRAINT c_t_id_fkey
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_a_check TO t_a_nonneg
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_b_key TO t_b_uniq
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_pkey TO t_key
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t RENAME CONSTRAINT missing TO z
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t VALIDATE CONSTRAINT t_a_check
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE c VALIDATE CONSTRAINT c_t_id_fkey
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE t ALTER PRIMARY KEY USING COLUMNS (a)
+42P01	42P01	engine	empty	constraint/alter	ALTER TABLE k ALTER PRIMARY KEY USING COLUMNS (x)
+42P01	42P01	engine	empty	constraint/comment	COMMENT ON CONSTRAINT t_a_check ON t IS 'non-negative'
+42P01	42P01	engine	empty	constraint/comment	COMMENT ON CONSTRAINT t_pkey ON t IS 'the key'
+42P01	42P01	engine	empty	constraint/comment	COMMENT ON CONSTRAINT missing ON t IS 'x'
+42P01	42P01	engine	empty	index/create	CREATE INDEX ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_b_idx ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_ab ON t (a DESC, b)
+42P01	42P01	engine	empty	index/create	CREATE UNIQUE INDEX t_b_uniq ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_b_store ON t (b) STORING (a)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_b_part ON t (b) WHERE a > 0
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_lower ON t (lower(b))
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_hash ON t (b) USING HASH
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_hidden ON t (b) NOT VISIBLE
+42P01	42P01	engine	empty	index/create	CREATE INVERTED INDEX t_doc ON t (doc)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_a_idx ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX IF NOT EXISTS t_a_idx ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX IF NOT EXISTS t_b_idx ON t (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX t_bad ON t (missing)
+42P01	42P01	engine	empty	index/create	CREATE INDEX n_idx ON missing (a)
+42P01	42P01	engine	empty	index/create	CREATE INDEX ON k (x)
+42P01	42P01	engine	empty	index/create	CREATE INDEX ON s.u (v)
+42P01	42P01	engine	empty	index/create	CREATE INDEX mv_b ON mv (b)
+42P01	42P01	engine	empty	index/create	CREATE INDEX v_a ON v (a)
+42P01	42P01	engine	empty	index/create	CREATE INDEX CONCURRENTLY t_b_conc ON t (b)
+42P01	42P01	engine	empty	index/alter	ALTER INDEX t@t_a_idx RENAME TO t_a_idx2
+42704	42704	engine	empty	index/alter	ALTER INDEX t_a_idx RENAME TO t_a_idx2
+42704	42704	engine	empty	index/alter	ALTER INDEX t_a_idx RENAME TO t_b_key
+42704	42704	engine	empty	index/alter	ALTER INDEX missing RENAME TO x
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	index/alter	ALTER INDEX IF EXISTS missing RENAME TO x
+42P01	42P01	engine	empty	index/alter	ALTER INDEX t@t_a_idx NOT VISIBLE
+42P01	42P01	engine	empty	index/alter	ALTER INDEX t@t_a_idx VISIBLE
+42601	42601	engine	empty	index/alter	ALTER TABLE t RENAME INDEX t_a_idx TO t_a_idx2
+42704	42704	engine	empty	index/drop	DROP INDEX t_a_idx
+42P01	42P01	engine	empty	index/drop	DROP INDEX t@t_a_idx
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	index/drop	DROP INDEX IF EXISTS t_a_idx
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	index/drop	DROP INDEX IF EXISTS missing
+42704	42704	engine	empty	index/drop	DROP INDEX missing
+42704	42704	engine	empty	index/drop	DROP INDEX t_b_key
+42704	42704	engine	empty	index/drop	DROP INDEX t_b_key CASCADE
+42P01	42P01	engine	empty	index/drop	DROP INDEX t@t_pkey
+42704	42704	engine	empty	index/drop	DROP INDEX CONCURRENTLY t_a_idx
+42P01	42P01	engine	empty	index/comment	COMMENT ON INDEX t@t_a_idx IS 'by a'
+42704	42704	engine	empty	index/comment	COMMENT ON INDEX t_a_idx IS 'by a'
+42704	42704	engine	empty	index/comment	COMMENT ON INDEX missing IS 'x'
+ok:bb120fea6680	ok:bb120fea6680	engine	empty	sequence/create	CREATE SEQUENCE sq
+ok:bb120fea6680	ok:bb120fea6680	engine	empty	sequence/create	CREATE SEQUENCE IF NOT EXISTS sq
+ok:47d25e411e39	ok:47d25e411e39	engine	empty	sequence/create	CREATE SEQUENCE sq2
+ok:520b0b672ff6	ok:520b0b672ff6	engine	empty	sequence/create	CREATE SEQUENCE sq2 AS INT4 INCREMENT BY 2 MINVALUE 5 MAXVALUE 500 START WITH 7 CACHE 10
+ok:dc8c212187c2	ok:dc8c212187c2	engine	empty	sequence/create	CREATE SEQUENCE sq2 INCREMENT BY -1
+0A000	0A000	engine	empty	sequence/create	CREATE SEQUENCE sq2 CYCLE
+42P01	42P01	engine	empty	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.a
+42P01	42P01	engine	empty	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.missing
+3F000	3F000	engine	empty	sequence/create	CREATE SEQUENCE s.sq2
+ok:518521727f7f	ok:518521727f7f	engine	empty	sequence/create	CREATE SEQUENCE t
+22023	22023	engine	empty	sequence/create	CREATE SEQUENCE sq2 MINVALUE 10 MAXVALUE 5
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq START WITH 50
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq CACHE 20
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq CYCLE
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq AS INT4
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq OWNED BY t.a
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq OWNED BY NONE
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE missing INCREMENT BY 5
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	sequence/alter	ALTER SEQUENCE IF EXISTS missing INCREMENT BY 5
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq RENAME TO sq2
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq RENAME TO t
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq SET SCHEMA s
+42P01	42P01	engine	empty	sequence/drop	DROP SEQUENCE sq
+42P01	42P01	engine	empty	sequence/drop	DROP SEQUENCE sq CASCADE
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	sequence/drop	DROP SEQUENCE IF EXISTS sq
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	sequence/drop	DROP SEQUENCE IF EXISTS missing
+42P01	42P01	engine	empty	sequence/drop	DROP SEQUENCE missing
+42P01	42P01	engine	empty	sequence/drop	DROP SEQUENCE t
+42P01	42P01	engine	empty	view/create	CREATE VIEW v AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE VIEW IF NOT EXISTS v AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT id, a FROM t
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT * FROM t
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 (x, y) AS SELECT id, a FROM t
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT id, a + 1 AS a1, count(*) OVER () AS n FROM t WHERE a > 0
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT id FROM v
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT t.id, c.note FROM t JOIN c ON c.t_id = t.id
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT missing FROM t
+ok:bf1cd924a231	ok:bf1cd924a231	engine	empty	view/create	CREATE VIEW v2 AS SELECT 1 AS one
+42P01	42P01	engine	empty	view/create	CREATE VIEW v2 AS SELECT id FROM missing
+3F000	3F000	engine	empty	view/create	CREATE VIEW s.v2 AS SELECT id FROM t
+ok:e537c0ee9b42	ok:e537c0ee9b42	engine	empty	view/create	CREATE VIEW t AS SELECT 1 AS one
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a FROM t
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a, b FROM t
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
+42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id FROM t WITH NO DATA
+42P01	42P01	engine	empty	view/alter	ALTER VIEW v RENAME TO v2
+42P01	42P01	engine	empty	view/alter	ALTER VIEW v RENAME TO t
+42P01	42P01	engine	empty	view/alter	ALTER VIEW missing RENAME TO v2
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	view/alter	ALTER VIEW IF EXISTS missing RENAME TO v2
+42P01	42P01	engine	empty	view/alter	ALTER VIEW v SET SCHEMA s
+42P01	42P01	engine	empty	view/alter	ALTER MATERIALIZED VIEW mv RENAME TO mv2
+42P01	42P01	engine	empty	view/drop	DROP VIEW v
+42P01	42P01	engine	empty	view/drop	DROP VIEW v CASCADE
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	view/drop	DROP VIEW IF EXISTS v
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	view/drop	DROP VIEW IF EXISTS missing
+42P01	42P01	engine	empty	view/drop	DROP VIEW missing
+42P01	42P01	engine	empty	view/drop	DROP VIEW t
+42P01	42P01	engine	empty	view/drop	DROP VIEW mv
+42P01	42P01	engine	empty	view/drop	DROP MATERIALIZED VIEW mv
+42P01	42P01	engine	empty	view/drop	DROP MATERIALIZED VIEW v
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	view/drop	DROP MATERIALIZED VIEW IF EXISTS mv
+42601	42601	engine	empty	view/comment	COMMENT ON VIEW v IS 'x'
+ok:7e262fad17f1	ok:7e262fad17f1	engine	empty	type/create	CREATE TYPE mood AS ENUM ('a')
+ok:7e262fad17f1	ok:7e262fad17f1	engine	empty	type/create	CREATE TYPE IF NOT EXISTS mood AS ENUM ('a')
+ok:a453ba25bafc	ok:a453ba25bafc	engine	empty	type/create	CREATE TYPE color AS ENUM ('red', 'green', 'blue')
+ok:7c2eae618e8c	ok:7c2eae618e8c	engine	empty	type/create	CREATE TYPE color AS ENUM ()
+42P17	42P17	engine	empty	type/create	CREATE TYPE color AS ENUM ('red', 'red')
+3F000	3F000	engine	empty	type/create	CREATE TYPE s.color AS ENUM ('red')
+3F000	3F000	engine	empty	type/create	CREATE TYPE missing.color AS ENUM ('red')
+ok:40d1d94db7fd	ok:40d1d94db7fd	engine	empty	type/create	CREATE TYPE point2 AS (x FLOAT8, y FLOAT8)
+42704	42704	engine	empty	type/create	CREATE TYPE point2 AS (m mood, label STRING)
+ok:2ce58ff34945	ok:2ce58ff34945	engine	empty	type/create	CREATE TYPE pair AS (x INT8)
+ok:49a0e00d20d2	ok:49a0e00d20d2	engine	empty	type/create	CREATE TYPE t AS ENUM ('a')
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE 'meh'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'sad'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE 'meh' AFTER 'happy'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE 'happy'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE IF NOT EXISTS 'happy'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'missing'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood RENAME VALUE 'missing' TO 'blue'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'happy'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood DROP VALUE 'sad'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood DROP VALUE 'happy'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood DROP VALUE 'missing'
+42704	42704	engine	empty	type/alter	ALTER TYPE mood RENAME TO feeling
+42704	42704	engine	empty	type/alter	ALTER TYPE mood RENAME TO pair
+42704	42704	engine	empty	type/alter	ALTER TYPE mood SET SCHEMA s
+42704	42704	engine	empty	type/alter	ALTER TYPE missing ADD VALUE 'x'
+42704	42704	engine	empty	type/alter	ALTER TYPE pair ADD VALUE 'x'
+42704	42704	engine	empty	type/drop	DROP TYPE mood
+42704	42704	engine	empty	type/drop	DROP TYPE pair
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	type/drop	DROP TYPE IF EXISTS mood
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	type/drop	DROP TYPE IF EXISTS missing
+42704	42704	engine	empty	type/drop	DROP TYPE missing
+42704	42704	engine	empty	type/drop	DROP TYPE mood, pair
+42704	42704	engine	empty	type/drop	DROP TYPE t
+42704	42704	engine	empty	type/comment	COMMENT ON TYPE mood IS 'feelings'
+42704	42704	engine	empty	type/comment	COMMENT ON TYPE pair IS 'two'
+42704	42704	engine	empty	type/comment	COMMENT ON TYPE missing IS 'x'
+ok:a7bdad8a27eb	ok:a7bdad8a27eb	engine	table	schema/create	CREATE SCHEMA s
+ok:a7bdad8a27eb	ok:a7bdad8a27eb	engine	table	schema/create	CREATE SCHEMA IF NOT EXISTS s
+ok:4f89b1a36d39	ok:4f89b1a36d39	engine	table	schema/create	CREATE SCHEMA s2
+ok:6689f725c70d	ok:6689f725c70d	engine	table	schema/create	CREATE SCHEMA "Mixed Case"
+3F000	3F000	engine	table	schema/alter	ALTER SCHEMA s RENAME TO s2
+3F000	3F000	engine	table	schema/alter	ALTER SCHEMA s RENAME TO public
+3F000	3F000	engine	table	schema/alter	ALTER SCHEMA missing RENAME TO s2
+3F000	3F000	engine	table	schema/drop	DROP SCHEMA s
+3F000	3F000	engine	table	schema/drop	DROP SCHEMA s CASCADE
+ok:cecca0f41107	ok:cecca0f41107	engine	table	schema/drop	DROP SCHEMA IF EXISTS s
+ok:cecca0f41107	ok:cecca0f41107	engine	table	schema/drop	DROP SCHEMA IF EXISTS missing
+3F000	3F000	engine	table	schema/drop	DROP SCHEMA missing
+3F000	3F000	engine	table	schema/drop	DROP SCHEMA public
+3F000	3F000	engine	table	schema/comment	COMMENT ON SCHEMA s IS 'a schema'
+ok:9b2739b19ce1	ok:9b2739b19ce1	engine	table	schema/comment	COMMENT ON SCHEMA public IS 'the default'
+42P07	42P07	engine	table	table/create	CREATE TABLE t (id INT8 PRIMARY KEY)
+ok:cecca0f41107	ok:cecca0f41107	engine	table	table/create	CREATE TABLE IF NOT EXISTS t (id INT8 PRIMARY KEY)
+ok:532528728b00	ok:532528728b00	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v STRING NOT NULL)
+ok:c376b30a48a2	ok:c376b30a48a2	engine	table	table/create	CREATE TABLE n (x INT8, y STRING)
+ok:ce7e72f897f4	ok:ce7e72f897f4	engine	table	table/create	CREATE TABLE n (x INT8 NOT NULL, y INT8 NOT NULL, PRIMARY KEY (x, y DESC))
+ok:10f5d154d4a5	ok:10f5d154d4a5	engine	table	table/create	CREATE TABLE n (id INT8, CONSTRAINT n_key PRIMARY KEY (id))
+ok:28308ab834ce	ok:28308ab834ce	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 DEFAULT 7, b STRING DEFAULT 'x', c TIMESTAMPTZ DEFAULT now())
+ok:555b6c774108	ok:555b6c774108	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0), b INT8, CHECK (b < 10), CONSTRAINT n_ab CHECK (a < b))
+ok:7e029db43e49	ok:7e029db43e49	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, e STRING UNIQUE, f STRING, UNIQUE (f))
+ok:4a2ae6692f92	ok:4a2ae6692f92	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8, INDEX (a), INDEX n_named (a DESC))
+ok:1ad66b21dc69	ok:1ad66b21dc69	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, price DECIMAL(10, 2), cents INT8 AS ((price * 100)::INT8) STORED, twice DECIMAL AS (price * 2) VIRTUAL)
+ok:d98dbe86c66e	ok:d98dbe86c66e	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, secret STRING NOT VISIBLE, tags STRING[], doc JSONB, name VARCHAR(20) COLLATE "en_US")
+ok:d1b9a1d366de	ok:d1b9a1d366de	engine	table	table/create	CREATE TABLE n (id SERIAL PRIMARY KEY, v STRING)
+ok:55962054d03c	ok:55962054d03c	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t (id))
+ok:55962054d03c	ok:55962054d03c	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t)
+ok:df487e868514	ok:df487e868514	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8, CONSTRAINT n_t FOREIGN KEY (t_id) REFERENCES t (id) ON DELETE CASCADE ON UPDATE SET NULL)
+42P01	42P01	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES missing (id))
+42P01	42P01	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, k_x INT8 REFERENCES k (x))
+42704	42704	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m mood DEFAULT 'sad', p pair)
+42704	42704	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m missing_type)
+42P01	42P01	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v INT8 DEFAULT nextval('sq'))
+42701	42701	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, id INT8)
+42703	42703	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (missing > 0))
+42703	42703	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, INDEX (missing))
+error	ok:58117e5138a4	engine	table	table/create	CREATE TABLE n (id INT8 PRIMARY KEY) WITH (ttl_expire_after = '1 day')
+3F000	3F000	engine	table	table/create	CREATE TABLE s.n (id INT8 PRIMARY KEY)
+3F000	3F000	engine	table	table/create	CREATE TABLE s.u (id INT8 PRIMARY KEY)
+3F000	3F000	engine	table	table/create	CREATE TABLE missing.n (id INT8 PRIMARY KEY)
+ok:101b8cdae15b	ok:101b8cdae15b	engine	table	table/create	CREATE TABLE v (id INT8 PRIMARY KEY)
+ok:a3830edaab9b	ok:a3830edaab9b	engine	table	table/create	CREATE TABLE sq (id INT8 PRIMARY KEY)
+ok:3af3d00d0323	ok:3af3d00d0323	engine	table	table/create	CREATE TABLE "Mixed" ("Id" INT8 PRIMARY KEY, "Some Value" STRING)
+error	ok:6f1dada4ef74	engine	table	table/create	CREATE TABLE n AS SELECT 1 AS x
+XCEXF	XCEXF	engine	table	table/create	CREATE TEMP TABLE n (id INT8 PRIMARY KEY)
+ok:b65dfcfe2fbd	ok:b65dfcfe2fbd	engine	table	table/alter	ALTER TABLE t RENAME TO t2
+ok:bd9a3fc849dc	ok:bd9a3fc849dc	engine	table	table/alter	ALTER TABLE t RENAME TO c
+ok:b65dfcfe2fbd	ok:b65dfcfe2fbd	engine	table	table/alter	ALTER TABLE IF EXISTS t RENAME TO t2
+42P01	42P01	engine	table	table/alter	ALTER TABLE missing RENAME TO t2
+ok:cecca0f41107	ok:cecca0f41107	engine	table	table/alter	ALTER TABLE IF EXISTS missing RENAME TO t2
+3F000	3F000	engine	table	table/alter	ALTER TABLE t SET SCHEMA s
+42P01	42P01	engine	table	table/alter	ALTER TABLE k SET SCHEMA s
+42P01	42P01	engine	table	table/alter	ALTER TABLE s.u RENAME TO u2
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	table	table/drop	DROP TABLE t
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	table	table/drop	DROP TABLE t CASCADE
+ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	table	table/drop	DROP TABLE IF EXISTS t
+ok:cecca0f41107	ok:cecca0f41107	engine	table	table/drop	DROP TABLE IF EXISTS missing
+42P01	42P01	engine	table	table/drop	DROP TABLE missing
+42P01	42P01	engine	table	table/drop	DROP TABLE c
+42P01	42P01	engine	table	table/drop	DROP TABLE c, t
+42P01	42P01	engine	table	table/drop	DROP TABLE k
+42P01	42P01	engine	table	table/drop	DROP TABLE s.u
+42P01	42P01	engine	table	table/drop	DROP TABLE v
+ok:cecca0f41107	ok:cecca0f41107	engine	table	table/truncate	TRUNCATE t
+ok:8184a70e2170	ok:8184a70e2170	engine	table	table/comment	COMMENT ON TABLE t IS 'changed'
+ok:cecca0f41107	ok:cecca0f41107	engine	table	table/comment	COMMENT ON TABLE t IS NULL
+42P01	42P01	engine	table	table/comment	COMMENT ON TABLE missing IS 'x'
+ok:79be0725b9ad	ok:79be0725b9ad	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8
+ok:79be0725b9ad	ok:79be0725b9ad	engine	table	column/add	ALTER TABLE t ADD n INT8
+ok:a7b8fc3d3a4b	ok:a7b8fc3d3a4b	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL DEFAULT 5
+ok:9422e1694e1d	ok:9422e1694e1d	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL
+ok:93860530a8dd	ok:93860530a8dd	engine	table	column/add	ALTER TABLE t ADD COLUMN n STRING DEFAULT 'x' CHECK (n <> '')
+ok:b920eeeda80b	ok:b920eeeda80b	engine	table	column/add	ALTER TABLE t ADD COLUMN n STRING UNIQUE
+ok:9475e6a96606	ok:9475e6a96606	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 REFERENCES t (id)
+ok:6865756dbe76	ok:6865756dbe76	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) STORED
+ok:8495b80568fb	ok:8495b80568fb	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) VIRTUAL
+42704	42704	engine	table	column/add	ALTER TABLE t ADD COLUMN n mood
+ok:567103b0900e	ok:567103b0900e	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT VISIBLE
+42P01	42P01	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8 DEFAULT nextval('sq')
+42701	42701	engine	table	column/add	ALTER TABLE t ADD COLUMN a INT8
+ok:cecca0f41107	ok:cecca0f41107	engine	table	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS a INT8
+ok:79be0725b9ad	ok:79be0725b9ad	engine	table	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS n INT8
+ok:229a7545f5e5	ok:229a7545f5e5	engine	table	column/add	ALTER TABLE t ADD COLUMN n INT8, ADD COLUMN o STRING
+42P01	42P01	engine	table	column/add	ALTER TABLE missing ADD COLUMN n INT8
+42P01	42P01	engine	table	column/add	ALTER TABLE k ADD COLUMN n INT8
+42P01	42P01	engine	table	column/add	ALTER TABLE v ADD COLUMN n INT8
+ok:41b21ca623c7	ok:41b21ca623c7	engine	table	column/drop	ALTER TABLE t DROP COLUMN b
+ok:41b21ca623c7	ok:41b21ca623c7	engine	table	column/drop	ALTER TABLE t DROP b
+ok:df77f92c9a46	ok:df77f92c9a46	engine	table	column/drop	ALTER TABLE t DROP COLUMN a
+ok:df77f92c9a46	ok:df77f92c9a46	engine	table	column/drop	ALTER TABLE t DROP COLUMN a CASCADE
+42703	42703	engine	table	column/drop	ALTER TABLE t DROP COLUMN m
+42P10	42P10	engine	table	column/drop	ALTER TABLE t DROP COLUMN id
+42703	42703	engine	table	column/drop	ALTER TABLE t DROP COLUMN missing
+ok:cecca0f41107	ok:cecca0f41107	engine	table	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS missing
+ok:41b21ca623c7	ok:41b21ca623c7	engine	table	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS b
+42P01	42P01	engine	table	column/drop	ALTER TABLE c DROP COLUMN t_id
+42P01	42P01	engine	table	column/drop	ALTER TABLE c DROP COLUMN note
+42P01	42P01	engine	table	column/drop	ALTER TABLE k DROP COLUMN y
+ok:0d9cc7b56a35	ok:0d9cc7b56a35	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
+ok:f76b1fef14b7	ok:f76b1fef14b7	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+ok:0b00f1a0df92	ok:0b00f1a0df92	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
+ok:cecca0f41107	ok:cecca0f41107	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
+42703	42703	engine	table	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
+ok:17156af8cf51	ok:17156af8cf51	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT NULL
+ok:6793e57b6c7e	ok:6793e57b6c7e	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a DROP NOT NULL
+42P16	42P16	engine	table	column/alter	ALTER TABLE t ALTER COLUMN id DROP NOT NULL
+42703	42703	engine	table	column/alter	ALTER TABLE t ALTER COLUMN missing SET NOT NULL
+ok:e8eb61395b08	ok:e8eb61395b08	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b TYPE STRING(100)
+ok:653ecbb5cd49	ok:653ecbb5cd49	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET DATA TYPE VARCHAR(50)
+ok:a310ce8bac04	ok:a310ce8bac04	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a TYPE INT4
+ok:85eea73a925e	ok:85eea73a925e	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a TYPE STRING
+42703	42703	engine	table	column/alter	ALTER TABLE t ALTER COLUMN missing TYPE STRING
+ok:c156ba48172b	ok:c156ba48172b	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT VISIBLE
+ok:cecca0f41107	ok:cecca0f41107	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET VISIBLE
+ok:d699da6f151d	ok:d699da6f151d	engine	table	column/rename	ALTER TABLE t RENAME COLUMN b TO z
+ok:d699da6f151d	ok:d699da6f151d	engine	table	column/rename	ALTER TABLE t RENAME b TO z
+ok:94b3f3e5a225	ok:94b3f3e5a225	engine	table	column/rename	ALTER TABLE t RENAME COLUMN a TO z
+ok:a5ceb19bd3de	ok:a5ceb19bd3de	engine	table	column/rename	ALTER TABLE t RENAME COLUMN id TO z
+42701	42701	engine	table	column/rename	ALTER TABLE t RENAME COLUMN b TO a
+42703	42703	engine	table	column/rename	ALTER TABLE t RENAME COLUMN missing TO z
+42P01	42P01	engine	table	column/rename	ALTER TABLE c RENAME COLUMN t_id TO parent
+ok:7ba989fb55f5	ok:7ba989fb55f5	engine	table	column/comment	COMMENT ON COLUMN t.b IS 'bee'
+ok:cecca0f41107	ok:cecca0f41107	engine	table	column/comment	COMMENT ON COLUMN t.a IS NULL
+42703	42703	engine	table	column/comment	COMMENT ON COLUMN t.missing IS 'x'
+ok:9f22f37b4242	ok:9f22f37b4242	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1)
+ok:4bea42404f5d	ok:4bea42404f5d	engine	table	constraint/add	ALTER TABLE t ADD CHECK (a < 1000)
+ok:510149845303	ok:510149845303	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1) NOT VALID
+ok:91a5d204ced8	ok:91a5d204ced8	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_a_check CHECK (a > 1)
+42703	42703	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad CHECK (missing > 0)
+ok:1caded06330b	ok:1caded06330b	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_unique UNIQUE (b)
+ok:3ca4e0f8d536	ok:3ca4e0f8d536	engine	table	constraint/add	ALTER TABLE t ADD UNIQUE (a, b)
+ok:90d0367eb3bd	ok:90d0367eb3bd	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_key UNIQUE (b)
+42703	42703	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad UNIQUE (missing)
+ok:6d03bb8c7a25	ok:6d03bb8c7a25	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_self FOREIGN KEY (a) REFERENCES t (id)
+ok:4275017801cc	ok:4275017801cc	engine	table	constraint/add	ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t (id) ON DELETE CASCADE
+42P01	42P01	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES missing (id)
+42804	42804	engine	table	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES t (b)
+42P01	42P01	engine	table	constraint/add	ALTER TABLE c ADD CONSTRAINT c_note CHECK (note <> '')
+42P01	42P01	engine	table	constraint/add	ALTER TABLE k ADD PRIMARY KEY (x)
+42611	42611	engine	table	constraint/add	ALTER TABLE t ADD PRIMARY KEY (a)
+42704	42704	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_a_check
+ok:cecca0f41107	ok:cecca0f41107	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS t_a_check
+ok:cecca0f41107	ok:cecca0f41107	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS missing
+42704	42704	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT missing
+42704	42704	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_b_key
+0A000	0A000	engine	table	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_pkey
+42P01	42P01	engine	table	constraint/drop	ALTER TABLE c DROP CONSTRAINT c_t_id_fkey
+42704	42704	engine	table	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_a_check TO t_a_nonneg
+42704	42704	engine	table	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_b_key TO t_b_uniq
+ok:8ae3da30fef3	ok:8ae3da30fef3	engine	table	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_pkey TO t_key
+42704	42704	engine	table	constraint/alter	ALTER TABLE t RENAME CONSTRAINT missing TO z
+42704	42704	engine	table	constraint/alter	ALTER TABLE t VALIDATE CONSTRAINT t_a_check
+42P01	42P01	engine	table	constraint/alter	ALTER TABLE c VALIDATE CONSTRAINT c_t_id_fkey
+ok:a797a7ec2ac7	ok:a797a7ec2ac7	engine	table	constraint/alter	ALTER TABLE t ALTER PRIMARY KEY USING COLUMNS (a)
+42P01	42P01	engine	table	constraint/alter	ALTER TABLE k ALTER PRIMARY KEY USING COLUMNS (x)
+42704	42704	engine	table	constraint/comment	COMMENT ON CONSTRAINT t_a_check ON t IS 'non-negative'
+ok:59c3f3a9b0bb	ok:59c3f3a9b0bb	engine	table	constraint/comment	COMMENT ON CONSTRAINT t_pkey ON t IS 'the key'
+42704	42704	engine	table	constraint/comment	COMMENT ON CONSTRAINT missing ON t IS 'x'
+ok:67026db3188e	ok:67026db3188e	engine	table	index/create	CREATE INDEX ON t (b)
+ok:67026db3188e	ok:67026db3188e	engine	table	index/create	CREATE INDEX t_b_idx ON t (b)
+ok:0b5476f19baf	ok:0b5476f19baf	engine	table	index/create	CREATE INDEX t_ab ON t (a DESC, b)
+ok:5040bcd853a0	ok:5040bcd853a0	engine	table	index/create	CREATE UNIQUE INDEX t_b_uniq ON t (b)
+ok:a9a32b962353	ok:a9a32b962353	engine	table	index/create	CREATE INDEX t_b_store ON t (b) STORING (a)
+ok:77532719e761	ok:77532719e761	engine	table	index/create	CREATE INDEX t_b_part ON t (b) WHERE a > 0
+ok:82cfda3857a0	ok:82cfda3857a0	engine	table	index/create	CREATE INDEX t_lower ON t (lower(b))
+ok:d5e38a0ab2a4	ok:d5e38a0ab2a4	engine	table	index/create	CREATE INDEX t_hash ON t (b) USING HASH
+ok:e61136ab3e8e	ok:e61136ab3e8e	engine	table	index/create	CREATE INDEX t_hidden ON t (b) NOT VISIBLE
+42703	42703	engine	table	index/create	CREATE INVERTED INDEX t_doc ON t (doc)
+ok:9cbfc4d8f539	ok:9cbfc4d8f539	engine	table	index/create	CREATE INDEX t_a_idx ON t (b)
+ok:9cbfc4d8f539	ok:9cbfc4d8f539	engine	table	index/create	CREATE INDEX IF NOT EXISTS t_a_idx ON t (b)
+ok:67026db3188e	ok:67026db3188e	engine	table	index/create	CREATE INDEX IF NOT EXISTS t_b_idx ON t (b)
+42703	42703	engine	table	index/create	CREATE INDEX t_bad ON t (missing)
+42P01	42P01	engine	table	index/create	CREATE INDEX n_idx ON missing (a)
+42P01	42P01	engine	table	index/create	CREATE INDEX ON k (x)
+42P01	42P01	engine	table	index/create	CREATE INDEX ON s.u (v)
+42P01	42P01	engine	table	index/create	CREATE INDEX mv_b ON mv (b)
+42P01	42P01	engine	table	index/create	CREATE INDEX v_a ON v (a)
+ok:e121945bc8aa	ok:e121945bc8aa	engine	table	index/create	CREATE INDEX CONCURRENTLY t_b_conc ON t (b)
+42704	42704	engine	table	index/alter	ALTER INDEX t@t_a_idx RENAME TO t_a_idx2
+42704	42704	engine	table	index/alter	ALTER INDEX t_a_idx RENAME TO t_a_idx2
+42704	42704	engine	table	index/alter	ALTER INDEX t_a_idx RENAME TO t_b_key
+42704	42704	engine	table	index/alter	ALTER INDEX missing RENAME TO x
+ok:cecca0f41107	ok:cecca0f41107	engine	table	index/alter	ALTER INDEX IF EXISTS missing RENAME TO x
+42704	42704	engine	table	index/alter	ALTER INDEX t@t_a_idx NOT VISIBLE
+42704	42704	engine	table	index/alter	ALTER INDEX t@t_a_idx VISIBLE
+42601	42601	engine	table	index/alter	ALTER TABLE t RENAME INDEX t_a_idx TO t_a_idx2
+42704	42704	engine	table	index/drop	DROP INDEX t_a_idx
+42704	42704	engine	table	index/drop	DROP INDEX t@t_a_idx
+ok:cecca0f41107	ok:cecca0f41107	engine	table	index/drop	DROP INDEX IF EXISTS t_a_idx
+ok:cecca0f41107	ok:cecca0f41107	engine	table	index/drop	DROP INDEX IF EXISTS missing
+42704	42704	engine	table	index/drop	DROP INDEX missing
+42704	42704	engine	table	index/drop	DROP INDEX t_b_key
+42704	42704	engine	table	index/drop	DROP INDEX t_b_key CASCADE
+0A000	0A000	engine	table	index/drop	DROP INDEX t@t_pkey
+42704	42704	engine	table	index/drop	DROP INDEX CONCURRENTLY t_a_idx
+42704	42704	engine	table	index/comment	COMMENT ON INDEX t@t_a_idx IS 'by a'
+42704	42704	engine	table	index/comment	COMMENT ON INDEX t_a_idx IS 'by a'
+42704	42704	engine	table	index/comment	COMMENT ON INDEX missing IS 'x'
+ok:230740f8bc8a	ok:230740f8bc8a	engine	table	sequence/create	CREATE SEQUENCE sq
+ok:230740f8bc8a	ok:230740f8bc8a	engine	table	sequence/create	CREATE SEQUENCE IF NOT EXISTS sq
+ok:c16cdc86bf50	ok:c16cdc86bf50	engine	table	sequence/create	CREATE SEQUENCE sq2
+ok:798b09f40741	ok:798b09f40741	engine	table	sequence/create	CREATE SEQUENCE sq2 AS INT4 INCREMENT BY 2 MINVALUE 5 MAXVALUE 500 START WITH 7 CACHE 10
+ok:4b8c567ddeec	ok:4b8c567ddeec	engine	table	sequence/create	CREATE SEQUENCE sq2 INCREMENT BY -1
+0A000	0A000	engine	table	sequence/create	CREATE SEQUENCE sq2 CYCLE
+ok:c16cdc86bf50	ok:c16cdc86bf50	engine	table	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.a
+42703	42703	engine	table	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.missing
+3F000	3F000	engine	table	sequence/create	CREATE SEQUENCE s.sq2
+42P07	42P07	engine	table	sequence/create	CREATE SEQUENCE t
+22023	22023	engine	table	sequence/create	CREATE SEQUENCE sq2 MINVALUE 10 MAXVALUE 5
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq START WITH 50
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq CACHE 20
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq CYCLE
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq AS INT4
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq OWNED BY t.a
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq OWNED BY NONE
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE missing INCREMENT BY 5
+ok:cecca0f41107	ok:cecca0f41107	engine	table	sequence/alter	ALTER SEQUENCE IF EXISTS missing INCREMENT BY 5
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq RENAME TO sq2
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq RENAME TO t
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq SET SCHEMA s
+42P01	42P01	engine	table	sequence/drop	DROP SEQUENCE sq
+42P01	42P01	engine	table	sequence/drop	DROP SEQUENCE sq CASCADE
+ok:cecca0f41107	ok:cecca0f41107	engine	table	sequence/drop	DROP SEQUENCE IF EXISTS sq
+ok:cecca0f41107	ok:cecca0f41107	engine	table	sequence/drop	DROP SEQUENCE IF EXISTS missing
+42P01	42P01	engine	table	sequence/drop	DROP SEQUENCE missing
+42809	42809	engine	table	sequence/drop	DROP SEQUENCE t
+ok:37b5af1d85b1	ok:37b5af1d85b1	engine	table	view/create	CREATE VIEW v AS SELECT id FROM t
+ok:37b5af1d85b1	ok:37b5af1d85b1	engine	table	view/create	CREATE VIEW IF NOT EXISTS v AS SELECT id FROM t
+ok:2c2f3ec53d75	ok:2c2f3ec53d75	engine	table	view/create	CREATE VIEW v2 AS SELECT id, a FROM t
+ok:ea30639d155b	ok:ea30639d155b	engine	table	view/create	CREATE VIEW v2 AS SELECT * FROM t
+ok:ca6875a633c2	ok:ca6875a633c2	engine	table	view/create	CREATE VIEW v2 (x, y) AS SELECT id, a FROM t
+ok:089952b13a9b	ok:089952b13a9b	engine	table	view/create	CREATE VIEW v2 AS SELECT id, a + 1 AS a1, count(*) OVER () AS n FROM t WHERE a > 0
+42P01	42P01	engine	table	view/create	CREATE VIEW v2 AS SELECT id FROM v
+42P01	42P01	engine	table	view/create	CREATE VIEW v2 AS SELECT t.id, c.note FROM t JOIN c ON c.t_id = t.id
+42703	42703	engine	table	view/create	CREATE VIEW v2 AS SELECT missing FROM t
+ok:a9448e6492c7	ok:a9448e6492c7	engine	table	view/create	CREATE VIEW v2 AS SELECT 1 AS one
+42P01	42P01	engine	table	view/create	CREATE VIEW v2 AS SELECT id FROM missing
+3F000	3F000	engine	table	view/create	CREATE VIEW s.v2 AS SELECT id FROM t
+42P07	42P07	engine	table	view/create	CREATE VIEW t AS SELECT 1 AS one
+ok:52c7e89f94eb	ok:52c7e89f94eb	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a FROM t
+ok:71c9e9192a43	ok:71c9e9192a43	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a, b FROM t
+ok:37b5af1d85b1	ok:37b5af1d85b1	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
+ok:1a67a821c574	ok:1a67a821c574	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
+ok:f8f57790b26e	ok:f8f57790b26e	engine	table	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+ok:7713319121df	ok:7713319121df	engine	table	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
+ok:90447606b4e8	ok:90447606b4e8	engine	table	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
+ok:90447606b4e8	ok:90447606b4e8	engine	table	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
+ok:410651e52624	ok:410651e52624	engine	table	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id FROM t WITH NO DATA
+42P01	42P01	engine	table	view/alter	ALTER VIEW v RENAME TO v2
+42P01	42P01	engine	table	view/alter	ALTER VIEW v RENAME TO t
+42P01	42P01	engine	table	view/alter	ALTER VIEW missing RENAME TO v2
+ok:cecca0f41107	ok:cecca0f41107	engine	table	view/alter	ALTER VIEW IF EXISTS missing RENAME TO v2
+42P01	42P01	engine	table	view/alter	ALTER VIEW v SET SCHEMA s
+42P01	42P01	engine	table	view/alter	ALTER MATERIALIZED VIEW mv RENAME TO mv2
+42P01	42P01	engine	table	view/drop	DROP VIEW v
+42P01	42P01	engine	table	view/drop	DROP VIEW v CASCADE
+ok:cecca0f41107	ok:cecca0f41107	engine	table	view/drop	DROP VIEW IF EXISTS v
+ok:cecca0f41107	ok:cecca0f41107	engine	table	view/drop	DROP VIEW IF EXISTS missing
+42P01	42P01	engine	table	view/drop	DROP VIEW missing
+42809	42809	engine	table	view/drop	DROP VIEW t
+42P01	42P01	engine	table	view/drop	DROP VIEW mv
+42P01	42P01	engine	table	view/drop	DROP MATERIALIZED VIEW mv
+42P01	42P01	engine	table	view/drop	DROP MATERIALIZED VIEW v
+ok:cecca0f41107	ok:cecca0f41107	engine	table	view/drop	DROP MATERIALIZED VIEW IF EXISTS mv
+42601	42601	engine	table	view/comment	COMMENT ON VIEW v IS 'x'
+ok:5b917a0c512c	ok:5b917a0c512c	engine	table	type/create	CREATE TYPE mood AS ENUM ('a')
+ok:5b917a0c512c	ok:5b917a0c512c	engine	table	type/create	CREATE TYPE IF NOT EXISTS mood AS ENUM ('a')
+ok:4c6f4947d6ec	ok:4c6f4947d6ec	engine	table	type/create	CREATE TYPE color AS ENUM ('red', 'green', 'blue')
+ok:921cca6980fb	ok:921cca6980fb	engine	table	type/create	CREATE TYPE color AS ENUM ()
+42P17	42P17	engine	table	type/create	CREATE TYPE color AS ENUM ('red', 'red')
+3F000	3F000	engine	table	type/create	CREATE TYPE s.color AS ENUM ('red')
+3F000	3F000	engine	table	type/create	CREATE TYPE missing.color AS ENUM ('red')
+ok:880613937c1e	ok:880613937c1e	engine	table	type/create	CREATE TYPE point2 AS (x FLOAT8, y FLOAT8)
+42704	42704	engine	table	type/create	CREATE TYPE point2 AS (m mood, label STRING)
+ok:3f3f7c706c57	ok:3f3f7c706c57	engine	table	type/create	CREATE TYPE pair AS (x INT8)
+42P07	42P07	engine	table	type/create	CREATE TYPE t AS ENUM ('a')
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE 'meh'
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'sad'
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE 'meh' AFTER 'happy'
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE 'happy'
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE IF NOT EXISTS 'happy'
+42704	42704	engine	table	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'missing'
+42704	42704	engine	table	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'
+42704	42704	engine	table	type/alter	ALTER TYPE mood RENAME VALUE 'missing' TO 'blue'
+42704	42704	engine	table	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'happy'
+42704	42704	engine	table	type/alter	ALTER TYPE mood DROP VALUE 'sad'
+42704	42704	engine	table	type/alter	ALTER TYPE mood DROP VALUE 'happy'
+42704	42704	engine	table	type/alter	ALTER TYPE mood DROP VALUE 'missing'
+42704	42704	engine	table	type/alter	ALTER TYPE mood RENAME TO feeling
+42704	42704	engine	table	type/alter	ALTER TYPE mood RENAME TO pair
+42704	42704	engine	table	type/alter	ALTER TYPE mood SET SCHEMA s
+42704	42704	engine	table	type/alter	ALTER TYPE missing ADD VALUE 'x'
+42704	42704	engine	table	type/alter	ALTER TYPE pair ADD VALUE 'x'
+42704	42704	engine	table	type/drop	DROP TYPE mood
+42704	42704	engine	table	type/drop	DROP TYPE pair
+ok:cecca0f41107	ok:cecca0f41107	engine	table	type/drop	DROP TYPE IF EXISTS mood
+ok:cecca0f41107	ok:cecca0f41107	engine	table	type/drop	DROP TYPE IF EXISTS missing
+42704	42704	engine	table	type/drop	DROP TYPE missing
+42704	42704	engine	table	type/drop	DROP TYPE mood, pair
+2BP01	2BP01	engine	table	type/drop	DROP TYPE t
+42704	42704	engine	table	type/comment	COMMENT ON TYPE mood IS 'feelings'
+42704	42704	engine	table	type/comment	COMMENT ON TYPE pair IS 'two'
+42704	42704	engine	table	type/comment	COMMENT ON TYPE missing IS 'x'
+42P06	42P06	engine	objects	schema/create	CREATE SCHEMA s
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	schema/create	CREATE SCHEMA IF NOT EXISTS s
+ok:1b82d20a249d	ok:1b82d20a249d	engine	objects	schema/create	CREATE SCHEMA s2
+ok:dc1a7400f152	ok:dc1a7400f152	engine	objects	schema/create	CREATE SCHEMA "Mixed Case"
+ok:e3a942a87a82	ok:e3a942a87a82	engine	objects	schema/alter	ALTER SCHEMA s RENAME TO s2
+42P06	42P06	engine	objects	schema/alter	ALTER SCHEMA s RENAME TO public
+3F000	3F000	engine	objects	schema/alter	ALTER SCHEMA missing RENAME TO s2
+2BP01	2BP01	engine	objects	schema/drop	DROP SCHEMA s
+ok:382d9400a8aa	ok:382d9400a8aa	engine	objects	schema/drop	DROP SCHEMA s CASCADE
+2BP01	2BP01	engine	objects	schema/drop	DROP SCHEMA IF EXISTS s
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	schema/drop	DROP SCHEMA IF EXISTS missing
+3F000	3F000	engine	objects	schema/drop	DROP SCHEMA missing
+3F000	3F000	engine	objects	schema/drop	DROP SCHEMA public
+ok:4d7d19bb6eac	ok:4d7d19bb6eac	engine	objects	schema/comment	COMMENT ON SCHEMA s IS 'a schema'
+ok:361266a1c948	ok:361266a1c948	engine	objects	schema/comment	COMMENT ON SCHEMA public IS 'the default'
+42P07	42P07	engine	objects	table/create	CREATE TABLE t (id INT8 PRIMARY KEY)
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	table/create	CREATE TABLE IF NOT EXISTS t (id INT8 PRIMARY KEY)
+ok:0aaaa616f859	ok:0aaaa616f859	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v STRING NOT NULL)
+ok:013b441573ff	ok:013b441573ff	engine	objects	table/create	CREATE TABLE n (x INT8, y STRING)
+ok:89c1b069bd69	ok:89c1b069bd69	engine	objects	table/create	CREATE TABLE n (x INT8 NOT NULL, y INT8 NOT NULL, PRIMARY KEY (x, y DESC))
+ok:490308586caa	ok:490308586caa	engine	objects	table/create	CREATE TABLE n (id INT8, CONSTRAINT n_key PRIMARY KEY (id))
+ok:7b376978da7f	ok:7b376978da7f	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 DEFAULT 7, b STRING DEFAULT 'x', c TIMESTAMPTZ DEFAULT now())
+ok:106d814ce871	ok:106d814ce871	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (a > 0), b INT8, CHECK (b < 10), CONSTRAINT n_ab CHECK (a < b))
+ok:c2a4edb9d923	ok:c2a4edb9d923	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, e STRING UNIQUE, f STRING, UNIQUE (f))
+ok:a22531d880dd	ok:a22531d880dd	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8, INDEX (a), INDEX n_named (a DESC))
+ok:83a89ce5c7ee	ok:83a89ce5c7ee	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, price DECIMAL(10, 2), cents INT8 AS ((price * 100)::INT8) STORED, twice DECIMAL AS (price * 2) VIRTUAL)
+ok:d8aa871a9253	ok:d8aa871a9253	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, secret STRING NOT VISIBLE, tags STRING[], doc JSONB, name VARCHAR(20) COLLATE "en_US")
+ok:852942193939	ok:852942193939	engine	objects	table/create	CREATE TABLE n (id SERIAL PRIMARY KEY, v STRING)
+ok:3d1ce5986fb7	ok:3d1ce5986fb7	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t (id))
+ok:3d1ce5986fb7	ok:3d1ce5986fb7	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES t)
+ok:c457e8eb222d	ok:c457e8eb222d	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8, CONSTRAINT n_t FOREIGN KEY (t_id) REFERENCES t (id) ON DELETE CASCADE ON UPDATE SET NULL)
+42P01	42P01	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, t_id INT8 REFERENCES missing (id))
+23503	23503	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, k_x INT8 REFERENCES k (x))
+ok:3fb523614732	ok:3fb523614732	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m mood DEFAULT 'sad', p pair)
+42704	42704	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, m missing_type)
+ok:aeb878d19caf	ok:aeb878d19caf	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, v INT8 DEFAULT nextval('sq'))
+42701	42701	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, id INT8)
+42703	42703	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, a INT8 CHECK (missing > 0))
+42703	42703	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY, INDEX (missing))
+error	ok:d6d1deac9fbf	engine	objects	table/create	CREATE TABLE n (id INT8 PRIMARY KEY) WITH (ttl_expire_after = '1 day')
+ok:a6a3396b72d5	ok:a6a3396b72d5	engine	objects	table/create	CREATE TABLE s.n (id INT8 PRIMARY KEY)
+42P07	42P07	engine	objects	table/create	CREATE TABLE s.u (id INT8 PRIMARY KEY)
+3F000	3F000	engine	objects	table/create	CREATE TABLE missing.n (id INT8 PRIMARY KEY)
+42P07	42P07	engine	objects	table/create	CREATE TABLE v (id INT8 PRIMARY KEY)
+42P07	42P07	engine	objects	table/create	CREATE TABLE sq (id INT8 PRIMARY KEY)
+ok:411aa8d7b826	ok:411aa8d7b826	engine	objects	table/create	CREATE TABLE "Mixed" ("Id" INT8 PRIMARY KEY, "Some Value" STRING)
+error	ok:eb57f485ae17	engine	objects	table/create	CREATE TABLE n AS SELECT 1 AS x
+XCEXF	XCEXF	engine	objects	table/create	CREATE TEMP TABLE n (id INT8 PRIMARY KEY)
+2BP01	2BP01	engine	objects	table/alter	ALTER TABLE t RENAME TO t2
+2BP01	2BP01	engine	objects	table/alter	ALTER TABLE t RENAME TO c
+2BP01	2BP01	engine	objects	table/alter	ALTER TABLE IF EXISTS t RENAME TO t2
+42P01	42P01	engine	objects	table/alter	ALTER TABLE missing RENAME TO t2
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	table/alter	ALTER TABLE IF EXISTS missing RENAME TO t2
+2BP01	2BP01	engine	objects	table/alter	ALTER TABLE t SET SCHEMA s
+ok:c51a5890bebb	ok:c51a5890bebb	engine	objects	table/alter	ALTER TABLE k SET SCHEMA s
+ok:e07065a95219	ok:e07065a95219	engine	objects	table/alter	ALTER TABLE s.u RENAME TO u2
+2BP01	2BP01	engine	objects	table/drop	DROP TABLE t
+ok:f35a2a177de7	ok:f35a2a177de7	engine	objects	table/drop	DROP TABLE t CASCADE
+2BP01	2BP01	engine	objects	table/drop	DROP TABLE IF EXISTS t
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	table/drop	DROP TABLE IF EXISTS missing
+42P01	42P01	engine	objects	table/drop	DROP TABLE missing
+ok:5f7b7d163279	ok:5f7b7d163279	engine	objects	table/drop	DROP TABLE c
+2BP01	2BP01	engine	objects	table/drop	DROP TABLE c, t
+ok:176b0312ccfc	ok:176b0312ccfc	engine	objects	table/drop	DROP TABLE k
+ok:1f77141bf7b3	ok:1f77141bf7b3	engine	objects	table/drop	DROP TABLE s.u
+42809	42809	engine	objects	table/drop	DROP TABLE v
+XXUUU	XXUUU	engine	objects	table/truncate	TRUNCATE t
+ok:66cd49780926	ok:66cd49780926	engine	objects	table/comment	COMMENT ON TABLE t IS 'changed'
+ok:9993292018c9	ok:9993292018c9	engine	objects	table/comment	COMMENT ON TABLE t IS NULL
+42P01	42P01	engine	objects	table/comment	COMMENT ON TABLE missing IS 'x'
+ok:f2e194431483	ok:f2e194431483	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8
+ok:f2e194431483	ok:f2e194431483	engine	objects	column/add	ALTER TABLE t ADD n INT8
+ok:eebdb826774f	ok:eebdb826774f	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL DEFAULT 5
+ok:58bddd9e3f0b	ok:58bddd9e3f0b	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT NULL
+ok:2c0c438859b9	ok:2c0c438859b9	engine	objects	column/add	ALTER TABLE t ADD COLUMN n STRING DEFAULT 'x' CHECK (n <> '')
+ok:7ed5feb4a747	ok:7ed5feb4a747	engine	objects	column/add	ALTER TABLE t ADD COLUMN n STRING UNIQUE
+ok:a4386cdbd570	ok:a4386cdbd570	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 REFERENCES t (id)
+ok:b033567174cb	ok:b033567174cb	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) STORED
+ok:63d777fd5185	ok:63d777fd5185	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 AS (a * 2) VIRTUAL
+ok:93367756e0cf	ok:93367756e0cf	engine	objects	column/add	ALTER TABLE t ADD COLUMN n mood
+ok:6d819ae631e5	ok:6d819ae631e5	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 NOT VISIBLE
+ok:75b5c52d7a35	ok:75b5c52d7a35	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8 DEFAULT nextval('sq')
+42701	42701	engine	objects	column/add	ALTER TABLE t ADD COLUMN a INT8
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS a INT8
+ok:f2e194431483	ok:f2e194431483	engine	objects	column/add	ALTER TABLE t ADD COLUMN IF NOT EXISTS n INT8
+ok:5831849cb620	ok:5831849cb620	engine	objects	column/add	ALTER TABLE t ADD COLUMN n INT8, ADD COLUMN o STRING
+42P01	42P01	engine	objects	column/add	ALTER TABLE missing ADD COLUMN n INT8
+ok:ac6d2a42807d	ok:ac6d2a42807d	engine	objects	column/add	ALTER TABLE k ADD COLUMN n INT8
+42809	42809	engine	objects	column/add	ALTER TABLE v ADD COLUMN n INT8
+2BP01	2BP01	engine	objects	column/drop	ALTER TABLE t DROP COLUMN b
+2BP01	2BP01	engine	objects	column/drop	ALTER TABLE t DROP b
+2BP01	2BP01	engine	objects	column/drop	ALTER TABLE t DROP COLUMN a
+ok:3038aa8345e5	ok:3038aa8345e5	engine	objects	column/drop	ALTER TABLE t DROP COLUMN a CASCADE
+ok:c66795e4a0c4	ok:c66795e4a0c4	engine	objects	column/drop	ALTER TABLE t DROP COLUMN m
+42P10	42P10	engine	objects	column/drop	ALTER TABLE t DROP COLUMN id
+42703	42703	engine	objects	column/drop	ALTER TABLE t DROP COLUMN missing
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS missing
+2BP01	2BP01	engine	objects	column/drop	ALTER TABLE t DROP COLUMN IF EXISTS b
+ok:70e46f0e8dfc	ok:70e46f0e8dfc	engine	objects	column/drop	ALTER TABLE c DROP COLUMN t_id
+ok:0f544b07978a	ok:0f544b07978a	engine	objects	column/drop	ALTER TABLE c DROP COLUMN note
+ok:2c1e28d65024	ok:2c1e28d65024	engine	objects	column/drop	ALTER TABLE k DROP COLUMN y
+ok:2f918e72c22e	ok:2f918e72c22e	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
+ok:ff8a063b9a69	ok:ff8a063b9a69	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+ok:451109fd8ddf	ok:451109fd8ddf	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
+42703	42703	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
+ok:28fa1d398f0e	ok:28fa1d398f0e	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT NULL
+ok:88b13a3d715a	ok:88b13a3d715a	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a DROP NOT NULL
+42P16	42P16	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN id DROP NOT NULL
+42703	42703	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN missing SET NOT NULL
+2BP01	2BP01	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b TYPE STRING(100)
+2BP01	2BP01	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET DATA TYPE VARCHAR(50)
+2BP01	2BP01	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a TYPE INT4
+2BP01	2BP01	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a TYPE STRING
+42703	42703	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN missing TYPE STRING
+ok:c2dfa2839cc9	ok:c2dfa2839cc9	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET NOT VISIBLE
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET VISIBLE
+2BP01	2BP01	engine	objects	column/rename	ALTER TABLE t RENAME COLUMN b TO z
+2BP01	2BP01	engine	objects	column/rename	ALTER TABLE t RENAME b TO z
+2BP01	2BP01	engine	objects	column/rename	ALTER TABLE t RENAME COLUMN a TO z
+2BP01	2BP01	engine	objects	column/rename	ALTER TABLE t RENAME COLUMN id TO z
+2BP01	2BP01	engine	objects	column/rename	ALTER TABLE t RENAME COLUMN b TO a
+42703	42703	engine	objects	column/rename	ALTER TABLE t RENAME COLUMN missing TO z
+ok:91c914eb7627	ok:91c914eb7627	engine	objects	column/rename	ALTER TABLE c RENAME COLUMN t_id TO parent
+ok:57b83518b3f1	ok:57b83518b3f1	engine	objects	column/comment	COMMENT ON COLUMN t.b IS 'bee'
+ok:608e0cec3bf2	ok:608e0cec3bf2	engine	objects	column/comment	COMMENT ON COLUMN t.a IS NULL
+42703	42703	engine	objects	column/comment	COMMENT ON COLUMN t.missing IS 'x'
+ok:d3f7634fa4e9	ok:d3f7634fa4e9	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1)
+ok:88a04e6854ce	ok:88a04e6854ce	engine	objects	constraint/add	ALTER TABLE t ADD CHECK (a < 1000)
+ok:f327ecc7e62f	ok:f327ecc7e62f	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_pos CHECK (a > -1) NOT VALID
+42710	42710	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_a_check CHECK (a > 1)
+42703	42703	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad CHECK (missing > 0)
+ok:89bb9e95d7da	ok:89bb9e95d7da	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_unique UNIQUE (b)
+ok:ef5e5f07e51c	ok:ef5e5f07e51c	engine	objects	constraint/add	ALTER TABLE t ADD UNIQUE (a, b)
+42P07	42P07	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_b_key UNIQUE (b)
+42703	42703	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad UNIQUE (missing)
+ok:3bc36ad99286	ok:3bc36ad99286	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_self FOREIGN KEY (a) REFERENCES t (id)
+ok:8c889c32d806	ok:8c889c32d806	engine	objects	constraint/add	ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES t (id) ON DELETE CASCADE
+42P01	42P01	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES missing (id)
+42804	42804	engine	objects	constraint/add	ALTER TABLE t ADD CONSTRAINT t_bad FOREIGN KEY (a) REFERENCES t (b)
+ok:5ceea41f73ea	ok:5ceea41f73ea	engine	objects	constraint/add	ALTER TABLE c ADD CONSTRAINT c_note CHECK (note <> '')
+42P15	42P15	engine	objects	constraint/add	ALTER TABLE k ADD PRIMARY KEY (x)
+42611	42611	engine	objects	constraint/add	ALTER TABLE t ADD PRIMARY KEY (a)
+ok:fec36c25f63e	ok:fec36c25f63e	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_a_check
+ok:fec36c25f63e	ok:fec36c25f63e	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS t_a_check
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT IF EXISTS missing
+42704	42704	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT missing
+0A000	0A000	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_b_key
+0A000	0A000	engine	objects	constraint/drop	ALTER TABLE t DROP CONSTRAINT t_pkey
+ok:e601a1f867fc	ok:e601a1f867fc	engine	objects	constraint/drop	ALTER TABLE c DROP CONSTRAINT c_t_id_fkey
+ok:abaa18373de3	ok:abaa18373de3	engine	objects	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_a_check TO t_a_nonneg
+ok:680eca362430	ok:680eca362430	engine	objects	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_b_key TO t_b_uniq
+ok:1d8ae888c283	ok:1d8ae888c283	engine	objects	constraint/alter	ALTER TABLE t RENAME CONSTRAINT t_pkey TO t_key
+42704	42704	engine	objects	constraint/alter	ALTER TABLE t RENAME CONSTRAINT missing TO z
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	constraint/alter	ALTER TABLE t VALIDATE CONSTRAINT t_a_check
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	constraint/alter	ALTER TABLE c VALIDATE CONSTRAINT c_t_id_fkey
+ok:4441bc9f08cd	ok:4441bc9f08cd	engine	objects	constraint/alter	ALTER TABLE t ALTER PRIMARY KEY USING COLUMNS (a)
+42P15	42P15	engine	objects	constraint/alter	ALTER TABLE k ALTER PRIMARY KEY USING COLUMNS (x)
+ok:698f795d1d78	ok:698f795d1d78	engine	objects	constraint/comment	COMMENT ON CONSTRAINT t_a_check ON t IS 'non-negative'
+ok:f8e149271482	ok:f8e149271482	engine	objects	constraint/comment	COMMENT ON CONSTRAINT t_pkey ON t IS 'the key'
+42704	42704	engine	objects	constraint/comment	COMMENT ON CONSTRAINT missing ON t IS 'x'
+ok:20d91585c3e1	ok:20d91585c3e1	engine	objects	index/create	CREATE INDEX ON t (b)
+ok:20d91585c3e1	ok:20d91585c3e1	engine	objects	index/create	CREATE INDEX t_b_idx ON t (b)
+ok:44a3b3d6a307	ok:44a3b3d6a307	engine	objects	index/create	CREATE INDEX t_ab ON t (a DESC, b)
+ok:896fef53bc5c	ok:896fef53bc5c	engine	objects	index/create	CREATE UNIQUE INDEX t_b_uniq ON t (b)
+ok:ff7bd04a0211	ok:ff7bd04a0211	engine	objects	index/create	CREATE INDEX t_b_store ON t (b) STORING (a)
+ok:4bd14b0a3cf3	ok:4bd14b0a3cf3	engine	objects	index/create	CREATE INDEX t_b_part ON t (b) WHERE a > 0
+ok:8a794058dd7d	ok:8a794058dd7d	engine	objects	index/create	CREATE INDEX t_lower ON t (lower(b))
+ok:5eaa5cf740af	ok:5eaa5cf740af	engine	objects	index/create	CREATE INDEX t_hash ON t (b) USING HASH
+ok:07e4a89db55b	ok:07e4a89db55b	engine	objects	index/create	CREATE INDEX t_hidden ON t (b) NOT VISIBLE
+ok:7c5438ac9e0d	ok:7c5438ac9e0d	engine	objects	index/create	CREATE INVERTED INDEX t_doc ON t (doc)
+42P07	42P07	engine	objects	index/create	CREATE INDEX t_a_idx ON t (b)
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	index/create	CREATE INDEX IF NOT EXISTS t_a_idx ON t (b)
+ok:20d91585c3e1	ok:20d91585c3e1	engine	objects	index/create	CREATE INDEX IF NOT EXISTS t_b_idx ON t (b)
+42703	42703	engine	objects	index/create	CREATE INDEX t_bad ON t (missing)
+42P01	42P01	engine	objects	index/create	CREATE INDEX n_idx ON missing (a)
+ok:0b61b0beb044	ok:0b61b0beb044	engine	objects	index/create	CREATE INDEX ON k (x)
+ok:04fbe8226876	ok:04fbe8226876	engine	objects	index/create	CREATE INDEX ON s.u (v)
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	index/create	CREATE INDEX mv_b ON mv (b)
+42809	42809	engine	objects	index/create	CREATE INDEX v_a ON v (a)
+ok:84bad533dfa7	ok:84bad533dfa7	engine	objects	index/create	CREATE INDEX CONCURRENTLY t_b_conc ON t (b)
+ok:2dbf1c4bbf3b	ok:2dbf1c4bbf3b	engine	objects	index/alter	ALTER INDEX t@t_a_idx RENAME TO t_a_idx2
+ok:2dbf1c4bbf3b	ok:2dbf1c4bbf3b	engine	objects	index/alter	ALTER INDEX t_a_idx RENAME TO t_a_idx2
+42P07	42P07	engine	objects	index/alter	ALTER INDEX t_a_idx RENAME TO t_b_key
+42704	42704	engine	objects	index/alter	ALTER INDEX missing RENAME TO x
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	index/alter	ALTER INDEX IF EXISTS missing RENAME TO x
+ok:863efdb4a231	ok:863efdb4a231	engine	objects	index/alter	ALTER INDEX t@t_a_idx NOT VISIBLE
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	index/alter	ALTER INDEX t@t_a_idx VISIBLE
+42601	42601	engine	objects	index/alter	ALTER TABLE t RENAME INDEX t_a_idx TO t_a_idx2
+ok:65f21284572d	ok:65f21284572d	engine	objects	index/drop	DROP INDEX t_a_idx
+ok:65f21284572d	ok:65f21284572d	engine	objects	index/drop	DROP INDEX t@t_a_idx
+ok:65f21284572d	ok:65f21284572d	engine	objects	index/drop	DROP INDEX IF EXISTS t_a_idx
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	index/drop	DROP INDEX IF EXISTS missing
+42704	42704	engine	objects	index/drop	DROP INDEX missing
+2BP01	2BP01	engine	objects	index/drop	DROP INDEX t_b_key
+ok:b2bc48c3993c	ok:b2bc48c3993c	engine	objects	index/drop	DROP INDEX t_b_key CASCADE
+0A000	0A000	engine	objects	index/drop	DROP INDEX t@t_pkey
+ok:65f21284572d	ok:65f21284572d	engine	objects	index/drop	DROP INDEX CONCURRENTLY t_a_idx
+ok:9cfc430a63db	ok:9cfc430a63db	engine	objects	index/comment	COMMENT ON INDEX t@t_a_idx IS 'by a'
+ok:9cfc430a63db	ok:9cfc430a63db	engine	objects	index/comment	COMMENT ON INDEX t_a_idx IS 'by a'
+42704	42704	engine	objects	index/comment	COMMENT ON INDEX missing IS 'x'
+42P07	42P07	engine	objects	sequence/create	CREATE SEQUENCE sq
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/create	CREATE SEQUENCE IF NOT EXISTS sq
+ok:0890b22f7894	ok:0890b22f7894	engine	objects	sequence/create	CREATE SEQUENCE sq2
+ok:7465bf913f62	ok:7465bf913f62	engine	objects	sequence/create	CREATE SEQUENCE sq2 AS INT4 INCREMENT BY 2 MINVALUE 5 MAXVALUE 500 START WITH 7 CACHE 10
+ok:8c8b7a3aacd7	ok:8c8b7a3aacd7	engine	objects	sequence/create	CREATE SEQUENCE sq2 INCREMENT BY -1
+0A000	0A000	engine	objects	sequence/create	CREATE SEQUENCE sq2 CYCLE
+ok:0890b22f7894	ok:0890b22f7894	engine	objects	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.a
+42703	42703	engine	objects	sequence/create	CREATE SEQUENCE sq2 OWNED BY t.missing
+ok:46941076d606	ok:46941076d606	engine	objects	sequence/create	CREATE SEQUENCE s.sq2
+42P07	42P07	engine	objects	sequence/create	CREATE SEQUENCE t
+22023	22023	engine	objects	sequence/create	CREATE SEQUENCE sq2 MINVALUE 10 MAXVALUE 5
+ok:bafb7e177715	ok:bafb7e177715	engine	objects	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
+ok:2c5bdf4834d8	ok:2c5bdf4834d8	engine	objects	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+ok:0e1c2136b1a6	ok:0e1c2136b1a6	engine	objects	sequence/alter	ALTER SEQUENCE sq START WITH 50
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
+ok:5c18f4a09c4d	ok:5c18f4a09c4d	engine	objects	sequence/alter	ALTER SEQUENCE sq CACHE 20
+0A000	0A000	engine	objects	sequence/alter	ALTER SEQUENCE sq CYCLE
+ok:a666a3e7f234	ok:a666a3e7f234	engine	objects	sequence/alter	ALTER SEQUENCE sq AS INT4
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq OWNED BY t.a
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq OWNED BY NONE
+42P01	42P01	engine	objects	sequence/alter	ALTER SEQUENCE missing INCREMENT BY 5
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE IF EXISTS missing INCREMENT BY 5
+ok:277eab93a289	ok:277eab93a289	engine	objects	sequence/alter	ALTER SEQUENCE sq RENAME TO sq2
+42P07	42P07	engine	objects	sequence/alter	ALTER SEQUENCE sq RENAME TO t
+ok:7fee226e761e	ok:7fee226e761e	engine	objects	sequence/alter	ALTER SEQUENCE sq SET SCHEMA s
+2BP01	2BP01	engine	objects	sequence/drop	DROP SEQUENCE sq
+ok:989825eb333b	ok:989825eb333b	engine	objects	sequence/drop	DROP SEQUENCE sq CASCADE
+2BP01	2BP01	engine	objects	sequence/drop	DROP SEQUENCE IF EXISTS sq
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/drop	DROP SEQUENCE IF EXISTS missing
+42P01	42P01	engine	objects	sequence/drop	DROP SEQUENCE missing
+42809	42809	engine	objects	sequence/drop	DROP SEQUENCE t
+42P07	42P07	engine	objects	view/create	CREATE VIEW v AS SELECT id FROM t
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/create	CREATE VIEW IF NOT EXISTS v AS SELECT id FROM t
+ok:84c145671da7	ok:84c145671da7	engine	objects	view/create	CREATE VIEW v2 AS SELECT id, a FROM t
+ok:9d70b33a55bc	ok:9d70b33a55bc	engine	objects	view/create	CREATE VIEW v2 AS SELECT * FROM t
+ok:aa8dc9088eaf	ok:aa8dc9088eaf	engine	objects	view/create	CREATE VIEW v2 (x, y) AS SELECT id, a FROM t
+ok:fb5c329d84ae	ok:fb5c329d84ae	engine	objects	view/create	CREATE VIEW v2 AS SELECT id, a + 1 AS a1, count(*) OVER () AS n FROM t WHERE a > 0
+ok:7581f214cb1c	ok:7581f214cb1c	engine	objects	view/create	CREATE VIEW v2 AS SELECT id FROM v
+ok:f8c68ec736a9	ok:f8c68ec736a9	engine	objects	view/create	CREATE VIEW v2 AS SELECT t.id, c.note FROM t JOIN c ON c.t_id = t.id
+42703	42703	engine	objects	view/create	CREATE VIEW v2 AS SELECT missing FROM t
+ok:52b5f897352b	ok:52b5f897352b	engine	objects	view/create	CREATE VIEW v2 AS SELECT 1 AS one
+42P01	42P01	engine	objects	view/create	CREATE VIEW v2 AS SELECT id FROM missing
+ok:1bfc3dbd88f2	ok:1bfc3dbd88f2	engine	objects	view/create	CREATE VIEW s.v2 AS SELECT id FROM t
+42P07	42P07	engine	objects	view/create	CREATE VIEW t AS SELECT 1 AS one
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a FROM t
+ok:adb7a2f7a0ac	ok:adb7a2f7a0ac	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT id, a, b FROM t
+42P16	42P16	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
+42P16	42P16	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
+ok:534db51c3e9a	ok:534db51c3e9a	engine	objects	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+ok:660b31a93187	ok:660b31a93187	engine	objects	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
+42P07	42P07	engine	objects	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
+ok:c2f312c4673c	ok:c2f312c4673c	engine	objects	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id FROM t WITH NO DATA
+ok:c730d25b5d4c	ok:c730d25b5d4c	engine	objects	view/alter	ALTER VIEW v RENAME TO v2
+42P07	42P07	engine	objects	view/alter	ALTER VIEW v RENAME TO t
+42P01	42P01	engine	objects	view/alter	ALTER VIEW missing RENAME TO v2
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/alter	ALTER VIEW IF EXISTS missing RENAME TO v2
+ok:13bf18c5f59b	ok:13bf18c5f59b	engine	objects	view/alter	ALTER VIEW v SET SCHEMA s
+ok:6988d7a3750c	ok:6988d7a3750c	engine	objects	view/alter	ALTER MATERIALIZED VIEW mv RENAME TO mv2
+ok:995c890949f3	ok:995c890949f3	engine	objects	view/drop	DROP VIEW v
+ok:995c890949f3	ok:995c890949f3	engine	objects	view/drop	DROP VIEW v CASCADE
+ok:995c890949f3	ok:995c890949f3	engine	objects	view/drop	DROP VIEW IF EXISTS v
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/drop	DROP VIEW IF EXISTS missing
+42P01	42P01	engine	objects	view/drop	DROP VIEW missing
+42809	42809	engine	objects	view/drop	DROP VIEW t
+42809	42809	engine	objects	view/drop	DROP VIEW mv
+ok:abd853565c2d	ok:abd853565c2d	engine	objects	view/drop	DROP MATERIALIZED VIEW mv
+42809	42809	engine	objects	view/drop	DROP MATERIALIZED VIEW v
+ok:abd853565c2d	ok:abd853565c2d	engine	objects	view/drop	DROP MATERIALIZED VIEW IF EXISTS mv
+42601	42601	engine	objects	view/comment	COMMENT ON VIEW v IS 'x'
+42710	42710	engine	objects	type/create	CREATE TYPE mood AS ENUM ('a')
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	type/create	CREATE TYPE IF NOT EXISTS mood AS ENUM ('a')
+ok:b18413ee0e07	ok:b18413ee0e07	engine	objects	type/create	CREATE TYPE color AS ENUM ('red', 'green', 'blue')
+ok:d95181672724	ok:d95181672724	engine	objects	type/create	CREATE TYPE color AS ENUM ()
+42P17	42P17	engine	objects	type/create	CREATE TYPE color AS ENUM ('red', 'red')
+ok:44e6cd92be4a	ok:44e6cd92be4a	engine	objects	type/create	CREATE TYPE s.color AS ENUM ('red')
+3F000	3F000	engine	objects	type/create	CREATE TYPE missing.color AS ENUM ('red')
+ok:7a3b1c8d0619	ok:7a3b1c8d0619	engine	objects	type/create	CREATE TYPE point2 AS (x FLOAT8, y FLOAT8)
+0A000	0A000	engine	objects	type/create	CREATE TYPE point2 AS (m mood, label STRING)
+42710	42710	engine	objects	type/create	CREATE TYPE pair AS (x INT8)
+42P07	42P07	engine	objects	type/create	CREATE TYPE t AS ENUM ('a')
+ok:0087a2c34b74	ok:0087a2c34b74	engine	objects	type/alter	ALTER TYPE mood ADD VALUE 'meh'
+ok:a4450d855f8f	ok:a4450d855f8f	engine	objects	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'sad'
+ok:a4450d855f8f	ok:a4450d855f8f	engine	objects	type/alter	ALTER TYPE mood ADD VALUE 'meh' AFTER 'happy'
+42710	42710	engine	objects	type/alter	ALTER TYPE mood ADD VALUE 'happy'
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	type/alter	ALTER TYPE mood ADD VALUE IF NOT EXISTS 'happy'
+22023	22023	engine	objects	type/alter	ALTER TYPE mood ADD VALUE 'meh' BEFORE 'missing'
+ok:3e097a7129d0	ok:3e097a7129d0	engine	objects	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'blue'
+22023	22023	engine	objects	type/alter	ALTER TYPE mood RENAME VALUE 'missing' TO 'blue'
+42710	42710	engine	objects	type/alter	ALTER TYPE mood RENAME VALUE 'sad' TO 'happy'
+ok:e6231e6d4e35	ok:e6231e6d4e35	engine	objects	type/alter	ALTER TYPE mood DROP VALUE 'sad'
+2BP01	2BP01	engine	objects	type/alter	ALTER TYPE mood DROP VALUE 'happy'
+42704	42704	engine	objects	type/alter	ALTER TYPE mood DROP VALUE 'missing'
+ok:3fe74e2784e5	ok:3fe74e2784e5	engine	objects	type/alter	ALTER TYPE mood RENAME TO feeling
+42710	42710	engine	objects	type/alter	ALTER TYPE mood RENAME TO pair
+ok:2221c6d1428c	ok:2221c6d1428c	engine	objects	type/alter	ALTER TYPE mood SET SCHEMA s
+42704	42704	engine	objects	type/alter	ALTER TYPE missing ADD VALUE 'x'
+42809	42809	engine	objects	type/alter	ALTER TYPE pair ADD VALUE 'x'
+2BP01	2BP01	engine	objects	type/drop	DROP TYPE mood
+ok:99071bb9802a	ok:99071bb9802a	engine	objects	type/drop	DROP TYPE pair
+2BP01	2BP01	engine	objects	type/drop	DROP TYPE IF EXISTS mood
+ok:dbf557421b83	ok:dbf557421b83	engine	objects	type/drop	DROP TYPE IF EXISTS missing
+42704	42704	engine	objects	type/drop	DROP TYPE missing
+2BP01	2BP01	engine	objects	type/drop	DROP TYPE mood, pair
+2BP01	2BP01	engine	objects	type/drop	DROP TYPE t
+ok:72068a2b326b	ok:72068a2b326b	engine	objects	type/comment	COMMENT ON TYPE mood IS 'feelings'
+ok:459be83e26d3	ok:459be83e26d3	engine	objects	type/comment	COMMENT ON TYPE pair IS 'two'
+42704	42704	engine	objects	type/comment	COMMENT ON TYPE missing IS 'x'

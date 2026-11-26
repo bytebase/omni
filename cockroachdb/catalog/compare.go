@@ -34,6 +34,27 @@ func exprKey(expr string, columns map[string]string) string {
 	return groupedKey(parsed)
 }
 
+// generationKey is exprKey for a computed column's expression, which
+// CockroachDB stores with each literal annotated with the type it resolved
+// it to (a * 2:::INT8, price * 100:::DECIMAL). The literal written bare
+// resolves to that type again, so the annotations go.
+func generationKey(expr string) string {
+	parsed, err := crparser.ParseExpr(expr)
+	if err != nil {
+		return expr
+	}
+	parsed, err = tree.SimpleVisit(parsed, func(e tree.Expr) (bool, tree.Expr, error) {
+		if a, ok := e.(*tree.AnnotateTypeExpr); ok && isLiteral(unparen(a.Expr)) {
+			return false, unparen(a.Expr), nil
+		}
+		return true, e, nil
+	})
+	if err != nil {
+		return expr
+	}
+	return groupedKey(parsed)
+}
+
 // columnTypes maps a table's columns to their types, for exprKey.
 func columnTypes(columns []*metadatapb.ColumnMetadata) map[string]string {
 	typed := make(map[string]string, len(columns))
@@ -91,6 +112,12 @@ func stripTypedCast(expr tree.Expr, typ string) tree.Expr {
 		if isLiteral(literal) && (sameType(e.Type, typ) || ownType(literal, e.Type)) {
 			return trimZeros(literal)
 		}
+		// An annotation converts nothing, so one naming the type the
+		// expression is assigned to, as CockroachDB writes on a default
+		// it stores (now():::TIMESTAMPTZ), says nothing.
+		if _, call := literal.(*tree.FuncExpr); call && sameType(e.Type, typ) {
+			return literal
+		}
 	case *tree.NumVal:
 		return trimZeros(e)
 	case *tree.Tuple:
@@ -107,9 +134,15 @@ func stripTypedCast(expr tree.Expr, typ string) tree.Expr {
 // sameType reports whether a cast's type is typ, a type as the sync states
 // it.
 func sameType(ref tree.ResolvableTypeReference, typ string) bool {
-	t, ok := tree.GetStaticallyKnownType(ref)
-	if !ok || typ == "" {
+	if typ == "" {
 		return false
+	}
+	t, ok := tree.GetStaticallyKnownType(ref)
+	if !ok {
+		// A user-defined type, which CockroachDB writes on a default it
+		// stores ('a':::public.mood), named by its schema as the sync names
+		// a column's type.
+		return schemaQualified(ref).SQLString() == typ
 	}
 	other, err := crparser.GetTypeFromValidSQLSyntax(typ)
 	if err != nil {
@@ -194,12 +227,21 @@ func (v literalCastStripper) VisitPre(expr tree.Expr) (bool, tree.Expr) {
 		default:
 			return true, expr
 		}
-		cast, ok := unparen(e.Exprs[0]).(*tree.CastExpr)
-		if !ok || !isLiteral(unparen(cast.Expr)) || !strings.EqualFold(cast.Type.SQLString(), "REGCLASS") {
+		arg := unparen(e.Exprs[0])
+		if cast, ok := arg.(*tree.CastExpr); ok && isLiteral(unparen(cast.Expr)) && strings.EqualFold(cast.Type.SQLString(), "REGCLASS") {
+			arg = unparen(cast.Expr)
+		}
+		literal, ok := arg.(*tree.StrVal)
+		if !ok {
 			break
 		}
+		// CockroachDB stores the name it resolved, in its schema:
+		// nextval('s') as nextval('public.s'::REGCLASS).
+		if sequence, err := crparser.ParseQualifiedTableName(literal.RawString()); err == nil {
+			literal = tree.NewStrVal(schemaOf(sequence) + "." + string(sequence.ObjectName))
+		}
 		call := *e
-		call.Exprs = append(tree.Exprs{unparen(cast.Expr)}, e.Exprs[1:]...)
+		call.Exprs = append(tree.Exprs{literal}, e.Exprs[1:]...)
 		return true, &call
 	}
 	return true, expr

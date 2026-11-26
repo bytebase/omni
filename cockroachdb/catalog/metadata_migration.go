@@ -1042,7 +1042,7 @@ func generationText(column *metadatapb.ColumnMetadata) string {
 	if column.Generation == nil {
 		return ""
 	}
-	return column.Generation.Type.String() + ":" + column.Generation.Expression
+	return column.Generation.Type.String() + ":" + generationKey(column.Generation.Expression)
 }
 
 func findColumnIn(columns []*metadatapb.ColumnMetadata, name string) *metadatapb.ColumnMetadata {
