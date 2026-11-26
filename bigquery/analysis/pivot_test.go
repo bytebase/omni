@@ -26,6 +26,8 @@ func TestGetQuerySpanPivot(t *testing.T) {
 			[][]string{{"r", "t.r"}, {"v", "t.a", "t.b"}, {"n"}}},
 		{"SELECT * FROM (SELECT a, b, c, d FROM t) UNPIVOT ((v1, v2) FOR n IN ((a, b) AS 'x', (c, d) AS 'y'))",
 			[][]string{{"v1", "t.a", "t.c"}, {"v2", "t.b", "t.d"}, {"n"}}},
+		{"SELECT * FROM (SELECT r, q, v FROM t) AS a PIVOT (ANY_VALUE(a) FOR q IN ('x'))",
+			[][]string{{"x", "t.q", "t.r", "t.v"}}},
 		{"SELECT x FROM t |> PIVOT (SUM(x) FOR x IN (1, 2))",
 			[][]string{{"_1", "t.x"}, {"_2", "t.x"}}},
 		{"FROM (SELECT s, c FROM t) PIVOT (MAX(s) FOR c IN ('a', 'b')) |> SELECT *",

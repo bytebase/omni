@@ -285,6 +285,8 @@ func TestResolveQuerySpanRangeVariableLineage(t *testing.T) {
 		// A correlated reference reads the enclosing query's column.
 		{"FROM t |> SELECT secret AS renamed |> EXTEND (SELECT renamed) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
 		{"SELECT (SELECT renamed FROM u) AS v FROM (SELECT secret AS renamed FROM t)", [][]string{{"v", "t.secret"}}},
+		{"FROM (SELECT secret FROM t) AS a |> EXTEND (SELECT a) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
+		{"FROM (SELECT 1 AS secret) AS a |> EXTEND (SELECT a.secret FROM (SELECT STRUCT(secret AS secret) AS a FROM t)) AS leaked |> SELECT leaked", [][]string{{"leaked", "t.secret"}}},
 		{"SELECT (SELECT secret FROM u) AS v FROM t", [][]string{{"v", "t.secret"}}},
 		{"SELECT (SELECT STRING_AGG(e) FROM UNNEST([p.secret]) AS e) AS v FROM t AS p", [][]string{{"v", "t.secret"}}},
 	}

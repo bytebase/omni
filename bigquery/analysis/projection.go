@@ -419,7 +419,15 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 			return col, nil
 		}
 		w.requirePipeColumn(col)
-		return col, w.resolveColumn("", col)
+		refs := w.resolveColumn("", col)
+		// Inside a scalar or ARRAY subquery the name may be an enclosing
+		// query's range variable, read whole. A column of the current scope
+		// shadows it, which omni cannot always tell without metadata, so both
+		// are read.
+		if rel := w.enclosingRange(col); rel != nil {
+			refs = append(refs, w.rangeVariableSources(rel)...)
+		}
+		return col, refs
 	}
 	// `rel.col` where the leading identifier names a leaf relation: resolve the
 	// SECOND part as that relation's column (any trailing parts are struct
@@ -437,14 +445,16 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 		return ref.Column, []ColumnRef{ref}
 	}
 	// A correlated reference, inside a scalar or ARRAY subquery, to a range
-	// variable of an enclosing query resolves in that query's scope.
+	// variable of an enclosing query resolves in that query's scope. A struct
+	// column of the current scope with the same name shadows it, which omni
+	// cannot always tell without metadata, so both are read.
 	for i := len(w.enclosing) - 1; i >= 0; i-- {
 		if w.enclosing[i].find(parts[0]) != nil {
 			inner := w.leaves
 			w.leaves = w.enclosing[i]
 			refs := w.resolveColumn(parts[0], parts[1])
 			w.leaves = inner
-			return parts[1], refs
+			return parts[1], append(refs, w.resolveColumn("", parts[0])...)
 		}
 	}
 	// Otherwise the leading identifier is a struct/field column root (`s.field`,
@@ -452,6 +462,17 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	// mirroring the legacy a-as-column attempt for an unqualified field path.
 	w.requirePipeColumn(parts[0])
 	return parts[0], w.resolveColumn("", parts[0])
+}
+
+// enclosingRange returns the innermost range variable named name of the
+// queries a scalar or ARRAY subquery being resolved sits in, or nil.
+func (w *spanWalker) enclosingRange(name string) *relation {
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if rel := w.enclosing[i].find(name); rel != nil {
+			return rel
+		}
+	}
+	return nil
 }
 
 // rangeVariableSources is the lineage of a range variable used as a value:

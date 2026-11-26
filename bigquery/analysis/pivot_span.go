@@ -62,15 +62,25 @@ func (w *spanWalker) pivotColumns(in []projColumn, pv *ast.PivotClause) []projCo
 
 // markRead adds to used, folded, the input column each column reference of
 // expr names: its first part, or its second where the first names a range
-// variable.
+// variable, and every column of a range variable read whole.
 func (w *spanWalker) markRead(used map[string]bool, expr ast.Node) {
 	paths, _ := w.collectColumnPaths(expr)
 	for _, parts := range paths {
-		if len(parts) >= 2 && w.leaves.find(parts[0]) != nil {
+		rel := w.leaves.find(parts[0])
+		switch {
+		case rel != nil && len(parts) >= 2:
 			used[foldKey(parts[1])] = true
-			continue
+		case rel != nil:
+			cols, ok := w.pipeConcrete(rel.columns)
+			if !ok {
+				w.failClosed(fmt.Errorf("a PIVOT reads a range variable whose columns cannot be listed (fail closed)"))
+			}
+			for _, c := range cols {
+				used[foldKey(c.name)] = true
+			}
+		default:
+			used[foldKey(parts[0])] = true
 		}
-		used[foldKey(parts[0])] = true
 	}
 }
 
