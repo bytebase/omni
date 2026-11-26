@@ -40,6 +40,10 @@ func TestExecRefusals(t *testing.T) {
 		{"CREATE TABLE t (a INT8); CREATE INDEX i ON t (a) WHERE missing > 0", "42703"},
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (id STRING REFERENCES p (id))", "42804"},
 		{"CREATE TABLE p (id INT8 PRIMARY KEY); CREATE TABLE c (s STRING); ALTER TABLE c ADD FOREIGN KEY (s) REFERENCES p", "42804"},
+		{"CREATE TABLE t (id INT8 PRIMARY KEY, a INT8, b INT8 AS (a * 2) STORED); ALTER TABLE t DROP COLUMN a", "42P10"},
+		{"CREATE TABLE p (id INT8 PRIMARY KEY, u INT8); CREATE UNIQUE INDEX i ON p (u); CREATE TABLE c (u INT8 REFERENCES p (u)); DROP INDEX p@i", "2BP01"},
+		{"CREATE TABLE x (a INT8, b INT8); CREATE TABLE y (a INT8); CREATE VIEW v AS SELECT a, b FROM x; CREATE OR REPLACE VIEW v AS SELECT * FROM y", "42P16"},
+		{"CREATE SEQUENCE sq; ALTER SEQUENCE sq MINVALUE 10 MAXVALUE 5", "22023"},
 	} {
 		_, err := execLast(t, tc.script)
 		require.Equal(t, tc.code, code(err), "%s: %v", tc.script, err)
@@ -76,4 +80,13 @@ func TestSDLComputedAnnotations(t *testing.T) {
 		catalog.SDLMigrationOptions{})
 	require.NoError(t, err)
 	require.Nil(t, plan)
+}
+
+func TestExecRenamesFollowIDs(t *testing.T) {
+	c, err := execLast(t, "CREATE SCHEMA s; CREATE TYPE s.m AS ENUM ('a'); CREATE TABLE t (m s.m); ALTER SCHEMA s RENAME TO s2")
+	require.NoError(t, err)
+	require.Equal(t, "s2.m", c.Metadata().Schemas[0].Tables[0].Columns[0].Type)
+	c, err = execLast(t, "CREATE SEQUENCE sq; CREATE TABLE t (v STRING DEFAULT nextval('sq')::STRING || 'public.sq'); ALTER SEQUENCE sq RENAME TO sq2")
+	require.NoError(t, err)
+	require.Equal(t, "nextval('public.sq2')::STRING || 'public.sq'", c.Metadata().Schemas[0].Tables[0].Columns[0].Default)
 }

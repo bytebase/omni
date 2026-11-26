@@ -1703,6 +1703,17 @@
 |
 < ok 0 -
 > exec
+| ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
+< error
+| 42P01 relation "t" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+|
+< ok 0 -
+> exec
 | ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 < error
 | 42P01 relation "t" does not exist
@@ -3083,6 +3094,17 @@
 |
 < ok 0 -
 > exec
+| ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
+< error
+| 42P01 relation "sq" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+|
+< ok 0 -
+> exec
 | ALTER SEQUENCE sq START WITH 50
 < error
 | 42P01 relation "sq" does not exist
@@ -3552,6 +3574,17 @@
 | CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
 < error
 | 42P01 relation "t" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+|
+< ok 0 -
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT * FROM k
+< error
+| 42P01 relation "k" does not exist
 > exec
 | USE defaultdb;
 | DROP DATABASE IF EXISTS sim CASCADE;
@@ -5451,7 +5484,7 @@
 > exec
 | CREATE TABLE n (id INT8 PRIMARY KEY, id INT8)
 < error
-| 42701 relation "n" (919): duplicate column name: "id"
+| 42701 relation "n" (925): duplicate column name: "id"
 > exec
 | USE defaultdb;
 | DROP DATABASE IF EXISTS sim CASCADE;
@@ -7033,6 +7066,17 @@
 | CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING);
 < ok 0 -
 > exec
+| ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
+< error
+| 42P01 relation "missing" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING);
+< ok 0 -
+> exec
 | ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 < ok 0 -
 > query
@@ -8150,7 +8194,7 @@
 > exec
 | ALTER TABLE t DROP CONSTRAINT t_pkey
 < error
-| 0A000 relation "t" (1262): unimplemented: primary key dropped without subsequent addition of new primary key in same transaction
+| 0A000 relation "t" (1271): unimplemented: primary key dropped without subsequent addition of new primary key in same transaction
 | hint: You have attempted to use a feature that is not yet implemented.\nSee: https://go.crdb.dev/issue-v/48026/v25.2
 > exec
 | USE defaultdb;
@@ -9475,6 +9519,17 @@
 | CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING);
 < ok 0 -
 > exec
+| ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
+< error
+| 42P01 relation "sq" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING);
+< ok 0 -
+> exec
 | ALTER SEQUENCE sq START WITH 50
 < error
 | 42P01 relation "sq" does not exist
@@ -10264,6 +10319,17 @@
 | CREATE VIEW public.v2 (
 | 	id
 | ) AS SELECT id FROM sim.public.t;
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING);
+< ok 0 -
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT * FROM k
+< error
+| 42P01 relation "k" does not exist
 > exec
 | USE defaultdb;
 | DROP DATABASE IF EXISTS sim CASCADE;
@@ -14431,7 +14497,7 @@
 > exec
 | CREATE TABLE n (id INT8 PRIMARY KEY, id INT8)
 < error
-| 42701 relation "n" (2323): duplicate column name: "id"
+| 42701 relation "n" (2338): duplicate column name: "id"
 > exec
 | USE defaultdb;
 | DROP DATABASE IF EXISTS sim CASCADE;
@@ -19172,6 +19238,29 @@
 | CREATE MATERIALIZED VIEW mv AS SELECT b FROM t;
 < ok 0 -
 > exec
+| ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
+< error
+| 42P01 relation "missing" does not exist
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE SCHEMA s;
+| CREATE TYPE mood AS ENUM ('happy', 'sad');
+| CREATE TYPE pair AS (x INT8, y INT8);
+| CREATE SEQUENCE sq START WITH 10;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING, m mood DEFAULT 'happy', doc JSONB, CONSTRAINT t_a_check CHECK (a >= 0), CONSTRAINT t_b_key UNIQUE (b));
+| CREATE INDEX t_a_idx ON t (a);
+| COMMENT ON TABLE t IS 'the table';
+| COMMENT ON COLUMN t.a IS 'a count';
+| CREATE TABLE c (id INT8 PRIMARY KEY DEFAULT nextval('sq'), t_id INT8 REFERENCES t (id), note STRING);
+| CREATE TABLE k (x INT8, y INT8);
+| CREATE TABLE s.u (id INT8 PRIMARY KEY, v STRING);
+| CREATE VIEW v AS SELECT id, a FROM t;
+| CREATE MATERIALIZED VIEW mv AS SELECT b FROM t;
+< ok 0 -
+> exec
 | ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 < ok 0 -
 > query
@@ -21935,7 +22024,7 @@
 > exec
 | ALTER TABLE t DROP CONSTRAINT t_pkey
 < error
-| 0A000 relation "t" (3892): unimplemented: primary key dropped without subsequent addition of new primary key in same transaction
+| 0A000 relation "t" (3921): unimplemented: primary key dropped without subsequent addition of new primary key in same transaction
 | hint: You have attempted to use a feature that is not yet implemented.\nSee: https://go.crdb.dev/issue-v/48026/v25.2
 > exec
 | USE defaultdb;
@@ -27496,6 +27585,29 @@
 | CREATE MATERIALIZED VIEW mv AS SELECT b FROM t;
 < ok 0 -
 > exec
+| ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
+< error
+| 22023 START value (10) cannot be greater than MAXVALUE (5)
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE SCHEMA s;
+| CREATE TYPE mood AS ENUM ('happy', 'sad');
+| CREATE TYPE pair AS (x INT8, y INT8);
+| CREATE SEQUENCE sq START WITH 10;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING, m mood DEFAULT 'happy', doc JSONB, CONSTRAINT t_a_check CHECK (a >= 0), CONSTRAINT t_b_key UNIQUE (b));
+| CREATE INDEX t_a_idx ON t (a);
+| COMMENT ON TABLE t IS 'the table';
+| COMMENT ON COLUMN t.a IS 'a count';
+| CREATE TABLE c (id INT8 PRIMARY KEY DEFAULT nextval('sq'), t_id INT8 REFERENCES t (id), note STRING);
+| CREATE TABLE k (x INT8, y INT8);
+| CREATE TABLE s.u (id INT8 PRIMARY KEY, v STRING);
+| CREATE VIEW v AS SELECT id, a FROM t;
+| CREATE MATERIALIZED VIEW mv AS SELECT b FROM t;
+< ok 0 -
+> exec
 | ALTER SEQUENCE sq START WITH 50
 < ok 0 -
 > query
@@ -30312,6 +30424,29 @@
 < row
 : string
 | ALTER TABLE public.c VALIDATE CONSTRAINT c_t_id_fkey;
+> exec
+| USE defaultdb;
+| DROP DATABASE IF EXISTS sim CASCADE;
+| CREATE DATABASE sim;
+| USE sim;
+| CREATE SCHEMA s;
+| CREATE TYPE mood AS ENUM ('happy', 'sad');
+| CREATE TYPE pair AS (x INT8, y INT8);
+| CREATE SEQUENCE sq START WITH 10;
+| CREATE TABLE t (id INT8 PRIMARY KEY, a INT8 NOT NULL DEFAULT 0, b STRING, m mood DEFAULT 'happy', doc JSONB, CONSTRAINT t_a_check CHECK (a >= 0), CONSTRAINT t_b_key UNIQUE (b));
+| CREATE INDEX t_a_idx ON t (a);
+| COMMENT ON TABLE t IS 'the table';
+| COMMENT ON COLUMN t.a IS 'a count';
+| CREATE TABLE c (id INT8 PRIMARY KEY DEFAULT nextval('sq'), t_id INT8 REFERENCES t (id), note STRING);
+| CREATE TABLE k (x INT8, y INT8);
+| CREATE TABLE s.u (id INT8 PRIMARY KEY, v STRING);
+| CREATE VIEW v AS SELECT id, a FROM t;
+| CREATE MATERIALIZED VIEW mv AS SELECT b FROM t;
+< ok 0 -
+> exec
+| CREATE OR REPLACE VIEW v AS SELECT * FROM k
+< error
+| 42P16 cannot change name of view column "id" to "x"
 > exec
 | USE defaultdb;
 | DROP DATABASE IF EXISTS sim CASCADE;

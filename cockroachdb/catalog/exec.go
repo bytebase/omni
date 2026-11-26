@@ -350,6 +350,13 @@ func (c *Catalog) alterSchema(n *tree.AlterSchema) error {
 			}
 		}
 	})
+	// CockroachDB holds a column's type by ID, so the column follows it.
+	for _, e := range s.EnumTypes {
+		c.retype(from, e.Name, to, e.Name)
+	}
+	for _, t := range s.CompositeTypes {
+		c.retype(from, t.Name, to, t.Name)
+	}
 	return nil
 }
 
@@ -663,15 +670,24 @@ func (c *Catalog) createView(n *tree.CreateView) error {
 				names = append(names, string(col))
 			}
 		}
-		if names != nil {
-			if len(names) < len(old.Columns) {
-				return refuse(codeInvalidTableDef, "cannot drop columns from view")
+		if err := keepsColumns(old.Columns, names); err != nil {
+			return err
+		}
+		if names == nil {
+			// A star: the columns are known once the loader expands it,
+			// and Exec puts the view back if they do not keep the old ones.
+			oldColumns := old.Columns
+			if err := c.l.load(n); err != nil {
+				return err
 			}
-			for i, column := range old.Columns {
-				if names[i] != column.Name {
-					return refuse(codeInvalidTableDef, "cannot change name of view column %q to %q", column.Name, names[i])
-				}
+			var now []string
+			for _, column := range findView(s, name).Columns {
+				now = append(now, column.Name)
 			}
+			if now == nil {
+				return &Error{Message: fmt.Sprintf("the columns of view %q are not known", name)}
+			}
+			return keepsColumns(oldColumns, now)
 		}
 	case n.Replace:
 		return refuse(codeWrongObjectType, "%q is not a view", name)
@@ -722,6 +738,23 @@ func (c *Catalog) checkViewColumns(query *tree.Select) error {
 	for _, expr := range sel.Exprs {
 		if err := checkColumns(columns, expr.Expr); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// keepsColumns refuses a replacement view whose columns drop or rename the
+// old view's, as CockroachDB does. names is nil when they are not known.
+func keepsColumns(old []*metadatapb.ColumnMetadata, names []string) error {
+	if names == nil {
+		return nil
+	}
+	if len(names) < len(old) {
+		return refuse(codeInvalidTableDef, "cannot drop columns from view")
+	}
+	for i, column := range old {
+		if names[i] != column.Name {
+			return refuse(codeInvalidTableDef, "cannot change name of view column %q to %q", column.Name, names[i])
 		}
 	}
 	return nil
@@ -799,7 +832,10 @@ func (c *Catalog) alterSequence(n *tree.AlterSequence) error {
 	}
 	// RESTART moves the sequence's value, which the catalog does not hold.
 	n.Options = slices.DeleteFunc(n.Options, func(o tree.SequenceOption) bool { return o.Name == tree.SeqOptRestart })
-	return c.l.load(n)
+	if err := c.l.load(n); err != nil {
+		return err
+	}
+	return checkBounds(findSequence(s, n.Name.Object()))
 }
 
 func (c *Catalog) createIndex(n *tree.CreateIndex) error {
@@ -1458,12 +1494,26 @@ func renameSequenceIn(def, from, to string) string {
 		return def
 	}
 	out, err := tree.SimpleVisit(expr, func(e tree.Expr) (bool, tree.Expr, error) {
-		str, ok := e.(*tree.StrVal)
+		call, ok := e.(*tree.FuncExpr)
+		if !ok || len(call.Exprs) == 0 {
+			return true, e, nil
+		}
+		name, ok := call.Func.FunctionReference.(*tree.UnresolvedName)
+		if !ok || !slices.Contains([]string{"nextval", "currval", "setval"}, strings.ToLower(name.Parts[0])) {
+			return true, e, nil
+		}
+		arg := unparen(call.Exprs[0])
+		if cast, ok := arg.(*tree.CastExpr); ok {
+			arg = unparen(cast.Expr)
+		}
+		str, ok := arg.(*tree.StrVal)
 		if !ok {
 			return true, e, nil
 		}
 		if sequence, err := parser.ParseQualifiedTableName(str.RawString()); err == nil && schemaOf(sequence)+"."+string(sequence.ObjectName) == from {
-			return false, tree.NewStrVal(to), nil
+			renamed := *call
+			renamed.Exprs = append(tree.Exprs{tree.NewStrVal(to)}, call.Exprs[1:]...)
+			return false, &renamed, nil
 		}
 		return true, e, nil
 	})
@@ -1577,6 +1627,9 @@ func (c *Catalog) alterTableCmd(schema string, table *metadatapb.TableMetadata, 
 	case *tree.AlterTableSetDefault:
 		col, err := column(cmd.Column)
 		if err != nil {
+			return err
+		}
+		if err := c.checkSequences(cmd.Default); err != nil {
 			return err
 		}
 		col.Default = ""
@@ -1831,6 +1884,18 @@ func (c *Catalog) dropColumn(schema string, table *metadatapb.TableMetadata, nam
 		return refuse("42P10", "column %q is referenced by the primary key", name)
 	}
 	cascade := behavior == tree.DropCascade
+	for _, column := range table.Columns {
+		if column.Generation == nil || column.Name == name {
+			continue
+		}
+		if expr, err := parser.ParseExpr(column.Generation.Expression); err == nil && exprReads(expr, name) {
+			if cascade {
+				// v25.2.3's declarative schema changer fails this.
+				return refuse("XX000", "internal error: building declarative schema changer plan for ALTER TABLE: unable to make progress")
+			}
+			return refuse("42P10", "column %q is referenced by computed column %q", name, column.Name)
+		}
+	}
 	deps := c.dependents(schema, table.Name, name)
 	if len(deps) > 0 && !cascade {
 		return refuse(codeDependentObjects, "cannot drop column %q because view %q depends on it", name, deps[0].name)
@@ -1978,12 +2043,13 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 			return refuse(codeDependentObjects, "index %q is in use as unique constraint", index.Name)
 		}
 		*list = slices.DeleteFunc(*list, func(x *metadatapb.IndexMetadata) bool { return x == index })
-		// CASCADE takes the foreign keys that relied on the index's key.
+		// The foreign keys that relied on the index's key need CASCADE,
+		// which takes them.
+		var orphans []*metadatapb.ForeignKeyMetadata
 		c.eachTable(func(s *metadatapb.SchemaMetadata, table *metadatapb.TableMetadata) {
 			if &table.Indexes != list {
 				return
 			}
-			var orphans []*metadatapb.ForeignKeyMetadata
 			for _, fk := range c.referencing(s.Name, table.Name, "") {
 				if !slices.ContainsFunc(table.Indexes, func(i *metadatapb.IndexMetadata) bool {
 					return i.Unique && sameSet(i.Expressions, fk.ReferencedColumns)
@@ -1991,8 +2057,11 @@ func (c *Catalog) dropIndex(n *tree.DropIndex) error {
 					orphans = append(orphans, fk)
 				}
 			}
-			c.dropForeignKeys(orphans)
 		})
+		if len(orphans) > 0 && n.DropBehavior != tree.DropCascade {
+			return refuse(codeDependentObjects, "%q is referenced by foreign key %q", index.Name, orphans[0].Name)
+		}
+		c.dropForeignKeys(orphans)
 	}
 	return nil
 }

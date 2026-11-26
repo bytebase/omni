@@ -103,6 +103,7 @@ ok:a8bc8cc2745b	ok:a8bc8cc2745b	engine	empty	table/drop	DROP TABLE IF EXISTS mis
 42P01	42P01	engine	empty	column/drop	ALTER TABLE k DROP COLUMN y
 42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
 42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
 42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
 42P01	42P01	engine	empty	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
@@ -215,6 +216,7 @@ ok:518521727f7f	ok:518521727f7f	engine	empty	sequence/create	CREATE SEQUENCE t
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq START WITH 50
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
 42P01	42P01	engine	empty	sequence/alter	ALTER SEQUENCE sq CACHE 20
@@ -251,6 +253,7 @@ ok:e537c0ee9b42	ok:e537c0ee9b42	engine	empty	view/create	CREATE VIEW t AS SELECT
 42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
 42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
 42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+42P01	42P01	engine	empty	view/create	CREATE OR REPLACE VIEW v AS SELECT * FROM k
 42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
 42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
 42P01	42P01	engine	empty	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
@@ -413,6 +416,7 @@ ok:41b21ca623c7	ok:41b21ca623c7	engine	table	column/drop	ALTER TABLE t DROP COLU
 42P01	42P01	engine	table	column/drop	ALTER TABLE k DROP COLUMN y
 ok:0d9cc7b56a35	ok:0d9cc7b56a35	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
 ok:f76b1fef14b7	ok:f76b1fef14b7	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+42P01	42P01	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
 ok:0b00f1a0df92	ok:0b00f1a0df92	engine	table	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 ok:cecca0f41107	ok:cecca0f41107	engine	table	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
 42703	42703	engine	table	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
@@ -525,6 +529,7 @@ ok:c16cdc86bf50	ok:c16cdc86bf50	engine	table	sequence/create	CREATE SEQUENCE sq2
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq START WITH 50
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
 42P01	42P01	engine	table	sequence/alter	ALTER SEQUENCE sq CACHE 20
@@ -561,6 +566,7 @@ ok:71c9e9192a43	ok:71c9e9192a43	engine	table	view/create	CREATE OR REPLACE VIEW 
 ok:37b5af1d85b1	ok:37b5af1d85b1	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
 ok:1a67a821c574	ok:1a67a821c574	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
 ok:f8f57790b26e	ok:f8f57790b26e	engine	table	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+42P01	42P01	engine	table	view/create	CREATE OR REPLACE VIEW v AS SELECT * FROM k
 ok:7713319121df	ok:7713319121df	engine	table	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
 ok:90447606b4e8	ok:90447606b4e8	engine	table	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
 ok:90447606b4e8	ok:90447606b4e8	engine	table	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
@@ -723,6 +729,7 @@ ok:0f544b07978a	ok:0f544b07978a	engine	objects	column/drop	ALTER TABLE c DROP CO
 ok:2c1e28d65024	ok:2c1e28d65024	engine	objects	column/drop	ALTER TABLE k DROP COLUMN y
 ok:2f918e72c22e	ok:2f918e72c22e	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT 9
 ok:ff8a063b9a69	ok:ff8a063b9a69	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b SET DEFAULT 'x'
+42P01	42P01	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a SET DEFAULT nextval('missing')
 ok:451109fd8ddf	ok:451109fd8ddf	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN a DROP DEFAULT
 ok:dbf557421b83	ok:dbf557421b83	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN b DROP DEFAULT
 42703	42703	engine	objects	column/alter	ALTER TABLE t ALTER COLUMN missing SET DEFAULT 1
@@ -835,6 +842,7 @@ ok:46941076d606	ok:46941076d606	engine	objects	sequence/create	CREATE SEQUENCE s
 ok:bafb7e177715	ok:bafb7e177715	engine	objects	sequence/alter	ALTER SEQUENCE sq INCREMENT BY 5
 ok:2c5bdf4834d8	ok:2c5bdf4834d8	engine	objects	sequence/alter	ALTER SEQUENCE sq MINVALUE 2 MAXVALUE 100
 ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq NO MAXVALUE
+22023	22023	engine	objects	sequence/alter	ALTER SEQUENCE sq MINVALUE 20 MAXVALUE 5
 ok:0e1c2136b1a6	ok:0e1c2136b1a6	engine	objects	sequence/alter	ALTER SEQUENCE sq START WITH 50
 ok:dbf557421b83	ok:dbf557421b83	engine	objects	sequence/alter	ALTER SEQUENCE sq RESTART WITH 50
 ok:5c18f4a09c4d	ok:5c18f4a09c4d	engine	objects	sequence/alter	ALTER SEQUENCE sq CACHE 20
@@ -871,6 +879,7 @@ ok:adb7a2f7a0ac	ok:adb7a2f7a0ac	engine	objects	view/create	CREATE OR REPLACE VIE
 42P16	42P16	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT id FROM t
 42P16	42P16	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT a, id FROM t
 ok:534db51c3e9a	ok:534db51c3e9a	engine	objects	view/create	CREATE OR REPLACE VIEW v2 AS SELECT id FROM t
+42P16	42P16	engine	objects	view/create	CREATE OR REPLACE VIEW v AS SELECT * FROM k
 ok:660b31a93187	ok:660b31a93187	engine	objects	view/create	CREATE MATERIALIZED VIEW mv2 AS SELECT id, a FROM t
 42P07	42P07	engine	objects	view/create	CREATE MATERIALIZED VIEW mv AS SELECT id FROM t
 ok:dbf557421b83	ok:dbf557421b83	engine	objects	view/create	CREATE MATERIALIZED VIEW IF NOT EXISTS mv AS SELECT id FROM t
