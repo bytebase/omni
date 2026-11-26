@@ -107,7 +107,10 @@ func (p *Parser) parseGenericEntityBody() (string, error) {
 		}
 		return p.sourceSpan(start, strTok.Loc), nil
 	case p.cur.Type == tokString:
-		strTok := p.literalRun(tokString)
+		strTok, err := p.literalRun(tokString)
+		if err != nil {
+			return "", err
+		}
 		return strTok.Str, nil
 	default:
 		return "", p.syntaxErrorAtCur()

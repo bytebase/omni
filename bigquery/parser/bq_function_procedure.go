@@ -666,7 +666,10 @@ func (p *Parser) parseSQLFunctionBodyOrString(stmt *ast.CreateFunctionStmt) erro
 	}
 	// AS string_literal (not supported in Spanner).
 	if p.cur.Type == tokString {
-		strTok := p.literalRun(tokString)
+		strTok, err := p.literalRun(tokString)
+		if err != nil {
+			return err
+		}
 		stmt.BodyString = strTok.Str
 		stmt.HasBodyString = true
 		return nil
@@ -721,7 +724,10 @@ func (p *Parser) parseUnorderedLanguageOptions(stmt *ast.CreateFunctionStmt) err
 func (p *Parser) parseAsQueryOrString(stmt *ast.CreateFunctionStmt) error {
 	p.advance() // AS
 	if p.cur.Type == tokString {
-		strTok := p.literalRun(tokString)
+		strTok, err := p.literalRun(tokString)
+		if err != nil {
+			return err
+		}
 		stmt.BodyString = strTok.Str
 		stmt.HasBodyString = true
 		return nil

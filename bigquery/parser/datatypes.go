@@ -925,7 +925,10 @@ func (p *Parser) parseTypeParameter() (TypeParam, error) {
 	case tokString, tokBytes:
 		// type_parameter: string_literal | bytes_literal (googlesql.tm:10341),
 		// each one or more adjacent components.
-		tok = p.literalRun(tok.Type)
+		tok, err := p.literalRun(tok.Type)
+		if err != nil {
+			return TypeParam{}, err
+		}
 		return TypeParam{Text: tok.Str, Loc: tok.Loc}, nil
 	case tokFloat:
 		p.advance()
@@ -1030,7 +1033,10 @@ func (p *Parser) parseCollateClause() (string, ast.Loc, error) {
 	tok := p.cur
 	switch tok.Type {
 	case tokString:
-		tok = p.literalRun(tokString)
+		tok, err := p.literalRun(tokString)
+		if err != nil {
+			return "", ast.NoLoc(), err
+		}
 		return tok.Str, ast.Loc{Start: collateTok.Loc.Start, End: tok.Loc.End}, nil
 	case int('?'):
 		p.advance()

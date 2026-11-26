@@ -1513,14 +1513,20 @@ func (p *Parser) parseWindowBound() (ast.WindowBound, error) {
 // a bytes token after a string simply stops the string and is left for the
 // caller, which is a syntax error in expression position if unexpected.
 func (p *Parser) parseStringLiteral() (ast.Node, error) {
-	tok := p.literalRun(tokString)
+	tok, err := p.literalRun(tokString)
+	if err != nil {
+		return nil, err
+	}
 	return &ast.Literal{Kind: ast.LitString, Value: tok.Str, Loc: tok.Loc}, nil
 }
 
 // parseBytesLiteral parses one or more adjacent BYTES_LITERAL components
 // (bytes_literal: adjacent concatenation).
 func (p *Parser) parseBytesLiteral() (ast.Node, error) {
-	tok := p.literalRun(tokBytes)
+	tok, err := p.literalRun(tokBytes)
+	if err != nil {
+		return nil, err
+	}
 	return &ast.Literal{Kind: ast.LitBytes, Value: tok.Str, Loc: tok.Loc}, nil
 }
 
@@ -1529,15 +1535,26 @@ func (p *Parser) parseBytesLiteral() (ast.Node, error) {
 // Loc spanning the run. GoogleSQL names string_literal and bytes_literal, not
 // a single component, wherever it takes a string or bytes literal
 // (googlesql.tm:11369 string_literal, 11431 bytes_literal), so every site
-// takes 'a' 'b'.
-func (p *Parser) literalRun(typ int) Token {
+// takes 'a' 'b'. Components that touch, as in 'a'r'b', are the actions' syntax
+// error: they must be separated by whitespace or comments (11375, 11437).
+func (p *Parser) literalRun(typ int) (Token, error) {
 	tok := p.advance()
 	for p.cur.Type == typ {
+		if p.cur.Loc.Start == tok.Loc.End {
+			kind := "string"
+			if typ == tokBytes {
+				kind = "bytes"
+			}
+			return Token{}, &ParseError{
+				Message:  "Syntax error: concatenated " + kind + " literals must be separated by whitespace or comments",
+				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+			}
+		}
 		comp := p.advance()
 		tok.Str += comp.Str
 		tok.Loc.End = comp.Loc.End
 	}
-	return tok
+	return tok, nil
 }
 
 // expectStringLiteral consumes a string_literal (googlesql.tm:11369): one or
@@ -1546,7 +1563,7 @@ func (p *Parser) expectStringLiteral() (Token, error) {
 	if p.cur.Type != tokString {
 		return Token{}, p.syntaxErrorAtCur()
 	}
-	return p.literalRun(tokString), nil
+	return p.literalRun(tokString)
 }
 
 // parseTypedLiteral parses a type-prefixed literal `<kw> '…'` for
@@ -1554,7 +1571,10 @@ func (p *Parser) expectStringLiteral() (Token, error) {
 // keyword is the current token and is known to be followed by a string literal.
 func (p *Parser) parseTypedLiteral() (ast.Node, error) {
 	kw := p.advance()
-	strTok := p.literalRun(tokString) // the string_literal (peekNext-confirmed by caller)
+	strTok, err := p.literalRun(tokString) // the string_literal (peekNext-confirmed by caller)
+	if err != nil {
+		return nil, err
+	}
 	return &ast.TypedLiteral{
 		TypeKeyword: TokenName(kw.Type),
 		Value:       strTok.Str,

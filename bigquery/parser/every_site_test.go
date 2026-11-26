@@ -21,6 +21,7 @@ func TestEverySiteForms(t *testing.T) {
 		"DECLARE a a('a' 'b')",
 		"DECLARE a a(1, b'a' b'b')",
 		"SELECT DATE '2020' '-01-01'",
+		"SELECT 'a'/**/'b'",
 		"SELECT NUMERIC '1' '2', BIGNUMERIC '1' '2', JSON '{}' ''",
 		"SELECT RANGE<DATE> '[2020-01-01,' ' 2021-01-01)'",
 		// templated_parameter_kind (googlesql.tm:10400).
@@ -41,6 +42,14 @@ func TestEverySiteForms(t *testing.T) {
 		}
 	}
 	reject := []string{
+		// Components must be separated by whitespace or comments
+		// (googlesql.tm:11375, 11437; BigQuery: "concatenated string literals
+		// must be separated by whitespace or comments").
+		"SELECT 'a''b'",
+		"SELECT b'a'b'b'",
+		"SELECT DATE '2020'r'-01-01'",
+		"CREATE FUNCTION a() AS 'a'r'b'",
+		"DECLARE a a('a''b')",
 		// A string and bytes do not concatenate.
 		"SELECT DATE '2020' b'a'",
 		"CREATE FUNCTION a() AS 'a' b'a'",
