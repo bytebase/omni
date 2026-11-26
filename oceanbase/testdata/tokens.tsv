@@ -65,6 +65,13 @@ opt_truncate_clause	(every site)	sql_parser_mysql_mode.y:25312 TRUNCATE
 grant_options	(every site)	sql_parser_mysql_mode.y:18431 WITH GRANT OPTION
 opt_dblink	(every site)	sql_parser_mysql_mode.y:14984 @dblink after a name
 flush_scope	(every site)	sql_parser_mysql_mode.y:21830 GLOBAL
+opt_tenant_name	(every site)	sql_parser_mysql_mode.y:22616 TENANT and a name
+opt_description	(every site)	sql_parser_mysql_mode.y:24072 DESCRIPTION and a string
+opt_backup_tenant_list	(every site)	sql_parser_mysql_mode.y:24063 TENANT and a list of names
+opt_backup_to	(every site)	sql_parser_mysql_mode.y:24053 TO and a destination string
+opt_tenant_list_v2	(every site)	sql_parser_mysql_mode.y:21800 TENANT and a list of names
+opt_zone_desc	(every site)	sql_parser_mysql_mode.y:22304 ZONE and a name
+opt_backup_backup_dest	(every site)	sql_parser_mysql_mode.y:22218 BACKUP_BACKUP_DEST and a string
 # Keyword choices tried in each of their forms at every site that names
 # them, and not only where the rule's own alternatives are reached (see
 # grammar.EveryAlternative).
@@ -133,6 +140,11 @@ inner_join_type	(every alternative)	sql_parser_mysql_mode.y:15303 JOIN, INNER JO
 object_type	(every alternative)	sql_parser_mysql_mode.y:18367 an object type
 mview_nested_refresh_mode	(every alternative)	sql_parser_mysql_mode.y:9890 INDIVIDUAL, INCONSISTENT or CONSISTENT
 lock_spec_mysql57	(every alternative)	sql_parser_mysql_mode.y:17415 LOCK or UNLOCK
+opt_server_or_zone	(every alternative)	sql_parser_mysql_mode.y:22381 a server or a zone
+server_or_zone	(every alternative)	sql_parser_mysql_mode.y:22370 a server or a zone
+ip_port	(every alternative)	sql_parser_mysql_mode.y:22283 SERVER or HOST and a string
+opt_tenant_info	(every alternative)	sql_parser_mysql_mode.y:22627 TENANT_ID n or TENANT and a name
+opt_tenant_option_list	(every alternative)	sql_parser_mysql_mode.y:4626 one tenant option or a list of them
 opt_join_or_resume	(every alternative)	sql_parser_mysql_mode.y:17893 JOIN or RESUME
 trans_param_value	(every alternative)	sql_parser_mysql_mode.y:7422 a string, n or -n
 delete_option	(every alternative)	sql_parser_mysql_mode.y:4214 QUICK or LOW_PRIORITY
