@@ -609,6 +609,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select now() AS `CURRENT_TIMESTAMP()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CURRENT_TIMESTAMP(1) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select now(1) AS `CURRENT_TIMESTAMP(1)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's'
 < error
 | 1350 HY000 View's SELECT contains a 'INTO' clause
@@ -733,6 +839,27 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 zzz
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 ORDER BY utf8mb4
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 LIMIT utf8mb4
+< error
+| 1327 42000 Undeclared variable: utf8mb4
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS WITH utf8mb4 AS(SELECT utf8mb4) SELECT utf8mb4 utf8mb4
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
 > exec
@@ -869,6 +996,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO utf8mb4 WHERE utf8mb4
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 FROM DUAL
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -1000,6 +1134,13 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT utf8mb4 FOR UPDATE OF utf8mb4
+< error
+| 3568 HY000 Unresolved table name `utf8mb4` in locking clause.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 FOR SHARE OF utf8mb4
 < error
 | 3568 HY000 Unresolved table name `utf8mb4` in locking clause.
 > exec
@@ -3197,6 +3338,271 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select `utf8mb4`.`utf8mb4` = all (select `utf8mb4`.`utf8mb4`) AS `zzz` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 >= ALL(SELECT utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select `utf8mb4`.`utf8mb4` >= all (select `utf8mb4`.`utf8mb4`) AS `utf8mb4 >= ALL(SELECT utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 > ALL(SELECT utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select `utf8mb4`.`utf8mb4` > all (select `utf8mb4`.`utf8mb4`) AS `utf8mb4 > ALL(SELECT utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 <= ALL(SELECT utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select `utf8mb4`.`utf8mb4` <= all (select `utf8mb4`.`utf8mb4`) AS `utf8mb4 <= ALL(SELECT utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 < ALL(SELECT utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select `utf8mb4`.`utf8mb4` < all (select `utf8mb4`.`utf8mb4`) AS `utf8mb4 < ALL(SELECT utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 <> ALL(SELECT utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select (not(`utf8mb4`.`utf8mb4` in (select `utf8mb4`.`utf8mb4`))) AS `utf8mb4 <> ALL(SELECT utf8mb4)` from `utf8mb4`
 : bytes
 | utf8mb4
 : bytes
@@ -8441,6 +8847,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AT TIME ZONE 's' AS DATETIME(1)) FROM utf8mb4
+< error
+| 3998 HY000 Cannot cast value to TIMESTAMP WITH TIME ZONE.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CASE WHEN utf8mb4 THEN utf8mb4 END FROM utf8mb4
 < ok 0 0
 > query
@@ -11861,6 +12274,59 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CURRENT_DATE() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select curdate() AS `CURRENT_DATE()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT DATE_ADD(utf8mb4, INTERVAL utf8mb4 DAY) FROM utf8mb4
 < ok 0 0
 > query
@@ -13041,6 +13507,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT SYSDATE() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select sysdate() AS `SYSDATE()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT SYSDATE(1) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select sysdate(1) AS `SYSDATE(1)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT TIMESTAMPADD(DAY, utf8mb4, utf8mb4) FROM utf8mb4
 < ok 0 0
 > query
@@ -14207,6 +14779,59 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT UTC_DATE() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_date() AS `UTC_DATE()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT UTC_TIME FROM utf8mb4
 < ok 0 0
 > query
@@ -14289,6 +14914,112 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_time() AS `zzz` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT UTC_TIME() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_time() AS `UTC_TIME()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT UTC_TIME(1) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_time(1) AS `UTC_TIME(1)` from `utf8mb4`
 : bytes
 | utf8mb4
 : bytes
@@ -14422,6 +15153,112 @@
 | CREATE VIEW _v AS SELECT VALIDATION FROM utf8mb4
 < error
 | 1054 42S22 Unknown column 'VALIDATION' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT UTC_TIMESTAMP() FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_timestamp() AS `UTC_TIMESTAMP()` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT UTC_TIMESTAMP(1) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select utc_timestamp(1) AS `UTC_TIMESTAMP(1)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
@@ -20332,6 +21169,112 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 SEPARATOR 0x1) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+|q "CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select group_concat(`utf8mb4`.`utf8mb4` separator '\x01') AS `GROUP_CONCAT(utf8mb4 SEPARATOR 0x1)` from `utf8mb4`"
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 SEPARATOR b'1') FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+|q "CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select group_concat(`utf8mb4`.`utf8mb4` separator '\x01') AS `GROUP_CONCAT(utf8mb4 SEPARATOR b'1')` from `utf8mb4`"
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT GROUP_CONCAT(utf8mb4 ORDER BY utf8mb4) FROM utf8mb4
 < ok 0 0
 > query
@@ -20467,6 +21410,430 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR ASCII) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset latin1) AS `CAST(utf8mb4 AS CHAR ASCII)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR UNICODE) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset ucs2) AS `CAST(utf8mb4 AS CHAR UNICODE)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BYTE) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset binary) AS `CAST(utf8mb4 AS CHAR BYTE)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR CHARSET utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR CHARSET utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR CHAR SET utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR CHAR SET utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR BINARY)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY CHARSET utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR BINARY CHARSET utf8mb4)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS CHAR BINARY CHAR SET utf8mb4) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as char charset utf8mb4) AS `CAST(utf8mb4 AS CHAR BINARY CHAR SET utf8mb4)` from `utf8mb4`
 : bytes
 | utf8mb4
 : bytes
@@ -20968,6 +22335,59 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS TIME(1)) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as time(1)) AS `CAST(utf8mb4 AS TIME(1))` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DATETIME) FROM utf8mb4
 < ok 0 0
 > query
@@ -20997,6 +22417,59 @@
 | _v
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as datetime) AS `CAST(utf8mb4 AS DATETIME)` from `utf8mb4`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `utf8mb4`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
+< row
+: bytes
+| utf8mb4
+: bytes
+| CREATE TABLE `utf8mb4` (
+|   `b` int NOT NULL,
+|   `utf8mb4` int DEFAULT NULL,
+|   `d` int DEFAULT NULL,
+|   PRIMARY KEY (`b`),
+|   KEY `idx_d` (`d`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT CAST(utf8mb4 AS DATETIME(1)) FROM utf8mb4
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_t_simulation" "VARCHAR" "string"
+< column "Table_type" "ENUM" "string"
+< row
+: bytes
+| _v
+: bytes
+| VIEW
+< row
+: bytes
+| utf8mb4
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE VIEW `_v`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| _v
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `_v` AS select cast(`utf8mb4`.`utf8mb4` as datetime(1)) AS `CAST(utf8mb4 AS DATETIME(1))` from `utf8mb4`
 : bytes
 | utf8mb4
 : bytes
@@ -21760,6 +23233,27 @@
 < ok 0 0
 > exec
 | CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT 's' ON EMPTY) FROM utf8mb4
+< error
+| 3146 22032 Invalid data type for JSON data in argument 1 to function json_value; a JSON string or JSON type is required.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT + 1 ON EMPTY) FROM utf8mb4
+< error
+| 3146 22032 Invalid data type for JSON data in argument 1 to function json_value; a JSON string or JSON type is required.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT 1 ON EMPTY) FROM utf8mb4
+< error
+| 3146 22032 Invalid data type for JSON data in argument 1 to function json_value; a JSON string or JSON type is required.
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT JSON_VALUE(utf8mb4, 's' DEFAULT - 1 ON EMPTY) FROM utf8mb4
 < error
 | 3146 22032 Invalid data type for JSON data in argument 1 to function json_value; a JSON string or JSON type is required.
 > exec
@@ -24013,6 +25507,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS WITH utf8mb4(utf8mb4) AS(SELECT utf8mb4) SELECT utf8mb4
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 WINDOW utf8mb4 AS()
 < error
 | 1054 42S22 Unknown column 'utf8mb4' in 'field list'
@@ -24195,6 +25696,13 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS VALUES ROW(utf8mb4, DEFAULT)
+< error
+| 1054 42S22 Unknown column 'utf8mb4' in 'field list'
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS VALUES ROW(DEFAULT)
 < error
 | 3943 HY000 A VALUES clause cannot use DEFAULT values, unless used as a source in an INSERT statement.
@@ -24230,7 +25738,35 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS TERMINATED BY b'1'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 's'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS OPTIONALLY ENCLOSED BY b'1'
 < error
 | 1350 HY000 View's SELECT contains a 'INTO' clause
 > exec
@@ -24244,7 +25780,35 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ENCLOSED BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ENCLOSED BY b'1'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY 's'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' COLUMNS ESCAPED BY b'1'
 < error
 | 1350 HY000 View's SELECT contains a 'INTO' clause
 > exec
@@ -24265,7 +25829,35 @@
 | DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES TERMINATED BY b'1'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY 's'
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY 0x1
+< error
+| 1350 HY000 View's SELECT contains a 'INTO' clause
+> exec
+| DROP DATABASE IF EXISTS omni_t_simulation; CREATE DATABASE omni_t_simulation; USE omni_t_simulation; CREATE TABLE utf8mb4 (b INT PRIMARY KEY, utf8mb4 INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE VIEW _v AS SELECT utf8mb4 INTO OUTFILE 's' LINES STARTING BY b'1'
 < error
 | 1350 HY000 View's SELECT contains a 'INTO' clause
 > exec

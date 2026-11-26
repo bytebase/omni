@@ -260,9 +260,20 @@ func (c *Catalog) validateViewBodyPreAnalysis(blocks []*nodes.SelectStmt, viewDB
 				if len(row) == 0 {
 					return errEmptyRowInTVC()
 				}
+			}
+			// The server fixes the values in order, so a column, which VALUES
+			// has no table to resolve against (1054), before a DEFAULT answers
+			// first.
+		rows:
+			for _, row := range block.ValuesSource.Rows {
 				for _, item := range row {
-					if d, ok := item.(*nodes.DefaultExpr); ok && d.Column == "" {
-						return errDefaultAsValInTVC()
+					switch d := item.(type) {
+					case *nodes.ColumnRef:
+						break rows
+					case *nodes.DefaultExpr:
+						if d.Column == "" {
+							return errDefaultAsValInTVC()
+						}
 					}
 				}
 			}

@@ -48,6 +48,16 @@ opt_place	(every site)	sql_yacc.yy:9195 AFTER or FIRST
 opt_ignore_leaves	(every site)	sql_yacc.yy:9813 IGNORE LEAVES
 opt_extended	(every site)	sql_yacc.yy:13954 EXTENDED
 opt_local	(every site)	sql_yacc.yy:14412 LOCAL
+opt_limit_clause	(every site)	sql_yacc.yy:12616 LIMIT
+opt_where_clause	(every site)	sql_yacc.yy:12388 WHERE
+opt_table_alias	(every site)	sql_yacc.yy:12378 a table alias
+opt_field_length	(every site)	sql_yacc.yy:7410 a type's (length)
+opt_ident	(every site)	sql_yacc.yy:8090 an optional name
+opt_column_list	(every site)	sql_yacc.yy:17148 (columns)
+opt_derived_column_list	(every site)	sql_yacc.yy:12446 a derived table's (columns)
+opt_order_clause	(every site)	sql_yacc.yy:12579 ORDER BY
+opt_ordering_direction	(every site)	sql_yacc.yy:12606 ASC or DESC
+opt_insert_update_list	(every site)	sql_yacc.yy:13410 ON DUPLICATE KEY UPDATE
 
 # Keyword choices tried at every site that names them, and not only where
 # their own alternatives' rows reach (see grammar.EveryAlternative).
@@ -84,6 +94,32 @@ opt_index_lock_and_algorithm	(every alternative)	sql_yacc.yy:9103 LOCK =, ALGORI
 opt_null_treatment	(every alternative)	sql_yacc.yy:11296 RESPECT or IGNORE NULLS
 opt_wild_or_where	(every alternative)	sql_yacc.yy:13981 LIKE or WHERE
 union_option	(every alternative)	sql_yacc.yy:17308 DISTINCT or ALL
+size_number	(every alternative)	sql_yacc.yy:6161 a number or a size such as 1M
+equal	(every alternative)	sql_yacc.yy:13341 = or :=
+func_datetime_precision	(every alternative)	sql_yacc.yy:7370 a function's optional (precision)
+type_datetime_precision	(every alternative)	sql_yacc.yy:7365 a type's optional (precision)
+optional_braces	(every alternative)	sql_yacc.yy:10202 optional ()
+text_string	(every alternative)	sql_yacc.yy:14655 a string, hex or bit literal
+signed_literal	(every alternative)	sql_yacc.yy:14698 a literal or a signed number
+inner_join_type	(every alternative)	sql_yacc.yy:11975 JOIN, INNER JOIN, CROSS JOIN or STRAIGHT_JOIN
+comp_op	(every alternative)	sql_yacc.yy:10465 a comparison operator
+udf_type	(every alternative)	sql_yacc.yy:6925 STRING, REAL, DECIMAL or INTEGER
+mi_check_type	(every alternative)	sql_yacc.yy:9649 CHECK TABLE's options
+mi_repair_type	(every alternative)	sql_yacc.yy:9543 QUICK, EXTENDED or USE_FRM
+start_transaction_option	(every alternative)	sql_yacc.yy:9371 START TRANSACTION's options
+field_option	(every alternative)	sql_yacc.yy:7393 SIGNED, UNSIGNED or ZEROFILL
+opt_ssl	(every alternative)	sql_yacc.yy:18177 REQUIRE SSL or REQUIRE NO SSL
+lock_strength	(every alternative)	sql_yacc.yy:10144 UPDATE or SHARE
+replica_thread_option	(every alternative)	sql_yacc.yy:9440 SQL_THREAD or RELAY_THREAD
+ternary_option	(every alternative)	sql_yacc.yy:6880 a number or DEFAULT
+expr_or_default	(every alternative)	sql_yacc.yy:13384 an expression or DEFAULT
+engine_or_all	(every alternative)	sql_yacc.yy:13929 an engine name or ALL
+replace_lock_option	(every alternative)	sql_yacc.yy:13223 LOW_PRIORITY or DELAYED
+ev_on_completion	(every alternative)	sql_yacc.yy:3804 ON COMPLETION [NOT] PRESERVE
+all_or_alt_part_name_list	(every alternative)	sql_yacc.yy:8920 ALL or partition names
+create_database_option	(every alternative)	sql_yacc.yy:6639 COLLATE, CHARACTER SET or ENCRYPTION
+alter_commands_modifier	(every alternative)	sql_yacc.yy:9085 ALGORITHM, LOCK or WITH VALIDATION
+opt_charset_with_opt_binary	(every alternative)	sql_yacc.yy:7700 a type's character set, ASCII, UNICODE, BYTE or BINARY
 
 # Literals, operators and the tokens the lexer forms from other text.
 ABORT_SYM	(unreachable)	the lexer's error token
