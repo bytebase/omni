@@ -403,3 +403,10 @@ func TestExecRound19(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, plan)
 }
+
+func TestExecRound20(t *testing.T) {
+	_, err := execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (a INT8); CREATE INDEX ix ON t ((CASE WHEN a > 0 THEN 'sad'::mood ELSE 'happy'::mood END)); DROP TYPE mood")
+	require.Equal(t, "2BP01", code(err))
+	_, err = execLast(t, "CREATE TYPE mood AS ENUM ('sad', 'happy'); CREATE TABLE t (a INT8); CREATE INDEX ix ON t ((CASE WHEN a > 0 THEN 'sad'::mood ELSE 'happy'::mood END)); ALTER TYPE mood DROP VALUE 'sad'")
+	require.Error(t, err)
+}

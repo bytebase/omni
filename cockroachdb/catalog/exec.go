@@ -2041,6 +2041,12 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 				return
 			}
 		}
+		for _, index := range table.Indexes {
+			if indexNamesType(index.Definition, typ) {
+				users = append(users, typeName(s.Name, table.Name))
+				return
+			}
+		}
 	})
 	for _, s := range c.l.meta.Schemas {
 		for _, composite := range s.CompositeTypes {
@@ -2070,10 +2076,17 @@ func (c *Catalog) typeUsers(schema, name string) []string {
 	return users
 }
 
-// viewTypeUser refuses changing a type a view's query names, which the
-// catalog does not rewrite.
+// viewTypeUser refuses changing a type a view's query or an index's
+// expression names, which the catalog does not rewrite.
 func (c *Catalog) viewTypeUser(typ, what string) error {
 	for _, s := range c.l.meta.Schemas {
+		for _, table := range s.Tables {
+			for _, index := range table.Indexes {
+				if indexNamesType(index.Definition, typ) {
+					return &Error{Message: fmt.Sprintf("%s type %q, which index %q names, is not supported", what, typ, index.Name)}
+				}
+			}
+		}
 		for _, v := range s.Views {
 			if viewNamesType(v.Definition, typ) {
 				return &Error{Message: fmt.Sprintf("%s type %q, which view %q names, is not supported", what, typ, v.Name)}
@@ -2119,6 +2132,25 @@ func (c *Catalog) viewSequenceUser(schema, name string, kind relKind) error {
 		}
 	}
 	return nil
+}
+
+// indexNamesType reports whether an index's key expressions or predicate
+// cast or annotate to a type.
+func indexNamesType(definition, typ string) bool {
+	stmt, err := parser.ParseOne(definition)
+	if err != nil {
+		return false
+	}
+	n, ok := stmt.AST.(*tree.CreateIndex)
+	if !ok {
+		return false
+	}
+	for _, elem := range n.Columns {
+		if elem.Expr != nil && namesType(tree.AsString(elem.Expr), typ) {
+			return true
+		}
+	}
+	return n.Predicate != nil && namesType(tree.AsString(n.Predicate), typ)
 }
 
 // viewNamesType reports whether a view's query casts or annotates to a type.
