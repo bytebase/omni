@@ -16,16 +16,16 @@ func TestEngineCompletesFromTheCatalog(t *testing.T) {
 		}}, nil
 	}}
 	request := analysis.CompletionRequest{DefaultDatabase: "db", DefaultSchema: "public", Catalog: catalog}
-	if !hasCandidate(Engine.Complete(context.Background(), request, "SELECT * FROM ", 1, 14), "orders", analysis.CandidateTable) {
+	if !offersCandidate(Engine.Complete(context.Background(), request, "SELECT * FROM ", 1, 14), "orders", analysis.CandidateTable) {
 		t.Fatal("the catalog's table is not offered")
 	}
 	request.Catalog = analysis.Catalog{}
-	if hasCandidate(Engine.Complete(context.Background(), request, "SELECT * FROM ", 1, 14), "orders", analysis.CandidateTable) {
+	if offersCandidate(Engine.Complete(context.Background(), request, "SELECT * FROM ", 1, 14), "orders", analysis.CandidateTable) {
 		t.Fatal("a table is offered without a catalog")
 	}
 }
 
-func hasCandidate(candidates []analysis.Candidate, text string, typ analysis.CandidateType) bool {
+func offersCandidate(candidates []analysis.Candidate, text string, typ analysis.CandidateType) bool {
 	for _, c := range candidates {
 		if c.Text == text && c.Type == typ {
 			return true
