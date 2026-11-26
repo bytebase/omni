@@ -139,7 +139,7 @@ total	total	engine	shop	default	results	SELECT t.total FROM (SELECT CustomerId, 
 Orders.Amount	~	engine	shop	default	lineage	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
 Orders	Orders	engine	shop	default	tables	SELECT t.total FROM (SELECT CustomerId, SUM(Amount) AS total FROM Orders GROUP BY CustomerId) t
 x	x	engine	shop	default	results	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
--	~	engine	shop	default	lineage	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
+Customers.Name Orders.Status	~	engine	shop	default	lineage	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
 Customers, Orders	Customers, Orders	engine	shop	default	tables	SELECT x FROM (SELECT Name AS x FROM Customers UNION ALL SELECT Status FROM Orders)
 Name	Name	engine	shop	default	results	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
 Customers.Name	~	engine	shop	default	lineage	SELECT Name FROM Customers WHERE Region = (SELECT Region FROM sales.Targets ORDER BY Goal DESC LIMIT 1)
@@ -295,7 +295,7 @@ Orders	Orders	engine	shop	default	tables	SELECT Items[SAFE_OFFSET(0)] AS first F
 Orders.Items	~	engine	shop	default	lineage	SELECT ARRAY_LENGTH(Items) FROM Orders
 Orders	Orders	engine	shop	default	tables	SELECT ARRAY_LENGTH(Items) FROM Orders
 a, b	a, b	engine	shop	default	results	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
-- | -	~ | ~	engine	shop	default	lineage	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
+Customers.CustomerId Customers.Name | Customers.CustomerId Customers.Name	~ | ~	engine	shop	default	lineage	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
 Customers	Customers	engine	shop	default	tables	SELECT s.a, s.b FROM (SELECT STRUCT(CustomerId AS a, Name AS b) AS s FROM Customers)
 n	n	engine	shop	default	results	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
 Customers.CustomerId Customers.Name	~	engine	shop	default	lineage	SELECT STRUCT(CustomerId, Name).Name AS n FROM Customers
