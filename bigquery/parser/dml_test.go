@@ -142,6 +142,9 @@ func TestDML_InsertOrAction(t *testing.T) {
 		"INSERT OR UPDATE INTO t (a) VALUES (1)":  "OR UPDATE",
 		"INSERT OR REPLACE INTO t (a) VALUES (1)": "OR REPLACE",
 		"INSERT IGNORE INTO t (a) VALUES (1)":     "IGNORE",
+		// googlesql.tm:461: a statement's INSERT makes REPLACE and UPDATE modes.
+		"INSERT REPLACE INTO t (a) VALUES (1)": "REPLACE",
+		"INSERT UPDATE t SELECT NULL":          "UPDATE",
 	}
 	for sql, want := range cases {
 		t.Run(want, func(t *testing.T) {
@@ -575,6 +578,16 @@ func TestDML_Rejects(t *testing.T) {
 		"UPDATE /a/b SET x = 1 WHERE id = 1",
 		// TRUNCATE without TABLE keyword.
 		"TRUNCATE foo",
+		// A statement's bare REPLACE is a mode, so VALUES names the table and
+		// (1) is not a column list (BigQuery: Unexpected integer literal "1").
+		"INSERT REPLACE VALUES (1)",
+		// The pipe's INSERT makes no mode of REPLACE: it names the table.
+		"SELECT 1 |> INSERT REPLACE a",
+		// cast_int_literal_or_parameter casts only an integer literal or a
+		// parameter (googlesql.tm:6083), and so does repeatable_clause.
+		"DELETE t WHERE TRUE ASSERT_ROWS_MODIFIED CAST(a AS INT64)",
+		"SELECT 1 FROM t TABLESAMPLE SYSTEM (1 PERCENT) REPEATABLE(a)",
+		"SELECT 1 FROM t TABLESAMPLE SYSTEM (1 PERCENT) REPEATABLE(CAST(a AS INT64))",
 	}
 	for _, sql := range cases {
 		t.Run(sql, func(t *testing.T) {
