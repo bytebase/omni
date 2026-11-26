@@ -81,7 +81,7 @@ queries that hold the text.
   read through a view names the view's column, not the columns the view
   reads.
 
-## query-span/*.yaml
+## query-span/spanner.yaml
 
-Corpora recorded from Bytebase's old adapters, replayed whole by
-`TestQuerySpanCorpusBigQuery` and `TestQuerySpanCorpusSpanner`.
+The corpus recorded from Bytebase's old Spanner adapter, replayed whole by
+`TestQuerySpanCorpusSpanner`.

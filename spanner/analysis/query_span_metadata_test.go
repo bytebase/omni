@@ -66,7 +66,10 @@ func TestLeakPin_LowercaseUsingCoalesce(t *testing.T) {
 // TestLeakPin_ExpressionSubqueryLineage: the legacy resolver gave a scalar or
 // ARRAY subquery in the select list no source, so a masked column read through
 // one came back unmasked. Its value is its subquery's projection; a star there
-// reads every column of its table. An EXISTS reads no column into its value.
+// reads every column of its table, and a correlated column the enclosing
+// query's. An unqualified name may be either query's column, so both are kept
+// (omni cannot list a base table's columns). An EXISTS reads no column into
+// its value.
 func TestLeakPin_ExpressionSubqueryLineage(t *testing.T) {
 	schemas := pinTables(
 		&metadata.TableMetadata{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "ssn"}}},
@@ -88,6 +91,13 @@ func TestLeakPin_ExpressionSubqueryLineage(t *testing.T) {
 		{"SELECT WITH(x AS 1, (SELECT ssn FROM users)) AS s", []string{"users.ssn"}},
 		{"SELECT WITH(x AS 1, y AS (SELECT ssn FROM users), y) AS s", []string{"users.ssn"}},
 		{"SELECT (SELECT AS STRUCT * FROM users).ssn AS s", []string{"users.id", "users.ssn"}},
+		{"SELECT ARRAY(SELECT u.ssn FROM orders o WHERE o.user_id = u.id) AS x FROM users u", []string{"users.ssn"}},
+		{"SELECT (SELECT CONCAT(u.ssn, o.card) FROM orders o LIMIT 1) AS x FROM users u", []string{"orders.card", "users.ssn"}},
+		{"SELECT ARRAY(SELECT AS STRUCT ssn, card FROM orders) AS x FROM users", []string{"orders.card", "users.ssn"}},
+		{"SELECT (SELECT (SELECT u.ssn FROM orders LIMIT 1) FROM orders LIMIT 1) FROM users u", []string{"users.ssn"}},
+		{"SELECT (SELECT t.s FROM orders LIMIT 1) FROM (SELECT ssn AS s FROM users) t", []string{"users.ssn"}},
+		{"SELECT (SELECT s FROM orders LIMIT 1) FROM (SELECT ssn AS s FROM users) t", []string{"users.ssn"}},
+		{"SELECT (SELECT id FROM orders LIMIT 1) FROM users", []string{"orders.id", "users.id"}},
 		{"SELECT EXISTS (SELECT ssn FROM users) FROM orders", []string{}},
 		{"SELECT (SELECT COUNT(*) FROM users)", []string{}},
 	} {

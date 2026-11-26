@@ -338,10 +338,49 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	if w.qualifierNamesBaseRelation(ref) {
 		return ref.Column, []ColumnRef{ref}
 	}
+	// A correlated `rel.col` naming a relation of an enclosing query. The
+	// leading name may still be a struct column of this query, so that reading
+	// is kept too.
+	if refs, ok := w.enclosingQualified(parts[0], parts[1]); ok {
+		return parts[1], append(refs, w.resolveColumn("", parts[0])...)
+	}
 	// Otherwise the leading identifier is a struct/field column root (`s.field`,
 	// `s.a.b`): resolve `parts[0]` as a column (dropping the trailing field path),
 	// mirroring the legacy a-as-column attempt for an unqualified field path.
 	return parts[0], w.resolveColumn("", parts[0])
+}
+
+// enclosingQualified resolves `qualifier.column` against the innermost
+// enclosing query whose FROM scope names qualifier.
+func (w *spanWalker) enclosingQualified(qualifier, column string) ([]ColumnRef, bool) {
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if w.enclosing[i].find(qualifier) == nil {
+			continue
+		}
+		leaves, enclosing := w.leaves, w.enclosing
+		w.leaves, w.enclosing = w.enclosing[i], w.enclosing[:i]
+		refs := w.resolveColumn(qualifier, column)
+		w.leaves, w.enclosing = leaves, enclosing
+		return refs, true
+	}
+	return nil, false
+}
+
+// enclosingCandidates is what an unqualified column may read in the enclosing
+// queries when this query's one base table may not have it. An enclosing
+// derived column of that name settles it. Otherwise omni cannot list a base
+// table's columns, so the name stays unqualified, which the consumer matches
+// in every table the statement reads.
+func (w *spanWalker) enclosingCandidates(column string) []ColumnRef {
+	if len(w.enclosing) == 0 {
+		return nil
+	}
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if derived, ok := w.enclosing[i].derivedColumn(column); ok {
+			return derived
+		}
+	}
+	return []ColumnRef{{Column: column}}
 }
 
 // qualifierNamesBaseRelation reports whether a bucketed column ref's qualifier
@@ -389,7 +428,8 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 	if rel := w.leaves.soleBase(); rel != nil {
 		ref := rel.baseRef
 		ref.Column = column
-		return []ColumnRef{ref}
+		// In a correlated subquery the name may be an enclosing query's column.
+		return append([]ColumnRef{ref}, w.enclosingCandidates(column)...)
 	}
 	return []ColumnRef{{Column: column}}
 }
