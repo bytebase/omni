@@ -55,23 +55,31 @@ func TestSplitStatementsCorpus(t *testing.T) {
 	}
 }
 
-func TestSplitStatementsEmptyDropped(t *testing.T) {
+// TestSplitStatementsEmptyKept pins one entry per ';': a segment holding no
+// statement is returned with Empty set, and the entries tile the script.
+func TestSplitStatementsEmptyKept(t *testing.T) {
 	cases := []struct {
-		in   string
-		want int
+		in    string
+		empty []bool
 	}{
-		{"SELECT 1;;SELECT 2;", 2},
-		{"SELECT 1;  ;SELECT 2;", 2},
-		{";", 0},
-		{";;", 0},
-		{"SELECT 1;", 1},
+		{"SELECT 1;;SELECT 2;", []bool{false, true, false}},
+		{"SELECT 1;  ;SELECT 2;", []bool{false, true, false}},
+		{";", []bool{true}},
+		{";;", []bool{true, true}},
+		{"SELECT 1;", []bool{false}},
+		{"SELECT 1; -- tail", []bool{false, true}},
 	}
 	for _, tc := range cases {
 		got := analysis.SplitStatements(tc.in)
-		require.Len(t, got, tc.want, "input %q", tc.in)
+		require.Len(t, got, len(tc.empty), "input %q", tc.in)
+		end := 0
 		for i, st := range got {
-			require.NotEmpty(t, st.Text, "stmt %d of %q", i, tc.in)
+			require.Equal(t, tc.empty[i], st.Empty, "stmt %d of %q", i, tc.in)
+			require.Equal(t, end, st.Start, "stmt %d of %q", i, tc.in)
+			require.Equal(t, tc.in[st.Start:st.End], st.Text, "stmt %d of %q", i, tc.in)
+			end = st.End
 		}
+		require.Equal(t, len(tc.in), end, "input %q", tc.in)
 	}
 }
 

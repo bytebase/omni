@@ -123,14 +123,19 @@ func TestWalkSimulation(t *testing.T) {
 // synced table raised ddl to 95.5%. The suite:search-condition rows of
 // compat.tsv added binding refusals the walk does not model (207 on a
 // column a CHECK or filtered index names, 10610 and 10623 on a filter over a
-// column that cannot have one), which moved ddl to 95.4%.
+// column that cannot have one), which moved ddl to 95.4%. The second
+// (every alternative) pass added refusals of what the sync does not give:
+// a full-text index (41202), a view's undeclared variable (137), a view
+// column with no name (4511), GROUP BY of constants only (164), and names
+// that clash with the fixture's (2714, 2715), which moved ddl to 95.3% and
+// queries to 83.4%.
 var walkSimSuites = []struct {
 	name, path, database string
 	minPct               float64
 	minFound             int
 }{
-	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.4, 3169},
-	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 86.2, 394},
+	{"ddl", filepath.Join("..", "catalog", "testdata", "simulate.tsv"), "omni_TestSimulation", 95.3, 4290},
+	{"queries", filepath.Join("..", "catalog", "testdata", "queries", "simulate.tsv"), "omni_TestQuerySimulation", 83.4, 488},
 	{"programs", filepath.Join("..", "catalog", "testdata", "programs", "simulate.tsv"), "omni_TestProgramSimulation", 91.7, 67},
 }
 
@@ -251,8 +256,10 @@ func walkCompatSimulation(t *testing.T, db *sql.DB) {
 	// linked server), which moved it to 89.3%. The suite:search-condition
 	// rows added more (207 and 209 on a column a WHERE or MERGE ON names,
 	// 206 and 403 on a comparison of mismatched types, 213 on an INSERT of
-	// the wrong width), which moved it to 89.1%.
-	const minWalkSimRecall = 89.1
+	// the wrong width), which moved it to 89.1%. The second (every
+	// alternative) pass added full-text, variable, view-column and name
+	// clash refusals the walk does not model, which moved it to 88.8%.
+	const minWalkSimRecall = 88.8
 	pct := 0.0
 	if refusedCount > 0 {
 		pct = 100 * float64(foundCount) / float64(refusedCount)

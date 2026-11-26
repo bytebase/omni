@@ -86,39 +86,30 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		return nil, p.unexpectedToken()
 	}
 
-	// AS NODE | AS EDGE (graph tables) | AS FILETABLE
+	// AS EDGE | AS FILETABLE, with no list (createTableStatement,
+	// TSql160.g:26543: As ( 'FILETABLE' | 'EDGE' )). AS NODE comes only after
+	// a list (graphAsNodeOrEdge), and neither takes one after it: SQL Server
+	// refuses CREATE TABLE a AS NODE(a INT) and CREATE TABLE a AS EDGE(a INT)
+	// (Msg 102, measured). Their statements still take the table options
+	// that follow a list, as
+	// CREATE TABLE ft AS FILETABLE WITH (FILETABLE_DIRECTORY = 'docs') does.
 	// Note: AS CLONE OF is handled at the dispatch level (parser.go)
 	if p.cur.Type == kwAS {
 		next := p.peekNext()
-		if next.Type == kwNODE {
+		if next.Type == kwEDGE || next.Type == kwFILETABLE {
 			p.advance() // AS
-			p.advance() // NODE
-			stmt.IsNode = true
-		} else if next.Type == kwEDGE {
-			p.advance() // AS
-			p.advance() // EDGE
-			stmt.IsEdge = true
-		} else if next.Type == kwFILETABLE {
-			p.advance() // AS
-			p.advance() // FILETABLE
-			stmt.IsFileTable = true
+			p.advance() // EDGE or FILETABLE
+			stmt.IsEdge = next.Type == kwEDGE
+			stmt.IsFileTable = next.Type == kwFILETABLE
+			return p.parseCreateTableOptions(stmt)
 		}
 	}
 
-	// Column and constraint definitions. SQL Server requires one, except on
-	// AS EDGE and AS FILETABLE, which it takes with no list: CREATE TABLE a
-	// and CREATE TABLE a AS NODE are Msg 102 (measured). Their statements
-	// still take the table options that follow a list, as
-	// CREATE TABLE ft AS FILETABLE WITH (FILETABLE_DIRECTORY = 'docs') does.
-	listed := true
+	// Column and constraint definitions. SQL Server requires them, except on
+	// AS EDGE and AS FILETABLE: CREATE TABLE a and CREATE TABLE a AS NODE are
+	// Msg 102 (measured).
 	if _, err := p.expect('('); err != nil {
-		if !stmt.IsEdge && !stmt.IsFileTable {
-			return nil, err
-		}
-		listed = false
-	}
-	if !listed {
-		return p.parseCreateTableOptions(stmt)
+		return nil, err
 	}
 
 	// Completion: inside CREATE TABLE column list → constraint keywords / columnref
@@ -138,7 +129,7 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 
 	// CREATE TABLE column/constraint list is the one site where SqlScriptDOM
 	// tolerates a trailing comma (see scriptdom harness verification).
-	_, listErr := p.parseCommaList(')', commaListAllowTrail, func() (nodes.Node, error) {
+	items, listErr := p.parseCommaList(')', commaListAllowTrail, func() (nodes.Node, error) {
 		// Completion: at start of each column/constraint slot.
 		if p.collectMode() {
 			p.addRuleCandidate("identifier")
@@ -150,22 +141,34 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 			p.addTokenCandidate(kwINDEX)
 			return nil, errCollecting
 		}
-		// PERIOD FOR SYSTEM_TIME — stored on stmt directly, not collected here.
+		// PERIOD FOR SYSTEM_TIME ( start , end ), every part required
+		// (tablePeriodDefinition, TSql160.g:28778) — stored on stmt
+		// directly, not collected here.
 		if p.cur.Type == kwPERIOD && p.peekNext().Type == kwFOR {
 			p.advance() // PERIOD
 			p.advance() // FOR
-			if p.cur.Type == kwSYSTEM_TIME {
-				p.advance()
+			if _, err := p.expect(kwSYSTEM_TIME); err != nil {
+				return nil, err
 			}
-			if p.cur.Type == '(' {
-				p.advance()
-				startCol, _ := p.parseIdentifier()
-				stmt.PeriodStartCol = startCol
-				p.match(',')
-				endCol, _ := p.parseIdentifier()
-				stmt.PeriodEndCol = endCol
-				p.expect(')')
+			if _, err := p.expect('('); err != nil {
+				return nil, err
 			}
+			startCol, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+			endCol, ok := p.parseIdentifier()
+			if !ok {
+				return nil, p.syntaxErrorAtCur()
+			}
+			if _, err := p.expect(')'); err != nil {
+				return nil, err
+			}
+			stmt.PeriodStartCol = startCol
+			stmt.PeriodEndCol = endCol
 			// Return a sentinel so parseCommaList accepts this as "one item".
 			return &nodes.String{Str: "__period__"}, nil
 		}
@@ -206,7 +209,8 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 	if listErr != nil {
 		return nil, listErr
 	}
-	if _, err := p.expect(')'); err != nil {
+	rparen, err := p.expect(')')
+	if err != nil {
 		return nil, err
 	}
 
@@ -217,7 +221,40 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		stmt.Constraints = &nodes.List{Items: constraints}
 	}
 
-	return p.parseCreateTableOptions(stmt)
+	if _, err := p.parseCreateTableOptions(stmt); err != nil {
+		return nil, err
+	}
+	if !tableDefHasColumn(items, stmt.IsEdge) {
+		return nil, p.newParseError(rparen.Loc, "syntax error at or near \")\"")
+	}
+	return stmt, nil
+}
+
+// tableDefHasColumn reports whether a table definition's elements hold what
+// SQL Server's parser requires of them, which tableDefinitionCreateTable
+// (TSql160.g:26628) and declareTableBodyMain (TSql160.g:16716) do not say: a column with a type. A computed column, a
+// PERIOD, a constraint or an index alone is refused at the closing
+// parenthesis (Msg 102, measured): CREATE TABLE a(UNIQUE(a)) and
+// CREATE TABLE a(a AS 1) are, and so are a table type's, a table variable's
+// and a function's return table. An AS EDGE table, which has columns of its
+// own, needs a typed column, a constraint or an index: SQL Server takes
+// CREATE TABLE a(UNIQUE(a)) AS EDGE and refuses CREATE TABLE a(a AS 1) AS EDGE.
+func tableDefHasColumn(items []nodes.Node, edge bool) bool {
+	for _, item := range items {
+		switch n := item.(type) {
+		case *nodes.ColumnDef:
+			if n.DataType != nil {
+				return true
+			}
+		case *nodes.String: // the PERIOD sentinel
+		case nil:
+		default:
+			if edge {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parseCreateTableOptions parses what follows a CREATE TABLE body: ON

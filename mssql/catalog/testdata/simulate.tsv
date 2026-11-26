@@ -25,6 +25,8 @@ ok:9c213fc39967	ok:9c213fc39967	engine	one_table@missing	create2005Statements(cr
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1088	1088	engine	one_table@missing	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1088	1088	engine	one_table@missing	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -44,6 +46,7 @@ ok:9c213fc39967	ok:9c213fc39967	engine	one_table@missing	create2005Statements(cr
 15151	15151	engine	one_table@missing	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 15151	15151	engine	one_table@missing	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 15151	15151	engine	one_table@missing	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	one_table@missing	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@missing	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -53,6 +56,8 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	createSchemaStatement(i
 263	263	engine	one_table@missing	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	one_table@missing	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	one_table@missing	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	one_table@missing	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	one_table@missing	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	one_table@missing	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	one_table@missing	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	one_table@missing	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -128,6 +133,8 @@ ok:c9be65ef10f0	ok:c9be65ef10f0	engine	one_table@missing	dropTriggerStatement(If
 4902	4902	engine	one_table@missing	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4902	4902	engine	one_table@missing	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4902	4902	engine	one_table@missing	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1088	1088	engine	one_table@missing	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1088	1088	engine	one_table@missing	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 ok:9c213fc39967	ok:9c213fc39967	engine	one_table@missing	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	one_table@missing	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	one_table@missing	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -136,6 +143,8 @@ ok:d6b574c79b2f	ok:d6b574c79b2f	engine	one_table@missing	createSequenceOptionLis
 15151	15151	engine	one_table@missing	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	one_table@missing	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	one_table@missing	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	one_table@missing	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	one_table@missing	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	one_table@missing	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 1088	1088	engine	one_table@missing	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 1088	1088	engine	one_table@missing	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -169,12 +178,23 @@ ok:a154d255e37d	ok:a154d255e37d	engine	one_table@missing	statementList(statement
 ok:845ad18135d4	ok:845ad18135d4	engine	one_table@missing	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	one_table@missing	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 ok:8d7f3e4992ab	ok:8d7f3e4992ab	engine	one_table@missing	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+ok:0361e162222f	ok:0361e162222f	engine	one_table@missing	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	one_table@missing	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	one_table@missing	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	one_table@missing	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	one_table@missing	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	one_table@missing	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	one_table@missing	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 ok:921144a110e1	ok:921144a110e1	engine	one_table@missing	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	one_table@missing	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	one_table@missing	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -201,6 +221,8 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4902	4902	engine	one_table@missing	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -242,6 +264,8 @@ ok:8f7dec70eb31	ok:8f7dec70eb31	engine	one_table@missing	createTableStatement(FI
 4902	4902	engine	one_table@missing	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4902	4902	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4902	4902	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4902	4902	engine	one_table@missing	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4902	4902	engine	one_table@missing	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4902	4902	engine	one_table@missing	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -367,6 +391,22 @@ ok	ok:05842bb4d524	engine	one_table@missing	suite:search-condition	CREATE TABLE 
 208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	one_table@missing	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+ok:26af27857885	ok:26af27857885	engine	one_table@missing	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+ok:7f766c2d0f2d	ok:7f766c2d0f2d	engine	one_table@missing	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+ok:3c8aea5db03e	ok:3c8aea5db03e	engine	one_table@missing	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+ok	ok:c670d9a03495	engine	one_table@missing	suite:table-definition	CREATE TABLE a(timestamp)
+ok	1911	engine	one_table@missing	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+ok:f9cc94968383	ok:f9cc94968383	engine	one_table@missing	suite:table-definition	CREATE TABLE a(a INT,)
+ok	1911	engine	one_table@missing	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+ok	1911	engine	one_table@missing	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+ok	2714	engine	one_table@missing	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+ok	2714	engine	one_table@missing	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+ok:f9cc94968383	ok:f9cc94968383	engine	one_table@missing	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+ok	13504	engine	one_table@missing	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+ok:46d501f90932	ok:46d501f90932	engine	one_table@missing	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	one_table@missing	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	one_table@missing	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	one_table@missing	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:b08530f8a202	ok:b08530f8a202	engine	one_table@table	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@table	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@table	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -392,6 +432,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	statement/truncateTableSt
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 2727	2727	engine	one_table@table	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	one_table@table	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -411,6 +453,7 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	partitionSpecifier(expres
 2714	2714	engine	one_table@table	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@table	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	one_table@table	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	one_table@table	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@table	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -420,6 +463,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	createSchemaStatement(ide
 263	263	engine	one_table@table	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	one_table@table	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	one_table@table	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	one_table@table	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	one_table@table	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	one_table@table	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	one_table@table	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	one_table@table	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -495,6 +540,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/maxDopOption_
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+2727	2727	engine	one_table@table	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+2727	2727	engine	one_table@table	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	one_table@table	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	one_table@table	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	one_table@table	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -503,6 +550,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/ignoreDupKeyI
 15151	15151	engine	one_table@table	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	one_table@table	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	one_table@table	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	one_table@table	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	one_table@table	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	one_table@table	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 1911	1911	engine	one_table@table	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 1911	1911	engine	one_table@table	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -536,12 +585,23 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	indexOption/ignoreDupKeyI
 2714	2714	engine	one_table@table	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	one_table@table	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	one_table@table	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	one_table@table	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	one_table@table	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	one_table@table	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	one_table@table	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	one_table@table	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	one_table@table	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	one_table@table	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	one_table@table	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	one_table@table	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 2714	2714	engine	one_table@table	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -568,6 +628,8 @@ ok:dd459a2c904c	ok:dd459a2c904c	engine	one_table@table	constraintEnforcement/NoC
 33411	33411	engine	one_table@table	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@table	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4924	4924	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4924	4924	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	one_table@table	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -609,6 +671,8 @@ ok:8cdc0a1f9ace	ok:8cdc0a1f9ace	engine	one_table@table	columnDefinition((compute
 ok:ccc3e812d051	ok:ccc3e812d051	engine	one_table@table	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+ok:eebe0310e395	ok:eebe0310e395	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+2715	2715	engine	one_table@table	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 2715	2715	engine	one_table@table	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	one_table@table	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -734,6 +798,22 @@ ok	207	engine	one_table@table	suite:search-condition	ALTER TABLE a ADD CONSTRAIN
 1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 1911	207	engine	one_table@table	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	one_table@table	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	one_table@table	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	one_table@table	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@table	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	one_table@table	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	one_table@table	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	one_table@table	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	one_table@table	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	one_table@table	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:700d834f3ec9	ok:700d834f3ec9	engine	one_table@column	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@column	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@column	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -759,6 +839,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	statement/truncateTableS
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 2727	2727	engine	one_table@column	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	one_table@column	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -778,6 +860,7 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	partitionSpecifier(expre
 2714	2714	engine	one_table@column	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@column	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	one_table@column	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	one_table@column	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@column	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -787,6 +870,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	createSchemaStatement(id
 263	263	engine	one_table@column	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	one_table@column	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	one_table@column	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	one_table@column	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	one_table@column	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	one_table@column	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	one_table@column	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	one_table@column	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -862,6 +947,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/maxDopOption
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+2727	2727	engine	one_table@column	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+2727	2727	engine	one_table@column	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	one_table@column	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	one_table@column	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	one_table@column	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -870,6 +957,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/ignoreDupKey
 15151	15151	engine	one_table@column	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	one_table@column	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	one_table@column	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	one_table@column	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	one_table@column	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	one_table@column	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 12002	12002	engine	one_table@column	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 12002	12002	engine	one_table@column	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -903,12 +992,23 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	indexOption/ignoreDupKey
 2714	2714	engine	one_table@column	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	one_table@column	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	one_table@column	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	one_table@column	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	one_table@column	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	one_table@column	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	one_table@column	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	one_table@column	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	one_table@column	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	one_table@column	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	one_table@column	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	one_table@column	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 2714	2714	engine	one_table@column	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -935,6 +1035,8 @@ ok:899120d16816	ok:899120d16816	engine	one_table@column	constraintEnforcement/No
 33411	33411	engine	one_table@column	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@column	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+ok:2391e8883445	ok:2391e8883445	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+2715	2715	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 2761	2761	engine	one_table@column	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@column	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -976,6 +1078,8 @@ ok:c1bdaacd0fe9	ok:c1bdaacd0fe9	engine	one_table@column	tableElement/tableConstr
 2705	2705	engine	one_table@column	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+2705	2705	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+2705	2705	engine	one_table@column	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 2705	2705	engine	one_table@column	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@column	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1101,6 +1205,22 @@ ok	ok:9e62fdb8391b	engine	one_table@column	suite:search-condition	CREATE INDEX i
 ok	ok:7b6cd725b87c	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 ok	ok:9e62fdb8391b	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 ok	ok:78c5726099f0	engine	one_table@column	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	one_table@column	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	one_table@column	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	one_table@column	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@column	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	one_table@column	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	one_table@column	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	one_table@column	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	one_table@column	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	one_table@column	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:5855584afb6a	ok:5855584afb6a	engine	one_table@index	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	one_table@index	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	one_table@index	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1126,6 +1246,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	statement/truncateTableSt
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 6333	6333	engine	one_table@index	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 6333	6333	engine	one_table@index	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -1145,6 +1267,7 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	partitionSpecifier(expres
 2714	2714	engine	one_table@index	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	one_table@index	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	one_table@index	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	one_table@index	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	one_table@index	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1154,6 +1277,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	createSchemaStatement(ide
 263	263	engine	one_table@index	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	one_table@index	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	one_table@index	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	one_table@index	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	one_table@index	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	one_table@index	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	one_table@index	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	one_table@index	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -1229,6 +1354,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/maxDopOption_
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+6333	6333	engine	one_table@index	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+6333	6333	engine	one_table@index	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	one_table@index	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	one_table@index	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	one_table@index	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -1237,6 +1364,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/ignoreDupKeyI
 15151	15151	engine	one_table@index	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	one_table@index	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	one_table@index	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	one_table@index	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	one_table@index	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	one_table@index	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 12002	12002	engine	one_table@index	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 12002	12002	engine	one_table@index	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -1270,12 +1399,23 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	indexOption/ignoreDupKeyI
 2714	2714	engine	one_table@index	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	one_table@index	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	one_table@index	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	one_table@index	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	one_table@index	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	one_table@index	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	one_table@index	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	one_table@index	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	one_table@index	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	one_table@index	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	one_table@index	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	one_table@index	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 2714	2714	engine	one_table@index	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -1302,6 +1442,8 @@ ok:f5f1edbfebb7	ok:f5f1edbfebb7	engine	one_table@index	constraintEnforcement/NoC
 33411	33411	engine	one_table@index	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	one_table@index	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+ok:aec4ae3e02cf	ok:aec4ae3e02cf	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+2715	2715	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 2761	2761	engine	one_table@index	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	one_table@index	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1343,6 +1485,8 @@ ok:c5b4fe588b97	ok:c5b4fe588b97	engine	one_table@index	tableElement/tableConstra
 2705	2705	engine	one_table@index	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+2705	2705	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+2705	2705	engine	one_table@index	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 2705	2705	engine	one_table@index	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	one_table@index	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1468,6 +1612,22 @@ ok	ok:0c65539824f3	engine	one_table@index	suite:search-condition	CREATE INDEX i 
 ok	ok:f7459222436c	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 ok	ok:0c65539824f3	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 ok	ok:63d1e1cfe57e	engine	one_table@index	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	one_table@index	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	one_table@index	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	one_table@index	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	one_table@index	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	one_table@index	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	one_table@index	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	one_table@index	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	one_table@index	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	one_table@index	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@view	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@view	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1493,6 +1653,8 @@ ok:35bdc4532691	ok:35bdc4532691	engine	objects@view	batch((lastStatementOptSemi)
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 2727	2727	engine	objects@view	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@view	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -1512,6 +1674,7 @@ ok:c27c5d345b68	ok:c27c5d345b68	engine	objects@view	alterIndexStatement(identifi
 2714	2714	engine	objects@view	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@view	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@view	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@view	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@view	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1521,6 +1684,8 @@ ok:c27c5d345b68	ok:c27c5d345b68	engine	objects@view	createSchemaStatement(identi
 263	263	engine	objects@view	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@view	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@view	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@view	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@view	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@view	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@view	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@view	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -1596,6 +1761,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@view	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@view	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+2727	2727	engine	objects@view	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+2727	2727	engine	objects@view	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@view	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@view	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@view	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -1604,6 +1771,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 15151	15151	engine	objects@view	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@view	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@view	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@view	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@view	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@view	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@view	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@view	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -1637,12 +1806,23 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 2714	2714	engine	objects@view	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@view	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@view	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@view	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@view	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@view	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@view	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@view	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@view	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@view	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@view	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@view	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@view	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -1669,6 +1849,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@view	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@view	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -1710,6 +1892,8 @@ ok:6661dedd5a59	ok:6661dedd5a59	engine	objects@view	dropViewStatement(If_Exists)
 4909	4909	engine	objects@view	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@view	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@view	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@view	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -1835,6 +2019,22 @@ ok	ok:9b84f16957c3	engine	objects@view	suite:search-condition	CREATE TABLE b (a 
 10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 10610	10610	engine	objects@view	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@view	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@view	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@view	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@view	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@view	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@view	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@view	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@view	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@view	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:a39909444bda	ok:a39909444bda	engine	objects@fk	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@fk	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@fk	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -1860,6 +2060,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	statement/alterTableStatement	
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 2727	2727	engine	objects@fk	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@fk	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -1879,6 +2081,7 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	partitionSpecifier(expression|
 2714	2714	engine	objects@fk	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@fk	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@fk	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@fk	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@fk	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -1888,6 +2091,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	createSchemaStatement(identifi
 263	263	engine	objects@fk	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@fk	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@fk	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@fk	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@fk	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@fk	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@fk	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@fk	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -1963,6 +2168,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/maxDopOption_MAXDO
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+2727	2727	engine	objects@fk	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+2727	2727	engine	objects@fk	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@fk	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@fk	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@fk	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -1971,6 +2178,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/ignoreDupKeyIndexO
 15151	15151	engine	objects@fk	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@fk	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@fk	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@fk	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@fk	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@fk	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 12002	12002	engine	objects@fk	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 12002	12002	engine	objects@fk	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -2004,12 +2213,23 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	indexOption/ignoreDupKeyIndexO
 2714	2714	engine	objects@fk	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@fk	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@fk	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@fk	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@fk	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@fk	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@fk	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@fk	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@fk	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@fk	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@fk	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@fk	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 2714	2714	engine	objects@fk	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -2036,6 +2256,8 @@ ok:ed0f75d531df	ok:ed0f75d531df	engine	objects@fk	constraintEnforcement/NoCheck	
 33411	33411	engine	objects@fk	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@fk	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+5074	5074	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+2715	2715	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 2761	2761	engine	objects@fk	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@fk	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2077,6 +2299,8 @@ ok:a597d2209282	ok:a597d2209282	engine	objects@fk	tableElement/tableConstraint	A
 2705	2705	engine	objects@fk	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2705	2705	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+2705	2705	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+2705	2705	engine	objects@fk	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 2705	2705	engine	objects@fk	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2705	2705	engine	objects@fk	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2202,6 +2426,22 @@ ok	ok:3b62ac82a2aa	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a 
 ok	ok:16b2f278c03f	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 ok	ok:3b62ac82a2aa	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 ok	ok:99d2032b93e0	engine	objects@fk	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@fk	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@fk	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@fk	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@fk	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@fk	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@fk	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@fk	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@fk	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@fk	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 2714	2714	engine	objects@schema	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@schema	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@schema	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2227,6 +2467,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	statement/truncateTableSta
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 2727	2727	engine	objects@schema	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 2727	2727	engine	objects@schema	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -2246,6 +2488,7 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	partitionSpecifier(express
 2714	2714	engine	objects@schema	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@schema	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@schema	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+ok:f75a0428ee97	ok:f75a0428ee97	engine	objects@schema	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 ok:f75a0428ee97	ok:f75a0428ee97	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@schema	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2255,6 +2498,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	createSchemaStatement(iden
 2714	2714	engine	objects@schema	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@schema	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@schema	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@schema	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@schema	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@schema	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@schema	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@schema	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -2330,6 +2575,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/maxDopOption_M
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+2727	2727	engine	objects@schema	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+2727	2727	engine	objects@schema	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@schema	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@schema	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@schema	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -2338,6 +2585,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/ignoreDupKeyIn
 15151	15151	engine	objects@schema	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@schema	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@schema	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@schema	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@schema	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@schema	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 1911	1911	engine	objects@schema	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 1911	1911	engine	objects@schema	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -2371,12 +2620,23 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	indexOption/ignoreDupKeyIn
 2714	2714	engine	objects@schema	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@schema	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@schema	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@schema	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@schema	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@schema	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@schema	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@schema	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@schema	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@schema	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@schema	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@schema	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 2714	2714	engine	objects@schema	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -2403,6 +2663,8 @@ ok:ad7ef34b6480	ok:ad7ef34b6480	engine	objects@schema	constraintEnforcement/NoCh
 33411	33411	engine	objects@schema	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 13591	13591	engine	objects@schema	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4924	4924	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4924	4924	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4924	4924	engine	objects@schema	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2444,6 +2706,8 @@ ok:e8519f0f49c4	ok:e8519f0f49c4	engine	objects@schema	columnDefinition((computed
 ok:a0e4c99fe8e4	ok:a0e4c99fe8e4	engine	objects@schema	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 2715	2715	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+ok:15c569d502fe	ok:15c569d502fe	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+2715	2715	engine	objects@schema	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 2715	2715	engine	objects@schema	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 2715	2715	engine	objects@schema	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2569,6 +2833,22 @@ ok	207	engine	objects@schema	suite:search-condition	ALTER TABLE a ADD CONSTRAINT
 1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 1911	207	engine	objects@schema	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@schema	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@schema	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@schema	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@schema	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@schema	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@schema	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@schema	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+ok:f75a0428ee97	ok:f75a0428ee97	engine	objects@schema	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@schema	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@sequence	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@sequence	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2594,6 +2874,8 @@ ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptS
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1914	1914	engine	objects@sequence	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@sequence	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -2613,6 +2895,7 @@ ok:ca6ffa04f178	ok:ca6ffa04f178	engine	objects@sequence	batch((lastStatementOptS
 2714	2714	engine	objects@sequence	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@sequence	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@sequence	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@sequence	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@sequence	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2622,6 +2905,8 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	createSchemaStatement(id
 263	263	engine	objects@sequence	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@sequence	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@sequence	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@sequence	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@sequence	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@sequence	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@sequence	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@sequence	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -2697,6 +2982,8 @@ ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	dropSchemaStatement(If_E
 4909	4909	engine	objects@sequence	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@sequence	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@sequence	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1914	1914	engine	objects@sequence	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1914	1914	engine	objects@sequence	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@sequence	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@sequence	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -2705,6 +2992,8 @@ ok:ab9d1c898969	ok:ab9d1c898969	engine	objects@sequence	commonSequenceOptionList
 ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 ok:ba4169ec1613	ok:ba4169ec1613	engine	objects@sequence	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 ok:4522c76e084f	ok:4522c76e084f	engine	objects@sequence	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@sequence	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@sequence	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@sequence	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@sequence	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -2738,12 +3027,23 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 2714	2714	engine	objects@sequence	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@sequence	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@sequence	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@sequence	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@sequence	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@sequence	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@sequence	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@sequence	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@sequence	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@sequence	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@sequence	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@sequence	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@sequence	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -2770,6 +3070,8 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@sequence	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -2811,6 +3113,8 @@ ok:05f99f60b270	ok:05f99f60b270	engine	objects@sequence	sequenceMinMaxOptionList
 4909	4909	engine	objects@sequence	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@sequence	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@sequence	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@sequence	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -2936,6 +3240,22 @@ ok	ok:5466a425aab3	engine	objects@sequence	suite:search-condition	CREATE TABLE b
 208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	objects@sequence	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@sequence	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@sequence	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@sequence	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@sequence	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@sequence	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@sequence	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@sequence	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@sequence	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@synonym	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@synonym	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -2961,6 +3281,8 @@ ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSe
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1914	1914	engine	objects@synonym	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@synonym	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -2980,6 +3302,7 @@ ok:9f5b0a656ba7	ok:9f5b0a656ba7	engine	objects@synonym	batch((lastStatementOptSe
 2714	2714	engine	objects@synonym	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@synonym	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@synonym	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@synonym	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@synonym	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -2989,6 +3312,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	createSchemaStatement(ide
 263	263	engine	objects@synonym	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@synonym	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@synonym	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@synonym	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@synonym	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@synonym	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@synonym	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@synonym	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -3064,6 +3389,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@synonym	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@synonym	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1914	1914	engine	objects@synonym	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1914	1914	engine	objects@synonym	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@synonym	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@synonym	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@synonym	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -3072,6 +3399,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 15151	15151	engine	objects@synonym	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@synonym	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@synonym	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@synonym	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@synonym	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@synonym	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@synonym	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@synonym	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -3105,12 +3434,23 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 2714	2714	engine	objects@synonym	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@synonym	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@synonym	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@synonym	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@synonym	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@synonym	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@synonym	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@synonym	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@synonym	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@synonym	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@synonym	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@synonym	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@synonym	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -3137,6 +3477,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@synonym	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3178,6 +3520,8 @@ ok:6765ddf8085d	ok:6765ddf8085d	engine	objects@synonym	dropSchemaStatement(If_Ex
 4909	4909	engine	objects@synonym	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@synonym	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@synonym	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@synonym	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3303,6 +3647,22 @@ ok	ok:a84d6a45cbbc	engine	objects@synonym	suite:search-condition	CREATE TABLE b 
 208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	objects@synonym	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@synonym	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@synonym	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@synonym	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@synonym	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@synonym	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@synonym	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@synonym	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@synonym	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:2b3aebfef9a1	ok:2b3aebfef9a1	engine	objects@procedure	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@procedure	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@procedure	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3328,6 +3688,8 @@ ok:d5c38e36635a	ok:d5c38e36635a	engine	objects@procedure	createOrAlterStatements
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1914	1914	engine	objects@procedure	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@procedure	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -3347,6 +3709,7 @@ ok:d5c38e36635a	ok:d5c38e36635a	engine	objects@procedure	createOrAlterStatements
 2714	2714	engine	objects@procedure	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@procedure	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@procedure	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@procedure	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@procedure	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -3356,6 +3719,8 @@ ok:6f3fb0572b8d	ok:6f3fb0572b8d	engine	objects@procedure	createSchemaStatement(i
 263	263	engine	objects@procedure	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@procedure	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@procedure	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@procedure	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@procedure	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@procedure	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@procedure	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@procedure	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -3431,6 +3796,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@procedure	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@procedure	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1914	1914	engine	objects@procedure	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1914	1914	engine	objects@procedure	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@procedure	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@procedure	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@procedure	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -3439,6 +3806,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 15151	15151	engine	objects@procedure	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@procedure	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@procedure	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@procedure	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@procedure	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@procedure	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@procedure	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@procedure	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -3472,12 +3841,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 2714	2714	engine	objects@procedure	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@procedure	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@procedure	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@procedure	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@procedure	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@procedure	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@procedure	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@procedure	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@procedure	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@procedure	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@procedure	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@procedure	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@procedure	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -3504,6 +3884,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@procedure	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3545,6 +3927,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@procedure	dropProcedureStatement(
 4909	4909	engine	objects@procedure	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@procedure	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@procedure	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@procedure	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -3670,6 +4054,22 @@ ok	ok:cba6b831387b	engine	objects@procedure	suite:search-condition	CREATE TABLE 
 208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	objects@procedure	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@procedure	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@procedure	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@procedure	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@procedure	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@procedure	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@procedure	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@procedure	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@procedure	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@function	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@function	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -3695,6 +4095,8 @@ ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptS
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1914	1914	engine	objects@function	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@function	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -3714,6 +4116,7 @@ ok:e8852332e164	ok:e8852332e164	engine	objects@function	batch((lastStatementOptS
 2714	2714	engine	objects@function	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@function	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@function	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@function	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@function	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -3723,6 +4126,8 @@ ok:fd707678ed78	ok:fd707678ed78	engine	objects@function	createSchemaStatement(id
 263	263	engine	objects@function	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@function	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@function	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@function	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@function	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@function	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@function	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@function	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -3798,6 +4203,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@function	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@function	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1914	1914	engine	objects@function	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1914	1914	engine	objects@function	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@function	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@function	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@function	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -3806,6 +4213,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 15151	15151	engine	objects@function	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@function	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@function	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@function	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@function	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@function	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@function	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@function	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -3839,12 +4248,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 2714	2714	engine	objects@function	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@function	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@function	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@function	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@function	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@function	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@function	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@function	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@function	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@function	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@function	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@function	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@function	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -3871,6 +4291,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@function	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@function	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -3912,6 +4334,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@function	dropFunctionStatement(If
 4909	4909	engine	objects@function	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@function	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@function	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@function	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -4037,6 +4461,22 @@ ok	ok:e5ce0a09158a	engine	objects@function	suite:search-condition	CREATE TABLE b
 208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	objects@function	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@function	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@function	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@function	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@function	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@function	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@function	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@function	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@function	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@function	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a
 ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSemi)|(optSimpleExe~edff3040)/lastStatementOptSemi	CREATE SCHEMA a
 102	102	engine	objects@trigger	ctasCreateTableStatement/(columnNameList)?_withTableOptions_As_selectStatement	CREATE TABLE a WITH(HEAP) AS SELECT *
 173	173	engine	objects@trigger	ctasCreateTableStatement(columnNameList)?/columnNameList	CREATE TABLE a(a) WITH(HEAP) AS SELECT *
@@ -4062,6 +4502,8 @@ ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSe
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec	ALTER INDEX a ON a FOR(ADD a = 'a')
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath/identifier_EqualsSign_stringLiteral_(As_(identifier_XQU~7e4533ec+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = N'a')
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL a)
+1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL DOUBLE PRECISION)
+1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(identifier_XQUERY_(stringLiteral)?_m~e51d7a93)/SQL_scalarDataType+scalarDataType/doubleDataType!drop-2	ALTER INDEX a ON a FOR(ADD a = 'a' AS SQL PRECISION)
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY 'a')
 1914	1914	engine	objects@trigger	promotedSelectiveXmlIndexPath(stringLiteral)?/stringLiteral+stringLiteral/UnicodeStringLiteral	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY N'a')
 1914	1914	engine	objects@trigger	singletonOption(identifier_SINGLETON)?/identifier_SINGLETON	ALTER INDEX a ON a FOR(ADD a = 'a' AS XQUERY SINGLETON)
@@ -4081,6 +4523,7 @@ ok:67933fa12252	ok:67933fa12252	engine	objects@trigger	batch((lastStatementOptSe
 2714	2714	engine	objects@trigger	executeAsClause/(Exec|Execute)_As_(stringLiteral|Identifier)	CREATE PROC a WITH EXEC AS 'a' AS
 2714	2714	engine	objects@trigger	executeAsClause(Exec|Execute)/Execute	CREATE PROC a WITH EXECUTE AS 'a' AS
 2714	2714	engine	objects@trigger	executeAsClause(stringLiteral|Identifier)/stringLiteral+stringLiteral/UnicodeStringLiteral	CREATE PROC a WITH EXEC AS N'a' AS
+15151	15151	engine	objects@trigger	alterSchemaStatement/Schema_identifier_TRANSFER_((OBJECT|TYPE)_DoubleColon|X~782f9873+schemaObjectTwoPartName/Dot_identifier	ALTER SCHEMA a TRANSFER.a
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon	ALTER SCHEMA a TRANSFER OBJECT :: a
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/(OBJECT|TYPE)_DoubleColon!truncate	ALTER SCHEMA a TRANSFER OBJECT
 15151	15151	engine	objects@trigger	alterSchemaStatement((OBJECT|TYPE)_DoubleColon|XML_Schema~9415843d)?/XML_Schema_COLLECTION_DoubleColon	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION :: a
@@ -4090,6 +4533,8 @@ ok:46a2bbfa8c1a	ok:46a2bbfa8c1a	engine	objects@trigger	createSchemaStatement(ide
 263	263	engine	objects@trigger	createSchemaElement(createViewStatement|createTableState~7fe00a04)/createViewStatement	CREATE SCHEMA a CREATE VIEW a AS SELECT *
 2715	2715	engine	objects@trigger	functionStatementBody(functionParameterList)?/functionParameterList	CREATE FUNCTION a(@a a) RETURNS a BEGIN SELECT 1 END
 2715	2715	engine	objects@trigger	functionParameter(As)?/As	CREATE FUNCTION a(@a AS a) RETURNS a BEGIN SELECT 1 END
+444	444	engine	objects@trigger	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType	CREATE FUNCTION a() RETURNS DOUBLE PRECISION BEGIN SELECT 1 END
+2715	2715	engine	objects@trigger	functionReturnTypeAndBody/scalarDataType_(functionAttributes)?_(As)?_(beginEndBlo~be78d18b+scalarDataType/doubleDataType!drop-1	CREATE FUNCTION a() RETURNS PRECISION BEGIN SELECT 1 END
 263	263	engine	objects@trigger	functionReturnTypeAndBody/Table_(functionAttributesNoExecuteAs)?_(As)?_Return_fun~d3b2c518	CREATE FUNCTION a() RETURNS TABLE RETURN SELECT *
 2715	2715	engine	objects@trigger	functionReturnTypeAndBody(As)?/As	CREATE FUNCTION a() RETURNS a AS BEGIN SELECT 1 END
 15151	15151	engine	objects@trigger	functionReturnTypeAndBody(beginEndBlockStatement|methodSpecifi~da17a7f7)/methodSpecifier_optSemicolons	CREATE FUNCTION a() RETURNS a EXTERNAL NAME a.a.a
@@ -4165,6 +4610,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	indexOption/xmlCompressionOption_XML_COMPRESSION	ALTER TABLE a REBUILD WITH(XML_COMPRESSION = ON)
 4909	4909	engine	objects@trigger	indexOption/onlineIndexOption_ONLINE	ALTER TABLE a REBUILD WITH(ONLINE = ON)
 4909	4909	engine	objects@trigger	indexOption/ignoreDupKeyIndexOption_IGNORE_DUP_KEY	ALTER TABLE a REBUILD WITH(IGNORE_DUP_KEY = ON)
+1914	1914	engine	objects@trigger	xmlNamespaces/XMLNAMESPACES_LeftParenthesis_xmlNamespacesElement_(Com~dd801271+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES('a' AS a) FOR(REMOVE a)
+1914	1914	engine	objects@trigger	xmlNamespaces(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*+xmlNamespacesElement/xmlNamespacesAliasElement	ALTER INDEX a ON a WITH XMLNAMESPACES(DEFAULT 'a', 'a' AS a) FOR(REMOVE a)
 2714	2714	engine	objects@trigger	createSequenceOptionList/(createSequenceOptionListElement)+	CREATE SEQUENCE a CACHE
 15151	15151	engine	objects@trigger	alterSequenceOptionListElement/commonSequenceOptionListElement	ALTER SEQUENCE a CACHE
 243	243	engine	objects@trigger	createSequenceOptionListElement/sequenceDatatypeOptionListElement	CREATE SEQUENCE a AS a
@@ -4173,6 +4620,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 15151	15151	engine	objects@trigger	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceIncrementOptionListElement_INCREMENT	ALTER SEQUENCE a INCREMENT BY 1
 15151	15151	engine	objects@trigger	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceNoOptionListElement_NO	ALTER SEQUENCE a NO MINVALUE
 15151	15151	engine	objects@trigger	commonSequenceOptionListElement(sequenceCacheOptionListElement_CACHE~f84504cc)/sequenceMinMaxOptionListElement	ALTER SEQUENCE a MINVALUE 1
+243	11702	engine	objects@trigger	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType	CREATE SEQUENCE a AS DOUBLE PRECISION
+243	243	engine	objects@trigger	sequenceDatatypeOptionListElement/As_scalarDataType+scalarDataType/doubleDataType!drop-2	CREATE SEQUENCE a AS PRECISION
 15151	15151	engine	objects@trigger	sequenceMinMaxOptionListElement(MINVALUE|MAXVALUE)/MAXVALUE	ALTER SEQUENCE a MAXVALUE 1
 6334	6334	engine	objects@trigger	spatialIndexingScheme/USING_Identifier	CREATE SPATIAL INDEX a ON a(a) USING a
 6334	6334	engine	objects@trigger	spatialIndexOptionsList/LeftParenthesis_spatialIndexOption_(Comma_spatialIndexO~ed223069	CREATE SPATIAL INDEX a ON a(a) WITH(CELLS_PER_OBJECT = 1)
@@ -4206,12 +4655,23 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 2714	2714	engine	objects@trigger	statementList(statementOptSemi)+/statementOptSemi_(statementOptSemi)+!insert	CREATE PROC a AS SELECT 1 SELECT 1 zzz
 2715	2715	engine	objects@trigger	procedureParameter(As)?/As	CREATE PROC a @a AS a AS
 2714	2714	engine	objects@trigger	procedureParameter(cursorProcedureParameter|scalarProce~6c551644)/cursorProcedureParameter	CREATE PROC a @a CURSOR VARYING OUTPUT AS
+2714	2714	engine	objects@trigger	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType	CREATE PROC a @a DOUBLE PRECISION AS
+2715	2715	engine	objects@trigger	scalarProcedureParameter/scalarDataType_(nullableConstraint)?_(EqualsSign_(possi~792c3dd3+scalarDataType/doubleDataType!drop-1	CREATE PROC a @a PRECISION AS
 2715	2715	engine	objects@trigger	scalarProcedureParameter(nullableConstraint)?/nullableConstraint	CREATE PROC a @a a NULL AS
 2715	2715	engine	objects@trigger	scalarProcedureParameter(EqualsSign_(possibleNegativeConstant~dd11ae41)?/EqualsSign_possibleNegativeConstantOrIdentifierWithDefault	CREATE PROC a @a a = 1 AS
 2715	2715	engine	objects@trigger	scalarProcedureParameter((READONLY|OUTPUT|OUT))?/(READONLY|OUTPUT|OUT)	CREATE PROC a @a a READONLY AS
 2715	2715	engine	objects@trigger	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUTPUT	CREATE PROC a @a a OUTPUT AS
 2715	2715	engine	objects@trigger	scalarProcedureParameter(READONLY|OUTPUT|OUT)/OUT	CREATE PROC a @a a OUT AS
 2714	2714	engine	objects@trigger	cursorProcedureParameter(OUTPUT|OUT)/OUT	CREATE PROC a @a CURSOR VARYING OUT AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/numeric	CREATE PROC a @a a = 1.5 AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/real	CREATE PROC a @a a = 1E1 AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/moneyLiteral	CREATE PROC a @a a = $1 AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/binary	CREATE PROC a @a a = 0x00 AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/stringLiteral	CREATE PROC a @a a = 'a' AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+stringLiteral/UnicodeStringLiteral	CREATE PROC a @a a = N'a' AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+literal/nullLiteral	CREATE PROC a @a a = NULL AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstant/negativeConstant	CREATE PROC a @a a = - 1 AS
+2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/possibleNegativeConstantOrIdentifier+possibleNegativeConstantOrIdentifier/identifierLiteral	CREATE PROC a @a a = a AS
 2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral	CREATE PROC a @a a = DEFAULT AS
 2715	2715	engine	objects@trigger	possibleNegativeConstantOrIdentifierWithDefault/defaultLiteral!swap	CREATE PROC a @a a = DEFAULT_DATABASE AS
 8197	8197	engine	objects@trigger	triggerStatementBody(ddlTriggerMidSection|dmlTriggerMidSection)/dmlTriggerMidSection	CREATE TRIGGER a ON a FOR INSERT AS SELECT 1
@@ -4238,6 +4698,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	tableOption/fileTableDirectoryTableOption_FILETABLE_DIRECTORY	ALTER TABLE a SET(FILETABLE_DIRECTORY = 'a')
 4909	4909	engine	objects@trigger	tableOption/systemVersioningTableOnOffOption_SYSTEM_VERSIONING	ALTER TABLE a SET(SYSTEM_VERSIONING = OFF)
 448	448	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+collationOpt	ALTER TABLE a ALTER COLUMN a a COLLATE a
+4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType	ALTER TABLE a ALTER COLUMN a DOUBLE PRECISION
+4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/scalarDataType_collationOpt_(generatedAlwaysClauseInAlt~07e7790c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ALTER COLUMN a PRECISION
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(scalarDataType_collationOpt_(generat~6dfcde55)/(Add|Drop)_(RowGuidColumn|Not_For_Replication|(P~d671d3f4)	ALTER TABLE a ALTER COLUMN a ADD ROWGUIDCOL
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ALTER COLUMN a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	alterTableAlterColumnStatement((columnStorage_SPARSE|columnStorage_~41553834)?/(columnStorage_SPARSE|columnStorage_F~86b79a56)	ALTER TABLE a ALTER COLUMN a a SPARSE
@@ -4279,6 +4741,8 @@ ok:dbcb632948c8	ok:dbcb632948c8	engine	objects@trigger	dropTriggerStatement(If_E
 4909	4909	engine	objects@trigger	computedColumnBody(PERSISTED)?/PERSISTED	ALTER TABLE a ADD a AS 1 PERSISTED
 4909	4909	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c	ALTER TABLE a ADD a a
 448	448	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+collationOpt	ALTER TABLE a ADD a a COLLATE a
+4909	4909	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType	ALTER TABLE a ADD a DOUBLE PRECISION
+4909	4909	engine	objects@trigger	regularColumnBody(scalarDataType_collationOpt_(generat~64b2eac1)?/scalarDataType_collationOpt_(generatedAlwaysClause_GENE~c8a8894c+scalarDataType/doubleDataType!drop-1	ALTER TABLE a ADD a PRECISION
 4909	4909	engine	objects@trigger	regularColumnBody(maskedClause_MASKED)?/maskedClause_MASKED	ALTER TABLE a ADD a a MASKED WITH(FUNCTION = 'a')
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/sparseStorage_SPARSE_(columnEncryptionClause_ENCRYPTED)?	ALTER TABLE a ADD a a SPARSE
 4909	4909	engine	objects@trigger	regularColumnBody((sparseAndFilestreamStorage_SPARSE|s~bf45ae61)?/allSparseStorage_COLUMN_SET	ALTER TABLE a ADD a a COLUMN_SET FOR ALL_SPARSE_COLUMNS
@@ -4404,3 +4868,19 @@ ok	ok:a5f1c2c9fc16	engine	objects@trigger	suite:search-condition	CREATE TABLE b 
 208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IS NULL
 208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a IN (1)
 208	208	engine	objects@trigger	suite:search-condition	CREATE INDEX i ON a (a) WHERE a <> 1 AND a > 0
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(UNIQUE(a), a INT)
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(a AS 1, b INT)
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(b INT, a AS 1)
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(timestamp)
+2714	1911	engine	objects@trigger	suite:table-definition	CREATE TABLE a(timestamp, UNIQUE(a))
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(a INT,)
+2714	1911	engine	objects@trigger	suite:table-definition	CREATE TABLE a(UNIQUE(a)) AS EDGE
+2714	1911	engine	objects@trigger	suite:table-definition	CREATE TABLE a(INDEX a(a)) AS EDGE
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(CONSTRAINT a CONNECTION (a TO a)) AS EDGE
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(a AS 1, INDEX a(a)) AS EDGE
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE TABLE a(a INT) AS NODE
+2714	13504	engine	objects@trigger	suite:table-definition	CREATE TABLE a(a INT, PERIOD FOR SYSTEM_TIME(a, a))
+2714	2714	engine	objects@trigger	suite:table-definition	CREATE FUNCTION a() RETURNS @a TABLE(a AS 1, b INT) AS BEGIN RETURN END
+15151	6528	engine	objects@trigger	suite:table-definition	CREATE FUNCTION a() RETURNS TABLE(a INT) AS EXTERNAL NAME a.a.a
+15151	15151	engine	objects@trigger	suite:names	ALTER SCHEMA a TRANSFER OBJECT::.a
+15151	15151	engine	objects@trigger	suite:names	ALTER SCHEMA a TRANSFER XML SCHEMA COLLECTION::.a

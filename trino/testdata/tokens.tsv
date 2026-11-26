@@ -97,3 +97,28 @@ statement(argument_(,_argument)*)?	(every site)	SqlBase.g4:132 a procedure's arg
 primaryExpression(expression_(,_expression)*)?	(every site)	SqlBase.g4:631 an ARRAY constructor's elements
 groupingElement(groupingSet_(,_groupingSet)*)?	(every site)	SqlBase.g4:337 ROLLUP and CUBE's grouping sets
 tableArgumentRelation(AS?_identifier_columnAliases?)?	(every site)	SqlBase.g4:552 a table argument's alias
+# Second wave-21 pass: more choice rules and optional clauses that several
+# alternatives name.
+queryTerm	(every alternative)	SqlBase.g4:300 a query term or a set operation
+relation	(every alternative)	SqlBase.g4:373 a join or a sampled relation
+planPrimary	(every alternative)	SqlBase.g4:525 a plan's path name or parenthesized plan
+jsonTableDefaultPlan(OUTER|INNER)	(every alternative)	SqlBase.g4:531 OUTER or INNER in a default plan
+jsonTableDefaultPlan(UNION|CROSS)	(every alternative)	SqlBase.g4:532 UNION or CROSS in a default plan
+jsonObjectMember	(every alternative)	SqlBase.g4:745 KEY ... VALUE or a colon
+mergeCase	(every alternative)	SqlBase.g4:837 a MERGE case of each kind
+rowPattern	(every alternative)	SqlBase.g4:877 a pattern, a concatenation or an alternation
+simpleWhenClause	(every alternative)	SqlBase.g4:824 a WHEN with a partial predicate or an expression
+pathElement	(every alternative)	SqlBase.g4:927 a path element, qualified or not
+statement(string|NULL)	(every alternative)	SqlBase.g4:85 a comment's string or NULL
+intervalQualifier(DAY|HOUR|MINUTE)	(every alternative)	SqlBase.g4:807 DAY, HOUR or MINUTE as an interval field
+methodName	(every alternative)	SqlBase.g4:1054 an identifier or a keyword
+type(WITHOUT_TIME_ZONE)?	(every site)	SqlBase.g4:793 WITHOUT TIME ZONE
+primaryExpression(processingMode)?	(every site)	SqlBase.g4:614 RUNNING or FINAL before a call
+booleanExpression	(every alternative)	SqlBase.g4:573 a predicate, NOT, AND or OR
+statement(WORK)?	(every site)	SqlBase.g4:206 COMMIT or ROLLBACK's WORK
+primaryExpression(ELSE_expression)?	(every site)	SqlBase.g4:627 a CASE expression's ELSE
+primaryExpression(argument_(,_argument)*)?	(every site)	SqlBase.g4:616 a call's arguments
+statement(,_privilegeOrRole)*	(every site)	SqlBase.g4:148 a second privilege or role
+statement(,_principal)*	(every site)	SqlBase.g4:149 a second grantee
+statement((privilegeOrRole_(,_privilegeOrRole)~adbbce80)	(every alternative)	SqlBase.g4:154 a privilege list or ALL PRIVILEGES
+controlStatement(caseStatementWhenClause)+	(every alternative)	SqlBase.g4:970 one or more CASE statement WHEN clauses

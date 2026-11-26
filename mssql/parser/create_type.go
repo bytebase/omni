@@ -132,6 +132,9 @@ func (p *Parser) parseCreateTypeStmt() (*nodes.CreateTypeStmt, error) {
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		if !tableDefHasColumn(elements, false) {
+			return nil, p.transSyntaxErrorAtPrev()
+		}
 		stmt.TableDef = &nodes.List{Items: elements}
 		// [ WITH ( MEMORY_OPTIMIZED = { ON | OFF } ) ]
 		if p.cur.Type == kwWITH {

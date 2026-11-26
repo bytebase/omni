@@ -193,3 +193,20 @@ func TestOptWhereClauseMatchesPG(t *testing.T) {
 		{"ALTER PUBLICATION p ADD TABLE t WHERE a > 0", false},
 	})
 }
+
+// TestTypedTablePartitionAndSignOperatorsMatchPG pins two gram.y forms omni
+// refused: OptPartitionSpec after CREATE TABLE ... OF any_name
+// (gram.y:3608), and a bare + or - as a definition's argument, which
+// def_arg and operator_def_arg take through qual_all_Op's MathOp
+// (gram.y:16478) when no number follows.
+func TestTypedTablePartitionAndSignOperatorsMatchPG(t *testing.T) {
+	assertSyntaxMatchesPG(t, []syntaxCase{
+		{"CREATE TABLE t OF typ PARTITION BY RANGE (a)", true},
+		{"CREATE TABLE IF NOT EXISTS t OF typ (a WITH OPTIONS NOT NULL) PARTITION BY HASH (a) USING heap", true},
+		{"CREATE TABLE t OF typ PARTITION BY RANGE", false},
+		{"CREATE OPERATOR === (FUNCTION = f, COMMUTATOR = +)", true},
+		{"ALTER TYPE t SET (a = -)", true},
+		{"ALTER TYPE t SET (a = - 1)", true},
+		{"ALTER TYPE t SET (a = + +)", false},
+	})
+}

@@ -126,3 +126,29 @@ loginPassword	(every alternative)	TSql160.g:9289 a password as a binary or a str
 expressionWithDefault	(every alternative)	TSql160.g:32480 an expression or DEFAULT
 indexOption	(every alternative)	TSql160.g:17632 an index option
 tableHint	(every alternative)	TSql160.g:21058 a table hint
+scalarDataType	(every alternative)	TSql160.g:30180 a type: a name, DOUBLE PRECISION or a NATIONAL type
+assignmentWithOptOp	(every alternative)	TSql160.g:33655 = or a compound assignment
+literal	(every alternative)	TSql160.g:33382 a literal of each kind
+dmlTarget	(every alternative)	TSql160.g:20077 a DML target: a name, OPENROWSET or a variable
+tableElement	(every alternative)	TSql160.g:28890 a table's column, constraint, index or period
+cursorId	(every alternative)	TSql160.g:14657 a cursor: GLOBAL name, a name or a variable
+transactionName	(every alternative)	TSql160.g:16007 a transaction's name
+windowFrameDelimiter	(every alternative)	TSql160.g:32121 CURRENT ROW, n PRECEDING or UNBOUNDED
+schemaObjectTwoPartName	(every alternative)	TSql160.g:30407 a two-part name, or one with an empty schema
+possibleNegativeConstant	(every alternative)	TSql160.g:25160 a constant, or a negative one
+expressionUnary	(every alternative)	TSql160.g:31406 a signed expression
+groupByItem	(every alternative)	TSql160.g:21274 a GROUP BY item of each kind
+groupingSetItem	(every alternative)	TSql160.g:21352 a grouping set's item
+groupingSet	(every alternative)	TSql160.g:21309 a grouping set
+joinElement	(every alternative)	TSql160.g:19005 a join of each kind
+xmlNamespacesElement	(every alternative)	TSql160.g:17727 DEFAULT or an aliased XML namespace
+fileDecl	(every alternative)	TSql160.g:4635 a database file, PRIMARY or not
+writeString	(every alternative)	TSql160.g:14361 WRITETEXT's data
+possibleNegativeConstantOrIdentifier	(every alternative)	TSql160.g:25132 a constant or a name
+outputClauseSelectElement	(every alternative)	TSql160.g:18388 an OUTPUT column or a star
+indexKeyColumn	(every alternative)	TSql160.g:17007 an index key: a column or a graph pseudo-column
+selectExpression	(every alternative)	TSql160.g:18355 a select item: a variable assignment, a star or a column
+securityPredicateOperation	(every alternative)	TSql160.g:23636 a block predicate's operation
+signableElement	(every alternative)	TSql160.g:15768 a signed module, assembly or database
+alterRoleAction	(every alternative)	TSql160.g:12553 ADD MEMBER, DROP MEMBER or a rename
+functionAttributeNoExecuteAs	(every alternative)	TSql160.g:13177 a function attribute

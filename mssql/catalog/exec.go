@@ -3714,7 +3714,9 @@ func computedExprReferencesColumn(colType, tableName, colName string) bool {
 	if !isComputedColumnType(colType) {
 		return false
 	}
-	stmts, err := mssql.Parse("CREATE TABLE _ (_ " + colType + ")")
+	// SQL Server's parser refuses a table of computed columns alone, so the
+	// wrapper gives the table a typed column after this one.
+	stmts, err := mssql.Parse("CREATE TABLE _ (_ " + colType + ", __ INT)")
 	if err != nil || len(stmts) == 0 {
 		return false
 	}
