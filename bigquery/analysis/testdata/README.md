@@ -68,20 +68,24 @@ that hold the text.
   sync stores no routines, so omni lists none of them, and fails closed on a
   star over a table function and on its range variable used as a value
   (`SELECT x FROM f() AS x`), whose columns it cannot list.
-- Pipe syntax: omni fails closed on `PIVOT`, `UNPIVOT`, `CALL`,
-  `MATCH_RECOGNIZE` and a recursive union, and on any operator that changes
-  the projection of an input it cannot list column by column (a wildcard
-  table, a table without metadata). The other operators agree.
+- Pipe syntax: omni fails closed on `CALL`, `MATCH_RECOGNIZE` and a
+  recursive union, and on any operator that changes the projection of an
+  input it cannot list column by column (a wildcard table, a table without
+  metadata). The other operators agree.
 - Stars omni does not expand: a struct column's fields (`Ship.*`, and
-  `UNNEST` of an array of structs under `*`), a wildcard table's columns
+  `UNNEST` of an array of structs under `*`), and a wildcard table's columns
   (`` `events_*` ``, whose schema BigQuery takes from the newest matching
-  table), `PIVOT` and `UNPIVOT` output, and the fields of `SELECT AS VALUE
-  STRUCT(…)`.
+  table).
 - `FULL` and `LEFT UNION ALL BY NAME` do not parse.
 - omni resolves names BigQuery refuses: a table name in another case (table
-  names are case-sensitive), a column that does not exist, an ambiguous
-  column, `= ANY (subquery)`, a CTE column list, and an unqualified table
-  function.
+  names are case-sensitive), a table or column that does not exist, a column
+  qualified by its dataset, an ambiguous column, a range variable inside a
+  subquery that has an alias, `= ANY (subquery)`, a CTE column list, an
+  unqualified table function, and a top-level `SELECT AS VALUE` that is not a
+  struct.
+- Both refuse, so the answers differ only in the error: `FOR SYSTEM TIME`
+  without the underscore, and an unqualified table function under `*` or
+  `CALL`.
 
 ## query-span/*.yaml
 

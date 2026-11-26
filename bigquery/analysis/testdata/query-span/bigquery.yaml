@@ -484,7 +484,12 @@
     type: 1
     results:
       - name: f0_
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: people
+            column: NAME
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false
@@ -1826,7 +1831,12 @@
     type: 1
     results:
       - name: c
-        sourcecolumns: []
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: t2
+            column: x
         isplainfield: false
         sourcefieldpaths: []
         selectasterisk: false

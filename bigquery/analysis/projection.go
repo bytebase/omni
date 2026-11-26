@@ -167,6 +167,20 @@ func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*r
 		}
 		return w.starProjColumns(allColumns(fromRels), nil)
 	}
+	if fields := valueStructFields(stmt); fields != nil {
+		// SELECT AS VALUE STRUCT(...) returns a value table whose columns are
+		// the struct's fields.
+		out := make([]projColumn, 0, len(fields))
+		for _, f := range fields {
+			_, sources := w.resolveExprSources(f.Value)
+			name := f.Alias
+			if name == "" {
+				name = implicitAlias(f.Value)
+			}
+			out = append(out, projColumn{name: name, sources: sources})
+		}
+		return out
+	}
 	var out []projColumn
 	for _, item := range stmt.Items {
 		if item == nil {
@@ -190,6 +204,28 @@ func (w *spanWalker) resolveSelectProjection(stmt *ast.SelectStmt, fromRels []*r
 		}
 	}
 	return out
+}
+
+// valueStructFields returns the fields of a SELECT AS VALUE whose one item is
+// a STRUCT constructor without a type, which names its fields; nil
+// otherwise.
+func valueStructFields(stmt *ast.SelectStmt) []*ast.StructFieldExpr {
+	if stmt.As != ast.SelectAsValue || len(stmt.Items) != 1 || stmt.Items[0] == nil || stmt.Items[0].Star {
+		return nil
+	}
+	expr := stmt.Items[0].Expr
+	for {
+		p, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		expr = p.Expr
+	}
+	st, ok := expr.(*ast.StructExpr)
+	if !ok || st.Type != nil || len(st.Fields) == 0 {
+		return nil
+	}
+	return st.Fields
 }
 
 // starProjColumns turns a star item's resolved expansion `segments` into one or
@@ -285,15 +321,13 @@ func implicitAlias(expr ast.Node) string {
 // their base lineage against the FROM relations, returning a best-effort output
 // name and the merged source set (the legacy extractSourceColumnSetFromExpr): each
 // maximal dotted column path is resolved by resolvePath; a multi-reference
-// expression has no derivable name.
+// expression has no derivable name. A scalar or ARRAY subquery adds the
+// sources of its output (subquerySources).
 func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 	if expr == nil || w.tablesOnly {
 		return "", nil
 	}
-	paths := w.collectColumnPaths(expr)
-	if len(paths) == 0 {
-		return "", nil
-	}
+	paths, subqueries := w.collectColumnPaths(expr)
 	// One refUnion for the whole expression: re-unioning the sources gathered
 	// so far with each path's made `a1 + a2 + ... + an` cost O(n^2).
 	var sources refUnion
@@ -306,7 +340,48 @@ func (w *spanWalker) resolveExprSources(expr ast.Node) (string, []ColumnRef) {
 	if len(paths) > 1 {
 		name = ""
 	}
+	for _, q := range subqueries {
+		sources.add(w.subquerySources(q))
+	}
 	return name, sources.refs
+}
+
+// subquerySources is the lineage of a scalar or ARRAY subquery's value: the
+// sources of every column its body returns. The body is its own scope; a
+// correlated reference to a range variable of the outer query resolves in the
+// outer scope (resolvePath), and an unqualified one stays a written
+// reference, which the consumer matches by column name. It fails closed when the
+// output cannot be listed column by column, since an empty lineage would leave
+// the value unmasked.
+func (w *spanWalker) subquerySources(query ast.Node) []ColumnRef {
+	if query == nil {
+		return nil
+	}
+	if w.lineageSubqueries == nil {
+		w.lineageSubqueries = map[ast.Node]bool{}
+	}
+	w.lineageSubqueries[query] = true
+	prevRanges := w.outRanges
+	w.enclosing = append(w.enclosing, w.leaves)
+	cols := w.visitBody(query)
+	w.enclosing = w.enclosing[:len(w.enclosing)-1]
+	w.outRanges = prevRanges
+	cols, ok := w.pipeConcrete(withoutSystemStars(cols))
+	switch {
+	case !ok && w.columnsOf == nil:
+		// GetQuerySpan has no metadata to list a star with, and leaves the
+		// value without sources.
+		w.opaqueSubqueries++
+		return nil
+	case !ok:
+		w.failClosed(fmt.Errorf("a subquery whose output columns cannot be listed (fail closed)"))
+		return nil
+	}
+	var sources refUnion
+	for _, c := range cols {
+		sources.add(c.sources)
+	}
+	return sources.refs
 }
 
 // resolvePath resolves one dotted column path (e.g. [col] or [rel, col] or
@@ -344,7 +419,15 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 			return col, nil
 		}
 		w.requirePipeColumn(col)
-		return col, w.resolveColumn("", col)
+		refs := w.resolveColumn("", col)
+		// Inside a scalar or ARRAY subquery the name may be an enclosing
+		// query's range variable, read whole. A column of the current scope
+		// shadows it, which omni cannot always tell without metadata, so both
+		// are read.
+		if rel := w.enclosingRange(col); rel != nil {
+			refs = append(refs, w.rangeVariableSources(rel)...)
+		}
+		return col, refs
 	}
 	// `rel.col` where the leading identifier names a leaf relation: resolve the
 	// SECOND part as that relation's column (any trailing parts are struct
@@ -361,11 +444,42 @@ func (w *spanWalker) resolvePath(parts []string) (string, []ColumnRef) {
 	if w.qualifierNamesBaseRelation(ref) {
 		return ref.Column, []ColumnRef{ref}
 	}
+	// A correlated reference, inside a scalar or ARRAY subquery, to a range
+	// variable of an enclosing query resolves in that query's scope. A struct
+	// column of the current scope with the same name shadows it, which omni
+	// cannot always tell without metadata, so both are read.
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		inner := w.leaves
+		w.leaves = w.enclosing[i]
+		var refs []ColumnRef
+		name := ""
+		switch {
+		case w.leaves.find(parts[0]) != nil:
+			name, refs = parts[1], w.resolveColumn(parts[0], parts[1])
+		case w.qualifierNamesBaseRelation(ref):
+			name, refs = ref.Column, []ColumnRef{ref}
+		}
+		w.leaves = inner
+		if refs != nil {
+			return name, append(refs, w.resolveColumn("", parts[0])...)
+		}
+	}
 	// Otherwise the leading identifier is a struct/field column root (`s.field`,
 	// `s.a.b`): resolve `parts[0]` as a column (dropping the trailing field path),
 	// mirroring the legacy a-as-column attempt for an unqualified field path.
 	w.requirePipeColumn(parts[0])
 	return parts[0], w.resolveColumn("", parts[0])
+}
+
+// enclosingRange returns the innermost range variable named name of the
+// queries a scalar or ARRAY subquery being resolved sits in, or nil.
+func (w *spanWalker) enclosingRange(name string) *relation {
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if rel := w.enclosing[i].find(name); rel != nil {
+			return rel
+		}
+	}
+	return nil
 }
 
 // rangeVariableSources is the lineage of a range variable used as a value:
@@ -453,12 +567,34 @@ func (w *spanWalker) resolveColumn(relQualifier, column string) []ColumnRef {
 	// which over-includes whenever another table shares the column name (e.g. a
 	// 3-way UNION whose arms' tables have overlapping column names) and diverges
 	// from the legacy resolver's exact single-table attribution.
-	if rel := w.leaves.soleBase(); rel != nil {
+	if rel := w.leaves.soleBase(); rel != nil && !w.outerColumn(rel, column) {
 		ref := rel.baseRef
 		ref.Column = column
 		return []ColumnRef{ref}
 	}
-	return []ColumnRef{{Column: column}}
+	// Inside a scalar or ARRAY subquery the name may be an enclosing query's
+	// column, which a derived relation there may have renamed (`SELECT ssn AS
+	// renamed ... (SELECT renamed)`): add that column's sources. The bare ref
+	// stays, for a base table's column of either scope.
+	refs := []ColumnRef{{Column: column}}
+	for i := len(w.enclosing) - 1; i >= 0; i-- {
+		if outer, ok := w.enclosing[i].derivedColumn(column); ok {
+			refs = append(refs, outer...)
+			break
+		}
+	}
+	return refs
+}
+
+// outerColumn reports whether an unqualified column inside a scalar or ARRAY
+// subquery is not one of its sole base table's, by metadata, and so reads an
+// enclosing query's column: the bare ref then matches it by name.
+func (w *spanWalker) outerColumn(rel *relation, column string) bool {
+	if len(w.enclosing) == 0 || w.columnsOf == nil {
+		return false
+	}
+	names, ok := w.columnsOf(rel.baseRef)
+	return ok && !containsFold(names, column)
 }
 
 // resolveColumnStrict resolves a (relationQualifier, column) reference ONLY when
@@ -1238,33 +1374,34 @@ func segmentsToWire(segs []projColumn) []StarSegment {
 
 // collectColumnPaths returns the raw dotted-name component lists of every column
 // reference directly mentioned in expr (in source order, excluding nested
-// subqueries), mirroring the legacy getPossibleColumnResources. The flat parts —
-// not a dialect-bucketed ColumnRef — are what relation-aware resolution needs (a
+// subqueries), mirroring the legacy getPossibleColumnResources, and the body of
+// each scalar or ARRAY subquery the expression holds. The flat parts — not a
+// dialect-bucketed ColumnRef — are what relation-aware resolution needs (a
 // 2-part `rel.col` must be tried as relation.column, not dataset.column).
-func (w *spanWalker) collectColumnPaths(expr ast.Node) [][]string {
+func (w *spanWalker) collectColumnPaths(expr ast.Node) (paths [][]string, subqueries []ast.Node) {
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
-	var paths [][]string
 	ew := &exprWalk{
-		w:         w,
-		followSub: false,
-		onParts:   func(parts []string) { paths = append(paths, parts) },
+		w:               w,
+		followSub:       false,
+		onParts:         func(parts []string) { paths = append(paths, parts) },
+		onValueSubquery: func(q ast.Node) { subqueries = append(subqueries, q) },
 	}
-	// A subquery's output is opaque to lineage here (the legacy corpus pins
-	// it empty in a SELECT list); rangeVariableSources reads the count.
+	// An EXISTS or graph subquery's output is opaque to lineage here;
+	// rangeVariableSources reads the count.
 	ew.onSubquery = func() { w.opaqueSubqueries++ }
 	if w.pipeColumns != nil {
-		// A subquery's output is opaque to lineage here (the legacy corpus
-		// pins it empty in a SELECT list), and a pipe expression that used to
-		// fail closed must not resolve to that empty lineage.
+		// An EXISTS or graph subquery's output is opaque to lineage here, and
+		// a pipe expression that used to fail closed must not resolve to that
+		// empty lineage.
 		ew.onSubquery = func() {
 			w.opaqueSubqueries++
 			w.failClosed(fmt.Errorf("a pipe expression holds a subquery, whose lineage this walker does not resolve (fail closed)"))
 		}
 	}
 	ew.walk(expr)
-	return paths
+	return paths, subqueries
 }
 
 // exprToParts renders a dotted-name expression (Identifier / PathExpr /
