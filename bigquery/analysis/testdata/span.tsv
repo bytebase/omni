@@ -352,19 +352,19 @@ Name, Amount	error:invalidQuery	engine	shop	omni_span	results	SELECT c.Name, f.A
 omni_span.Customers.Name | -	error:invalidQuery	engine	shop	omni_span	lineage	SELECT c.Name, f.Amount FROM Customers c, OrdersOf(c.CustomerId) f
 omni_span.Customers	error:invalidQuery	engine	shop	omni_span	tables	SELECT c.Name, f.Amount FROM Customers c, OrdersOf(c.CustomerId) f
 EventId	EventId	engine	shop	omni_span	results	SELECT EventId FROM `events_*`
--	~	engine	shop	omni_span	lineage	SELECT EventId FROM `events_*`
+omni_span.events_2024.EventId omni_span.events_2025.EventId	~	engine	shop	omni_span	lineage	SELECT EventId FROM `events_*`
 omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT EventId FROM `events_*`
--	EventId, Kind, Payload	engine	shop	omni_span	results	SELECT * FROM `events_*`
--	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM `events_*`
+EventId, Kind, Payload	EventId, Kind, Payload	engine	shop	omni_span	results	SELECT * FROM `events_*`
+omni_span.events_2024.EventId omni_span.events_2025.EventId | omni_span.events_2024.Kind omni_span.events_2025.Kind | omni_span.events_2024.Payload omni_span.events_2025.Payload	~ | ~ | ~	engine	shop	omni_span	lineage	SELECT * FROM `events_*`
 omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT * FROM `events_*`
 Kind	Kind	engine	shop	omni_span	results	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
--	~	engine	shop	omni_span	lineage	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
+omni_span.events_2024.Kind omni_span.events_2025.Kind	~	engine	shop	omni_span	lineage	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
 omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT Kind FROM `omni_span.events_*` WHERE _TABLE_SUFFIX = '2024'
 year, Kind	year, Kind	engine	shop	omni_span	results	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
-- | -	~ | ~	engine	shop	omni_span	lineage	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
+- | omni_span.events_2024.Kind omni_span.events_2025.Kind	~ | ~	engine	shop	omni_span	lineage	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
 omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	SELECT _TABLE_SUFFIX AS year, Kind FROM `events_*`
 Payload	Payload	engine	shop	omni_span	results	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
--	~	engine	shop	omni_span	lineage	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
+omni_span.events_2024.Payload omni_span.events_2025.Payload	~	engine	shop	omni_span	lineage	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
 omni_span.events_20*	omni_span.events_20*	engine	shop	omni_span	tables	SELECT e.Payload FROM `events_20*` AS e WHERE e._TABLE_SUFFIX BETWEEN '24' AND '25'
 f0_	f0_	engine	shop	omni_span	results	SELECT COUNT(*) FROM `events_*` WHERE Kind = 'click'
 -	~	engine	shop	omni_span	lineage	SELECT COUNT(*) FROM `events_*` WHERE Kind = 'click'
@@ -729,9 +729,9 @@ omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	FROM Custom
 Name	Name	engine	shop	omni_span	results	FROM CustomerOrders |> SELECT Name
 omni_span.CustomerOrders.Name omni_span.Customers.Name	~	engine	shop	omni_span	lineage	FROM CustomerOrders |> SELECT Name
 omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	omni_span.CustomerOrders, omni_span.Customers, omni_span.Orders	engine	shop	omni_span	tables	FROM CustomerOrders |> SELECT Name
-error:omni	Kind	engine	shop	omni_span	results	FROM `events_*` |> SELECT Kind
-error:omni	~	engine	shop	omni_span	lineage	FROM `events_*` |> SELECT Kind
-error:omni	omni_span.events_*	engine	shop	omni_span	tables	FROM `events_*` |> SELECT Kind
+Kind	Kind	engine	shop	omni_span	results	FROM `events_*` |> SELECT Kind
+omni_span.events_2024.Kind omni_span.events_2025.Kind	~	engine	shop	omni_span	lineage	FROM `events_*` |> SELECT Kind
+omni_span.events_*	omni_span.events_*	engine	shop	omni_span	tables	FROM `events_*` |> SELECT Kind
 CustomerId, Name, Region	CustomerId, Name, Region	engine	shop	omni_span	results	FROM Customers |> SELECT * EXCEPT (Email)
 omni_span.Customers.CustomerId | omni_span.Customers.Name | omni_span.Customers.Region	~ | ~ | ~	engine	shop	omni_span	lineage	FROM Customers |> SELECT * EXCEPT (Email)
 omni_span.Customers	omni_span.Customers	engine	shop	omni_span	tables	FROM Customers |> SELECT * EXCEPT (Email)

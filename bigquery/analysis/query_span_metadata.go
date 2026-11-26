@@ -488,8 +488,10 @@ func (q *querySpanResolver) expandTablesToColumns(span *QuerySpan) (ColumnSet, *
 			set[ColumnResource{Database: db, Schema: t.Schema, Table: canonicalTable}] = true
 			continue
 		}
-		for _, col := range columns {
-			set[ColumnResource{Database: db, Schema: t.Schema, Table: canonicalTable, Column: col}] = true
+		for _, table := range q.physicalTables(t.Database, t.Schema, canonicalTable) {
+			for _, col := range columns {
+				set[ColumnResource{Database: db, Schema: t.Schema, Table: table, Column: col}] = true
+			}
 		}
 	}
 	return set, firstNotFound, nil
@@ -729,10 +731,13 @@ func (q *querySpanResolver) expandBaseTableColumns(rel ColumnRef, plain bool, ex
 		if containsFold(except, col) {
 			continue
 		}
-		res := ColumnResource{Database: db, Schema: rel.Schema, Table: canonicalTable, Column: col}
+		sources := ColumnSet{}
+		for _, table := range q.physicalTables(rel.Database, rel.Schema, canonicalTable) {
+			sources[ColumnResource{Database: db, Schema: rel.Schema, Table: table, Column: col}] = true
+		}
 		out = append(out, ResolvedQuerySpanResult{
 			Name:          col,
-			SourceColumns: ColumnSet{res: true},
+			SourceColumns: sources,
 			IsPlainField:  plain,
 		})
 	}
@@ -882,15 +887,24 @@ func addMatchingColumns(dst, fullSourceColumns ColumnSet, refColumn, refTable st
 // accepting all of them over-includes (conservatively masks more) rather than
 // risk an under-match that would leave a sensitive column unmasked.
 func tableMatches(scTable, refTable string, aliasMap map[string][]string) bool {
-	if strings.EqualFold(scTable, refTable) {
+	if namesTable(refTable, scTable) {
 		return true
 	}
 	for _, phys := range aliasMap[strings.ToLower(refTable)] {
-		if strings.EqualFold(scTable, phys) {
+		if namesTable(phys, scTable) {
 			return true
 		}
 	}
 	return false
+}
+
+// namesTable reports whether name, a table name or a wildcard table, names the
+// physical table table.
+func namesTable(name, table string) bool {
+	if prefix, ok := strings.CutSuffix(name, "*"); ok {
+		return len(table) >= len(prefix) && strings.EqualFold(table[:len(prefix)], prefix)
+	}
+	return strings.EqualFold(name, table)
 }
 
 // buildAliasMap maps each relation alias (lower-cased) to the metadata-canonical
@@ -1005,11 +1019,77 @@ func (q *querySpanResolver) tableColumns(writtenDatabase, schema, table string) 
 		}
 	}
 
+	if columns, ok := wildcardColumns(wildcardMatches(schemaMeta, table)); ok {
+		return table, columns, nil
+	}
+
 	return "", nil, &ResourceNotFoundError{
 		Database: &lookupDatabase,
 		Schema:   &lookupSchema,
 		Table:    &table,
 	}
+}
+
+// physicalTables names the tables a resolved table reference reads: the tables
+// a wildcard table matches, or else the canonical name itself. Bytebase masks a
+// column of a real table, so lineage names each matched table, not the
+// wildcard.
+func (q *querySpanResolver) physicalTables(writtenDatabase, schema, canonical string) []string {
+	if !strings.HasSuffix(canonical, "*") {
+		return []string{canonical}
+	}
+	lookupDatabase := q.opts.DefaultDatabase
+	lookupSchema := schema
+	if !q.opts.SchemaScopedMetadata {
+		lookupDatabase = q.resourceDatabase(writtenDatabase)
+		lookupSchema = ""
+	}
+	dbMetadata, err := q.getDatabaseMetadata(lookupDatabase)
+	if err != nil {
+		return nil
+	}
+	var names []string
+	for _, t := range wildcardMatches(findSchema(dbMetadata, lookupSchema), canonical) {
+		names = append(names, t.GetName())
+	}
+	return names
+}
+
+// wildcardMatches lists the tables a wildcard table (`events_*`) reads: every
+// table whose name starts with the text before the trailing star
+// (https://cloud.google.com/bigquery/docs/querying-wildcard-tables). Views do
+// not match. The prefix matches case-insensitively, so a lineage over-includes
+// rather than misses a table.
+func wildcardMatches(schema *metadata.SchemaMetadata, table string) []*metadata.TableMetadata {
+	prefix, ok := strings.CutSuffix(table, "*")
+	if !ok || schema == nil {
+		return nil
+	}
+	var out []*metadata.TableMetadata
+	for _, t := range schema.GetTables() {
+		if len(t.GetName()) >= len(prefix) && strings.EqualFold(t.GetName()[:len(prefix)], prefix) {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// wildcardColumns is a wildcard table's column list. BigQuery takes it from the
+// newest matched table, which the metadata does not record, so the columns are
+// known only when every matched table has the same ones in the same order.
+func wildcardColumns(tables []*metadata.TableMetadata) ([]string, bool) {
+	var columns []string
+	for i, t := range tables {
+		var names []string
+		for _, c := range t.GetColumns() {
+			names = append(names, c.GetName())
+		}
+		if i > 0 && !slices.Equal(names, columns) {
+			return nil, false
+		}
+		columns = names
+	}
+	return columns, len(tables) > 0
 }
 
 // getDatabaseMetadata fetches (and caches) metadata for the given database.

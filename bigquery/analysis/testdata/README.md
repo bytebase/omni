@@ -70,12 +70,14 @@ that hold the text.
   (`SELECT x FROM f() AS x`), whose columns it cannot list.
 - Pipe syntax: omni fails closed on `CALL`, `MATCH_RECOGNIZE` and a
   recursive union, and on any operator that changes the projection of an
-  input it cannot list column by column (a wildcard table, a table without
-  metadata). The other operators agree.
+  input it cannot list column by column (a table without metadata). The other
+  operators agree.
 - Stars omni does not expand: a struct column's fields (`Ship.*`, and
-  `UNNEST` of an array of structs under `*`), and a wildcard table's columns
-  (`` `events_*` ``, whose schema BigQuery takes from the newest matching
-  table).
+  `UNNEST` of an array of structs under `*`).
+- A wildcard table's columns are each matched table's, so a mask on any of
+  them applies. BigQuery takes the columns from the newest matched table,
+  which the sync does not record, so omni lists them only when every matched
+  table has the same ones; otherwise the read is not found.
 - `FULL` and `LEFT UNION ALL BY NAME` do not parse.
 - omni resolves names BigQuery refuses: a table name in another case (table
   names are case-sensitive), a table or column that does not exist, a column
