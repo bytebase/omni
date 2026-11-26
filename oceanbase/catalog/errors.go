@@ -70,6 +70,7 @@ const (
 	ErrNotSupportedYet             = 1235
 	ErrUnknownCollation            = 1273
 	ErrViewSelectVariable          = 1351
+	ErrViewSelectInto              = 1350
 	ErrWrongParamCount             = 1582
 	ErrWindowRangeFrameNumericType = 3596
 	ErrEmptyRowInTVC               = 3942
@@ -445,6 +446,10 @@ func errOBSyntaxError() error {
 
 func errWrongUsage(what string) error {
 	return &Error{Code: ErrWrongUsage, SQLState: "42000", Message: fmt.Sprintf("Incorrect usage/placement of '%s'", what)}
+}
+
+func errViewSelectInto() error {
+	return &Error{Code: ErrViewSelectInto, SQLState: "HY000", Message: "View's SELECT contains a 'INTO' clause."}
 }
 
 func errViewSelectVariable() error {
