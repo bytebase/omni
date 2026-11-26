@@ -1321,8 +1321,18 @@ func (p *parser) parseTabTypeExpr() error {
 
 func (p *parser) isAfterTabTypeBoundary() bool {
 	switch p.peek().Type {
-	case KW_PARTITION, KW_EXTENDED, KW_POOL, KW_TYPE, KW_STATUS, KW_ORDER, KW_LIMIT:
+	case KW_PARTITION, KW_EXTENDED, KW_ORDER:
 		return true
+	case KW_LIMIT:
+		// HiveParser.g:2805 limitClause: KW_LIMIT Number. Hive decides
+		// tabTypeExpr's (identifier ...)? (HiveParser.g:1272) on more than one
+		// token, so LIMIT not followed by a number is a column name, as in
+		// SHOW LOCKS a LIMIT.
+		return p.peekAt(1).Type == TokNumber
+	case KW_POOL, KW_TYPE, KW_STATUS:
+		// HiveParser.g:2984-2991: POOL, TYPE and STATUS take a string; without
+		// one they are column names.
+		return p.peekAt(1).Type == TokStringLiteral
 	}
 	return false
 }
