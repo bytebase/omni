@@ -214,6 +214,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident INCREMENT = 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident INCREMENT BY 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -222,6 +229,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident START 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident START = 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -242,6 +256,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident MINVALUE = 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident NO MINVALUE
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -250,6 +271,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident MAXVALUE 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident MAXVALUE = 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -271,6 +299,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident CACHE 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident CACHE = 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
 > exec
@@ -393,6 +428,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident RESTART = 1
+< error
+| 1146 42S02 Table 'simulation.ident' doesn't exist
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident RESTART WITH 1
 < error
 | 1146 42S02 Table 'simulation.ident' doesn't exist
@@ -474,6 +516,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident INCREMENT = 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident INCREMENT BY 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
@@ -482,6 +531,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident START 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident START = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -502,6 +558,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident MINVALUE = 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident NO MINVALUE
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
@@ -510,6 +573,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident MAXVALUE 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident MAXVALUE = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -531,6 +601,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident CACHE 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident CACHE = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -647,6 +724,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident RESTART 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE ident (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident RESTART = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -763,6 +847,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident INCREMENT = 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident INCREMENT BY 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
@@ -772,6 +864,14 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident START 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident START = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -795,6 +895,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident MINVALUE = 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident NO MINVALUE
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
@@ -804,6 +912,14 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident MAXVALUE 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident MAXVALUE = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -828,6 +944,14 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident CACHE 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident CACHE = 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
 > exec
@@ -985,6 +1109,14 @@
 | CREATE VIEW ident AS SELECT b, ident, d FROM t
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident RESTART = 1
+< error
+| 1347 HY000 'simulation.ident' is not SEQUENCE
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE TABLE t (b INT PRIMARY KEY, ident INT, d INT, KEY idx_d (d));
+| CREATE VIEW ident AS SELECT b, ident, d FROM t
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident RESTART WITH 1
 < error
 | 1347 HY000 'simulation.ident' is not SEQUENCE
@@ -1102,6 +1234,32 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident INCREMENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident INCREMENT BY 1
 < ok 0 0
 > query
@@ -1129,6 +1287,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident START 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident START = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -1206,6 +1390,32 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident MINVALUE = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident NO MINVALUE
 < ok 0 0
 > query
@@ -1233,6 +1443,13 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident MAXVALUE 1
+< error
+| 4136 HY000 Sequence 'simulation.ident' values are conflicting
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident MAXVALUE = 1
 < error
 | 4136 HY000 Sequence 'simulation.ident' values are conflicting
 > exec
@@ -1292,6 +1509,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident CACHE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident CACHE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -1640,6 +1883,32 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident RESTART = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue 1 maxvalue 9223372036854775806 increment by 1 cache 1000 nocycle ENGINE=InnoDB
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident RESTART WITH 1
 < ok 0 0
 > query
@@ -1776,6 +2045,32 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident INCREMENT = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with -5 minvalue -100 maxvalue 100 increment by 1 cache 50 cycle ENGINE=InnoDB COMMENT='seq'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident INCREMENT BY 1
 < ok 0 0
 > query
@@ -1803,6 +2098,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident START 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with 1 minvalue -100 maxvalue 100 increment by -2 cache 50 cycle ENGINE=InnoDB COMMENT='seq'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident START = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -1861,6 +2182,13 @@
 | DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
 < ok 0 0
 > exec
+| ALTER SEQUENCE ident MINVALUE = 1
+< error
+| 4136 HY000 Sequence 'simulation.ident' values are conflicting
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
 | ALTER SEQUENCE ident NO MINVALUE
 < ok 0 0
 > query
@@ -1888,6 +2216,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident MAXVALUE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with -5 minvalue -100 maxvalue 1 increment by -2 cache 50 cycle ENGINE=InnoDB COMMENT='seq'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident MAXVALUE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -1966,6 +2320,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident CACHE 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with -5 minvalue -100 maxvalue 100 increment by -2 cache 1 cycle ENGINE=InnoDB COMMENT='seq'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident CACHE = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
@@ -2289,6 +2669,32 @@
 < ok 0 0
 > exec
 | ALTER SEQUENCE ident RESTART 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_simulation" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| SEQUENCE
+> query
+| SHOW CREATE SEQUENCE `ident`
+< result
+< column "Sequence" "VARCHAR"
+< column "Create Sequence" "VARCHAR"
+< row
+: bytes
+| ident
+: bytes
+| CREATE SEQUENCE `ident` start with -5 minvalue -100 maxvalue 100 increment by -2 cache 50 cycle ENGINE=InnoDB COMMENT='seq'
+> exec
+| DROP DATABASE IF EXISTS simulation; CREATE DATABASE simulation; USE simulation; CREATE SEQUENCE ident START WITH -5 MINVALUE -100 MAXVALUE 100 INCREMENT BY -2 CACHE 50 CYCLE COMMENT 'seq'
+< ok 0 0
+> exec
+| ALTER SEQUENCE ident RESTART = 1
 < ok 0 0
 > query
 | SHOW FULL TABLES
