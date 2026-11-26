@@ -93,8 +93,8 @@ var systemColumns = map[string]bool{
 // So a schema's absence is trusted unless its name is a system one, a
 // relation's in a synced schema unless its name is one the sync drops or
 // a partition's or a partition index's, which may sit in any schema, or
-// the sync may have lost partitions, a column's in a synced table or
-// foreign table, and a trigger's on a synced table, view, or materialized
+// the sync may have lost partitions, a column's in a synced table,
+// foreign table, or materialized view whose columns the sync lists, and a trigger's on a synced table, view, or materialized
 // view. A type's, a constraint's, and a primary key's absence is
 // never trusted.
 //
@@ -112,8 +112,8 @@ type pgSnapshot struct {
 	schemas   map[string]bool
 	relations map[[2]string]string
 	types     map[[2]string]bool
-	// columns lists the columns of the tables and foreign tables whose
-	// columns the sync lists in full.
+	// columns lists the columns of the tables, foreign tables, and
+	// materialized views whose columns the sync lists in full.
 	columns     map[[2]string]map[string]bool
 	constraints map[[2]string]map[string]string
 	primaryKeys map[[2]string]bool
@@ -265,26 +265,7 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 			key := [2]string{name, t.GetName()}
 			rel(t.GetName(), relTable)
 			rowType(t.GetName())
-			cols := make(map[string]bool, len(t.GetColumns()))
-			var cmeta map[string]syncedCol
-			for _, c := range t.GetColumns() {
-				cols[c.GetName()] = true
-				if c.GetType() != "" && c.GetPosition() > 0 {
-					if cmeta == nil {
-						cmeta = make(map[string]syncedCol, len(t.GetColumns()))
-					}
-					cmeta[c.GetName()] = syncedCol{
-						typ:       strings.ToLower(strings.TrimSpace(c.GetType())),
-						nullable:  c.GetNullable(),
-						identity:  c.GetIdentityGeneration() != metadata.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED,
-						generated: c.GetGeneration() != nil,
-					}
-				}
-			}
-			s.columns[key] = cols
-			if len(cmeta) > 0 {
-				s.colMeta[key] = cmeta
-			}
+			s.addColumns(key, t.GetColumns())
 			cons := make(map[string]string)
 			for _, idx := range t.GetIndexes() {
 				rel(idx.GetName(), relIndex)
@@ -368,6 +349,11 @@ func newPgSnapshot(db *metadata.DatabaseSchemaMetadata) *pgSnapshot {
 		for _, v := range schema.GetMaterializedViews() {
 			rel(v.GetName(), relMatview)
 			rowType(v.GetName())
+			if len(v.GetColumns()) > 0 {
+				// A sync from before materialized views' columns were
+				// listed lists none.
+				s.addColumns([2]string{name, v.GetName()}, v.GetColumns())
+			}
 			s.addTriggers([2]string{name, v.GetName()}, v.GetTriggers())
 			for _, idx := range v.GetIndexes() {
 				rel(idx.GetName(), relIndex)
@@ -600,6 +586,31 @@ func trustedRoutineName(name string) bool {
 		return false
 	}
 	return !strings.HasPrefix(name, "pg_")
+}
+
+// addColumns records the columns the sync lists for a table or a
+// materialized view, and the type of each it states.
+func (s *pgSnapshot) addColumns(key [2]string, columns []*metadata.ColumnMetadata) {
+	cols := make(map[string]bool, len(columns))
+	var cmeta map[string]syncedCol
+	for _, c := range columns {
+		cols[c.GetName()] = true
+		if c.GetType() != "" && c.GetPosition() > 0 {
+			if cmeta == nil {
+				cmeta = make(map[string]syncedCol, len(columns))
+			}
+			cmeta[c.GetName()] = syncedCol{
+				typ:       strings.ToLower(strings.TrimSpace(c.GetType())),
+				nullable:  c.GetNullable(),
+				identity:  c.GetIdentityGeneration() != metadata.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED,
+				generated: c.GetGeneration() != nil,
+			}
+		}
+	}
+	s.columns[key] = cols
+	if len(cmeta) > 0 {
+		s.colMeta[key] = cmeta
+	}
 }
 
 // isInternalConstraintTrigger reports whether name matches one of PostgreSQL's

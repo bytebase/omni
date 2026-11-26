@@ -1010,6 +1010,9 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 					},
 				},
 			},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{
+				{Name: "mv", Definition: " SELECT t.n FROM public.t;", Columns: []*metadata.ColumnMetadata{{Name: "n", Position: 1, Type: "integer", Nullable: true}}},
+			},
 			CompositeTypes: []*metadata.CompositeTypeMetadata{
 				{Name: "pair", Attributes: []*metadata.CompositeTypeAttribute{{Name: "x", Type: "integer"}}},
 			},
@@ -1048,6 +1051,10 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		"ALTER DOMAIN unsynced_dom SET DEFAULT a;":                   review.UnsupportedForm,
 		"ALTER DOMAIN unsynced_dom ADD CHECK (a);":                   review.ObjectNotFound,
 		"ALTER TABLE child ADD FOREIGN KEY (cid, tid) REFERENCES t;": review.UnsupportedForm,
+		"CREATE INDEX ON t (id) WHERE n;":                            review.UnsupportedForm,
+		"CREATE INDEX ON mv (n) WHERE n;":                            review.UnsupportedForm,
+		"ALTER TABLE t ADD EXCLUDE (id WITH =) WHERE (n);":           review.UnsupportedForm,
+		"ALTER TABLE u ADD FOREIGN KEY (n) REFERENCES t;":            review.UnsupportedForm,
 	} {
 		got := walkFindings(t, sql, target)
 		if len(got) != 1 || !slices.Equal(got[0].Codes, []review.FindingCode{wantCode}) {
@@ -1068,6 +1075,11 @@ func TestWalkThroughSyncedColumnAndDependencyChecks(t *testing.T) {
 		// INCLUDE column on PRIMARY KEY is not a primary key column.
 		"ALTER TABLE t ALTER flag DROP NOT NULL;",
 		"ALTER TABLE child ADD FOREIGN KEY (tid) REFERENCES t;",
+		"CREATE INDEX ON t (id) WHERE flag;",
+		"ALTER TABLE t ALTER n TYPE boolean;\nCREATE INDEX ON t (id) WHERE n;",
+		"ALTER TABLE t ALTER n TYPE boolean, ADD EXCLUDE (id WITH =) WHERE (n);",
+		"ALTER TABLE u ALTER n TYPE integer, ADD FOREIGN KEY (n) REFERENCES t;",
+		"ALTER TABLE t ALTER id TYPE boolean USING id::boolean, ADD FOREIGN KEY (flag) REFERENCES t;",
 		// Sibling subcommands replacing primary key before self-referencing FK.
 		"ALTER TABLE t DROP CONSTRAINT t_pkey, ADD PRIMARY KEY (id, flag), ADD FOREIGN KEY (id, flag) REFERENCES t;",
 		// Function-style type coercion in index expression (e.g. unsynced domain).
