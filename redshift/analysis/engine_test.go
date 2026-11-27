@@ -1,12 +1,15 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 )
 
 func TestEngineSplit(t *testing.T) {
@@ -90,5 +93,84 @@ func TestEngineExtractChangesReadTheScript(t *testing.T) {
 	}
 	if _, err := Engine.ExtractChanges(analysis.ChangeRequest{Script: "DELETE FROM"}, nil); err == nil {
 		t.Fatal("want the script's syntax error")
+	}
+}
+
+func redshiftSpanCatalog() analysis.Catalog {
+	schema := func(name string, tables ...string) *metadata.SchemaMetadata {
+		s := &metadata.SchemaMetadata{Name: name}
+		for _, table := range tables {
+			s.Tables = append(s.Tables, &metadata.TableMetadata{Name: table, Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}})
+		}
+		return s
+	}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", s1, public`, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t")}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func redshiftQuerySpan(t *testing.T, schema, statement string) *analysis.ResolvedSpan {
+	t.Helper()
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: schema, Catalog: redshiftSpanCatalog()}, []analysis.QuerySpanStatement{{Text: statement}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return spans[0]
+}
+
+func TestEngineQuerySpansReplaceTheSearchPathWithASelectedSchema(t *testing.T) {
+	for _, tc := range []struct{ schema, want string }{{"", "s1"}, {"public", "public"}, {"s2", "s2"}} {
+		span := redshiftQuerySpan(t, tc.schema, "SELECT id FROM t")
+		if !span.Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Schema: tc.want, Table: "t", Column: "id"}] {
+			t.Fatalf("schema %q: span = %+v", tc.schema, span)
+		}
+	}
+	if span := redshiftQuerySpan(t, "s2", "SELECT id FROM p"); span.NotFoundError == nil {
+		t.Fatalf("a selected schema must not fall back to public: span = %+v", span)
+	}
+}
+
+func TestEngineQuerySpansReportAMissingResourceTypedAndACatalogErrorAsALookupError(t *testing.T) {
+	span := redshiftQuerySpan(t, "", "SELECT * FROM nope")
+	if span.NotFoundError == nil || *span.NotFoundError.Table != "nope" || span.LookupError != nil {
+		t.Fatalf("missing table: span = %+v", span)
+	}
+	span = redshiftQuerySpan(t, "", "SELECT nope FROM t")
+	if span.NotFoundError != nil || span.LookupError == nil || !strings.Contains(span.LookupError.Error(), `column "nope" does not exist`) {
+		t.Fatalf("missing column: span = %+v", span)
+	}
+}
+
+func TestEngineQuerySpansNeedASyncedDefaultDatabase(t *testing.T) {
+	statements := []analysis.QuerySpanStatement{{Text: "SELECT 1"}}
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "other", Catalog: redshiftSpanCatalog()}, statements)
+	if err == nil || err.Error() != `database metadata for database "other" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db"}, statements); err == nil {
+		t.Fatal("a catalog without GetDatabase must fail")
+	}
+}
+
+func TestEngineQuerySpansPositionASyntaxErrorInTheScript(t *testing.T) {
+	text := "SELECT * FROM t WHERE"
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: redshiftSpanCatalog()}, []analysis.QuerySpanStatement{{Text: text, Start: analysis.Position{Line: 5, Column: 3}}})
+	var syntaxErr *analysis.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("err = %v", err)
+	}
+	if syntaxErr.Position != (analysis.Position{Line: 5, Column: 24}) || syntaxErr.Message != "Syntax error at line 5: syntax error at end of input" || err.Error() != "failed to get query span from statement: "+text+": "+syntaxErr.Message {
+		t.Fatalf("err = %v at %+v", err, syntaxErr.Position)
+	}
+}
+
+func TestEngineQuerySpansReturnAMixedTablesErrorUnwrapped(t *testing.T) {
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: redshiftSpanCatalog()}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM pg_class JOIN t ON true"}})
+	if err != analysis.ErrMixUserSystemTables {
+		t.Fatalf("err = %v", err)
 	}
 }
