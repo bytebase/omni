@@ -495,3 +495,21 @@ func TestTransformDMLToSelectReadsForeignKeysOfOtherDatabases(t *testing.T) {
 		return nil, errors.New("boom")
 	}), "prior backup cannot read the foreign keys into db.p: boom")
 }
+
+func TestTransformDMLToSelectVisitsTablesInScriptOrder(t *testing.T) {
+	for range 20 {
+		got, err := transform(t, "UPDATE t2 AS a JOIN t1 AS b ON a.c = b.a SET b.b = 1, a.d = 2")
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		require.Equal(t, []string{"t2", "t1"}, []string{got[0].SourceTable, got[1].SourceTable})
+
+		_, err = analysis.TransformDMLToSelect("UPDATE t2 AS a JOIN t1 AS b ON a.c = b.a SET b.b = 1, a.d = 2", analysis.BackupOptions{
+			DefaultDatabase: "db",
+			Catalog:         backupCatalog(),
+			Columns: func(_, table string) (analysis.TableColumns, error) {
+				return analysis.TableColumns{}, errors.New("no " + table)
+			},
+		})
+		require.EqualError(t, err, "failed to classify columns: no t2")
+	}
+}

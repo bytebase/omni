@@ -581,3 +581,39 @@ func TestTransformDMLToSelectReadsForeignKeysOfOtherDatabases(t *testing.T) {
 		return nil, errors.New("boom")
 	}), "prior backup cannot read the foreign keys into db.p: boom")
 }
+
+func TestTransformDMLToSelectVisitsTablesInScriptOrder(t *testing.T) {
+	catalog := backupCatalog()
+	catalog.GetDatabase = func(name string) (analysis.Database, error) {
+		switch name {
+		case "db", "DB":
+			return backupDB, nil
+		case "other":
+			return otherDB, nil
+		}
+		return nil, nil
+	}
+	for range 20 {
+		// The two backups tie on position and table name.
+		got, err := analysis.TransformDMLToSelect("UPDATE other.t AS x JOIN t AS y ON x.id = y.a SET y.b = 1, x.b = 2", analysis.BackupOptions{
+			DefaultDatabase: "db",
+			TablePrefix:     "pre",
+			Catalog:         catalog,
+			Columns: func(string, string) (analysis.TableColumns, error) {
+				return analysis.TableColumns{Normal: []string{"id"}, RowKey: true}, nil
+			},
+		})
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+		require.Equal(t, []string{"pre_t_other", "pre_t_db"}, []string{got[0].BackupTable, got[1].BackupTable})
+
+		_, err = analysis.TransformDMLToSelect("UPDATE t2 AS a JOIN t1 AS b ON a.c = b.a SET b.b = 1, a.d = 2", analysis.BackupOptions{
+			DefaultDatabase: "db",
+			Catalog:         catalog,
+			Columns: func(_, table string) (analysis.TableColumns, error) {
+				return analysis.TableColumns{}, errors.New("no " + table)
+			},
+		})
+		require.EqualError(t, err, "failed to generate SQL for table db.t2: failed to classify columns: no t2")
+	}
+}

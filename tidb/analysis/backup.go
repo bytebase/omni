@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -145,8 +146,13 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, isCa
 				if name := volatileFunction(node, text); name != "" {
 					return nil, fmt.Errorf("prior backup cannot back up a statement whose rows depend on %s, whose value can differ when the backup runs", name)
 				}
-				for read := range statementReads(databaseName, node, text, tables, isCaseSensitive) {
-					for _, changed := range written {
+				// The first table changed is named; reads, a set, are sorted
+				// so a case variant is named the same on every run.
+				reads := slices.SortedFunc(maps.Keys(statementReads(databaseName, node, text, tables, isCaseSensitive)), func(a, b ColumnResource) int {
+					return strings.Compare(a.String(), b.String())
+				})
+				for _, changed := range written {
+					for _, read := range reads {
 						if equalIdentifier(read.Database, changed.Database, isCaseSensitive) && equalIdentifier(read.Table, changed.Table, isCaseSensitive) {
 							return nil, fmt.Errorf("prior backup cannot handle a statement that reads %s.%s after an earlier statement changes it", read.Database, read.Table)
 						}
@@ -602,14 +608,14 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 	cteNames := collectCTENames(fullSQL, n.Loc)
 	stmtText := extractStatementText(fullSQL, n.Loc)
 
-	singleTables := collectSingleTables(databaseName, cteNames, n.Tables, isCaseSensitive)
+	singleTables, keys := collectSingleTables(databaseName, cteNames, n.Tables, isCaseSensitive)
 
 	if len(n.Using) == 0 {
 		// Single-table DELETE: DELETE FROM t WHERE ...
 		if len(singleTables) == 0 {
 			return nil, nil
 		}
-		first := singleTables[firstKey(singleTables)]
+		first := singleTables[keys[0]]
 		return []statementInfo{{
 			statement: stmtText,
 			table:     first,
@@ -620,10 +626,11 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 
 	// Multi-table DELETE: DELETE t1, t2 FROM t1 JOIN t2 ... WHERE ...
 	// Tables = targets to delete from; Using = the referenced table list.
-	refTables := collectSingleTables(databaseName, cteNames, n.Using, isCaseSensitive)
+	refTables, _ := collectSingleTables(databaseName, cteNames, n.Using, isCaseSensitive)
 
 	var result []statementInfo
-	for _, target := range singleTables {
+	for _, key := range keys {
+		target := singleTables[key]
 		name := target.Table
 		if target.Alias != "" {
 			name = target.Alias
@@ -651,7 +658,7 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	cteNames := collectCTENames(fullSQL, n.Loc)
 	stmtText := extractStatementText(fullSQL, n.Loc)
 
-	singleTables := collectSingleTables(databaseName, cteNames, n.Tables, isCaseSensitive)
+	singleTables, keys := collectSingleTables(databaseName, cteNames, n.Tables, isCaseSensitive)
 
 	// Determine which tables the SET clause writes, via column table prefixes.
 	updatedTables := make(map[string]bool)
@@ -672,7 +679,11 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 		// Skip only if the qualifier resolves to a CTE reference in the FROM — a
 		// CTE can't be a mutation target. A real table aliased with a CTE's name
 		// (its resolved table is real) is still an update target.
-		if ref, ok := singleTables[key]; ok && isCTERef(cteNames, ref) {
+		ref, ok := singleTables[key]
+		if !ok {
+			return nil, fmt.Errorf("cannot extract reference table: no matched updated table %q in referenced table list", key)
+		}
+		if isCTERef(cteNames, ref) {
 			continue
 		}
 		updatedTables[key] = true
@@ -709,11 +720,11 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	}
 
 	var result []statementInfo
-	for table := range updatedTables {
-		ref, ok := singleTables[table]
-		if !ok {
-			return nil, fmt.Errorf("cannot extract reference table: no matched updated table %q in referenced table list", table)
+	for _, table := range keys {
+		if !updatedTables[table] {
+			continue
 		}
+		ref := singleTables[table]
 		result = append(result, statementInfo{
 			statement: stmtText,
 			table:     ref,
@@ -725,17 +736,19 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 }
 
 // collectSingleTables walks TableExpr slices and collects TableReference entries
-// keyed by alias or table name. A table's database is its explicit schema, or
-// the statement's database when unqualified.
-func collectSingleTables(databaseName string, cteNames map[string]bool, exprs []ast.TableExpr, isCaseSensitive bool) map[string]*tableReference {
+// keyed by alias or table name, and the keys in the order the statement first
+// names them. A table's database is its explicit schema, or the statement's
+// database when unqualified.
+func collectSingleTables(databaseName string, cteNames map[string]bool, exprs []ast.TableExpr, isCaseSensitive bool) (map[string]*tableReference, []string) {
 	result := make(map[string]*tableReference)
+	var keys []string
 	for _, expr := range exprs {
-		collectSingleTablesFromExpr(databaseName, cteNames, expr, isCaseSensitive, result)
+		keys = collectSingleTablesFromExpr(databaseName, cteNames, expr, isCaseSensitive, result, keys)
 	}
-	return result
+	return result, keys
 }
 
-func collectSingleTablesFromExpr(databaseName string, cteNames map[string]bool, expr ast.TableExpr, isCaseSensitive bool, out map[string]*tableReference) {
+func collectSingleTablesFromExpr(databaseName string, cteNames map[string]bool, expr ast.TableExpr, isCaseSensitive bool, out map[string]*tableReference, keys []string) []string {
 	switch e := expr.(type) {
 	case *ast.TableRef:
 		db := e.Schema
@@ -755,19 +768,24 @@ func collectSingleTablesFromExpr(databaseName string, cteNames map[string]bool, 
 		// coexist in one FROM (TiDB keeps them distinct) but collapse to the same
 		// map key. Keep the real table: a CTE is never a backup target, and
 		// letting it shadow a physical target would drop that target's backup.
-		if existing, ok := out[key]; ok && !isCTERef(cteNames, existing) && isCTERef(cteNames, ref) {
-			return
+		existing, ok := out[key]
+		if ok && !isCTERef(cteNames, existing) && isCTERef(cteNames, ref) {
+			return keys
+		}
+		if !ok {
+			keys = append(keys, key)
 		}
 		out[key] = ref
 	case *ast.JoinClause:
 		if e.Left != nil {
-			collectSingleTablesFromExpr(databaseName, cteNames, e.Left, isCaseSensitive, out)
+			keys = collectSingleTablesFromExpr(databaseName, cteNames, e.Left, isCaseSensitive, out, keys)
 		}
 		if e.Right != nil {
-			collectSingleTablesFromExpr(databaseName, cteNames, e.Right, isCaseSensitive, out)
+			keys = collectSingleTablesFromExpr(databaseName, cteNames, e.Right, isCaseSensitive, out, keys)
 		}
 	default:
 	}
+	return keys
 }
 
 // resolveUnqualifiedColumns resolves unqualified SET column names to their
@@ -829,13 +847,6 @@ func hasColumn(table *metadata.TableMetadata, name string) bool {
 		}
 	}
 	return false
-}
-
-func firstKey(m map[string]*tableReference) string {
-	for k := range m {
-		return k
-	}
-	return ""
 }
 
 // collectCTENames returns the names of the CTEs the statement opens with,
