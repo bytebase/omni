@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
 )
 
@@ -96,6 +97,31 @@ func (engine) QuerySpans(_ context.Context, request analysis.QuerySpanRequest, s
 		})
 	}
 	return spans, nil
+}
+
+var _ analysis.ChangeExtractor = Engine
+
+// ExtractChanges reports what the statements write, an unqualified name in the
+// default database. A statement without a node changes nothing.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	changes := &analysis.Changes{}
+	for _, statement := range statements {
+		if statement.Node == nil {
+			continue
+		}
+		node, ok := statement.Node.(ast.Node)
+		if !ok {
+			return nil, errors.New("expected astNode for StarRocks")
+		}
+		statementChanges := ExtractChangedResources(node, request.DefaultDatabase, statement.Text)
+		changes.Resources = append(changes.Resources, statementChanges.Resources...)
+		for _, text := range statementChanges.DMLStatements {
+			changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
+		}
+		changes.DMLCount += statementChanges.DMLCount
+		changes.InsertCount += statementChanges.InsertCount
+	}
+	return changes, nil
 }
 
 // syntaxError positions the first parse error of text; any other error is
