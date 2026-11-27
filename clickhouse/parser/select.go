@@ -1252,6 +1252,20 @@ func (p *parser) parseTableFunctionExpr() (*FuncCallExpr, error) {
 	fc := &FuncCallExpr{span: span{Pos: startTok.Pos}, Name: startTok.Val}
 	if p.cur().Type != TokRParen {
 		for {
+			if (strings.EqualFold(fc.Name, "view") || strings.EqualFold(fc.Name, "viewIfPermitted")) && (p.cur().Type == KwSelect || p.cur().Type == KwWith) {
+				// view(SELECT ...) takes a query without parentheses
+				// (ClickHouse's ParserTableFunctionView; https://clickhouse.com/docs/sql-reference/table-functions/view).
+				start := p.cur().Pos
+				sub, err := p.parseSelectUnionStmt()
+				if err != nil {
+					return nil, err
+				}
+				fc.Args = append(fc.Args, &SubqueryExpr{span: span{Pos: start, End: sub.End}, Query: sub})
+				if !p.match(TokComma) {
+					break
+				}
+				continue
+			}
 			arg, err := p.parseTableArgExpr()
 			if err != nil {
 				return nil, err

@@ -97,6 +97,26 @@
               "position": 15,
               "default": "map('a', [1, 2])",
               "type": "Map(LowCardinality(String), Array(UInt64))"
+            },
+            {
+              "name": "label",
+              "position": 16,
+              "default": "concat(name, '!')",
+              "type": "String",
+              "generation": {
+                "type": "TYPE_VIRTUAL",
+                "expression": "concat(name, '!')"
+              }
+            },
+            {
+              "name": "doubled",
+              "position": 17,
+              "default": "id * 2",
+              "type": "UInt64",
+              "generation": {
+                "type": "TYPE_STORED",
+                "expression": "id * 2"
+              }
             }
           ],
           "indexes": [

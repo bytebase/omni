@@ -27,6 +27,8 @@ func TestParseValidStatements(t *testing.T) {
 		{"select_joins", "SELECT * FROM a GLOBAL ANY LEFT JOIN b ON a.id = b.id ALL INNER JOIN c USING (id) CROSS JOIN d FINAL SAMPLE 1/10 OFFSET 1/2"},
 		{"select_array_join", "SELECT a, x FROM t LEFT ARRAY JOIN arr AS x PREWHERE a > 0 WHERE x != '' GROUP BY a, x WITH ROLLUP WITH TOTALS HAVING count() > 1 QUALIFY row_number() OVER w = 1 WINDOW w AS (PARTITION BY a ORDER BY x ROWS BETWEEN 1 PRECEDING AND CURRENT ROW) ORDER BY a DESC NULLS LAST WITH FILL FROM 1 TO 10 STEP 1 INTERPOLATE (x AS 0) LIMIT 1, 5 BY a LIMIT 10 OFFSET 2 WITH TIES SETTINGS max_threads = 4 FORMAT JSONEachRow"},
 		{"select_distinct_on", "SELECT DISTINCT ON (a, b) a, b, c FROM t"},
+		{"select_view_table_function", "SELECT a FROM view(SELECT a FROM t) AS v, view((SELECT b FROM u))"},
+		{"select_exists_subquery", "SELECT a FROM t WHERE EXISTS (SELECT 1 FROM u) AND NOT EXISTS ((SELECT 2))"},
 		{"select_expressions", "SELECT CASE WHEN x > 0 THEN 1 ELSE 0 END, CAST(x AS Nullable(Decimal(18, 4))), x::LowCardinality(String), DATE '2026-01-01', TIMESTAMP '2026-01-01 00:00:00', EXTRACT(DAY FROM ts), INTERVAL 5 MINUTE, SUBSTRING(s FROM 1 FOR 3), TRIM(BOTH ' ' FROM s), x BETWEEN 1 AND 10, x GLOBAL NOT IN (1, 2), s NOT ILIKE '%foo%', x IS NOT NULL, a ? b : c, arr[1], tup.1.2, [1, 2, 3], (1, 'a'), quantile(0.95)(x), arrayMap(x -> x + 1, arr), arrayMap((x, y) -> x + y, a1, a2), * EXCEPT (secret)"},
 		{"select_into_outfile", "SELECT 1 INTO OUTFILE '/tmp/out.csv' COMPRESSION 'gzip' FORMAT CSV"},
 		{"insert_values", "INSERT INTO db.t (a, b) VALUES (1, 'x'), (2, 'y')"},

@@ -20,7 +20,9 @@
 |   price Decimal(18, 4) DEFAULT 1.5,
 |   point Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL),
 |   matrix Array(Array(Nullable(Decimal(9, 3)))),
-|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])
+|   counts Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2]),
+|   label String ALIAS concat(name, '!'),
+|   doubled UInt64 MATERIALIZED id * 2
 | )
 | ENGINE = MergeTree
 | ORDER BY (id, name)
@@ -385,6 +387,42 @@
 |
 < row
 : string
+| events
+: string
+| label
+: uint64 16
+: string
+| concat(name, '!')
+: string
+| 0
+: string
+| String
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| events
+: string
+| doubled
+: uint64 17
+: string
+| id * 2
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | skipped
 : string
 | url
@@ -419,6 +457,37 @@
 |
 : string
 |
+> query
+|
+| 		SELECT table, name, default_kind, default_expression
+| 		FROM system.columns
+| 		WHERE database = $1 AND default_kind IN ('ALIAS', 'MATERIALIZED')
+| 		ORDER BY table, name
+: string
+| omni_testsyncdatabasedefaultdatabase
+< result
+< column "table" "String" "string"
+< column "name" "String" "string"
+< column "default_kind" "String" "string"
+< column "default_expression" "String" "string"
+< row
+: string
+| events
+: string
+| doubled
+: string
+| MATERIALIZED
+: string
+| id * 2
+< row
+: string
+| events
+: string
+| label
+: string
+| ALIAS
+: string
+| concat(name, '!')
 > query
 |
 | 		SELECT
@@ -467,7 +536,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE TABLE omni_testsyncdatabasedefaultdatabase.events (`id` UInt64, `name` String COMMENT 'the event name', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `fixed` FixedString(4), `flag` Bool, `level` Enum8('info' = 1, 'warn' = 2), `seen` Date DEFAULT '2026-01-02', `ref` UUID DEFAULT generateUUIDv4(), `price` Decimal(18, 4) DEFAULT 1.5, `point` Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL), `matrix` Array(Array(Nullable(Decimal(9, 3)))), `counts` Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2])) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events the sync reads'
+| CREATE TABLE omni_testsyncdatabasedefaultdatabase.events (`id` UInt64, `name` String COMMENT 'the event name', `at` DateTime64(3, 'UTC'), `amount` Nullable(Decimal(12, 2)), `tags` Array(String), `attrs` Map(String, String), `fixed` FixedString(4), `flag` Bool, `level` Enum8('info' = 1, 'warn' = 2), `seen` Date DEFAULT '2026-01-02', `ref` UUID DEFAULT generateUUIDv4(), `price` Decimal(18, 4) DEFAULT 1.5, `point` Tuple(x Float64, y Nullable(Float64)) DEFAULT (0, NULL), `matrix` Array(Array(Nullable(Decimal(9, 3)))), `counts` Map(LowCardinality(String), Array(UInt64)) DEFAULT map('a', [1, 2]), `label` String ALIAS concat(name, '!'), `doubled` UInt64 MATERIALIZED id * 2) ENGINE = MergeTree PRIMARY KEY id ORDER BY (id, name) SETTINGS index_granularity = 8192 COMMENT 'events the sync reads'
 : string
 | events the sync reads
 : string
