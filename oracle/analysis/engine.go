@@ -125,7 +125,7 @@ func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest,
 }
 
 // spanCatalog reads each database of an instance once per script. A nil
-// lookup stays nil.
+// lookup stays nil, which the resolver reports as an error.
 func spanCatalog(ctx context.Context, catalog analysis.Catalog) Catalog {
 	var c Catalog
 	if get := catalog.GetInstanceDatabase; get != nil {

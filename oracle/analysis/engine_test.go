@@ -319,3 +319,13 @@ func TestEngineRestoreSQLErrors(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 }
+
+func TestEngineQuerySpansWithoutADatabaseLookupFailCleanly(t *testing.T) {
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "DB"}, []analysis.QuerySpanStatement{{Text: "SELECT A FROM T"}})
+	if err == nil || !strings.Contains(err.Error(), "the catalog cannot look databases up") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "DB"}, []analysis.QuerySpanStatement{{Text: "SELECT 1 FROM DUAL"}}); err != nil {
+		t.Fatalf("a statement that reads no table needs no lookup: %v", err)
+	}
+}
