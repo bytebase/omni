@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/mssql/parser"
 )
@@ -70,5 +72,64 @@ func TestEngineValidateQueryAndLimit(t *testing.T) {
 	}
 	if got := Engine.ResultLimit("SELECT FROM ;", 10, ""); got != "WITH result AS (SELECT FROM) SELECT TOP 10 * FROM result;" {
 		t.Fatalf("ResultLimit fallback = %q", got)
+	}
+}
+
+func mssqlSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{
+		{Name: "dbo", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}}},
+		{Name: "s1", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}}},
+	}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"db"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name != "db" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: name, Metadata: db}, nil
+		},
+	}
+}
+
+func mssqlQuerySpans(t *testing.T, schema string, texts ...string) []*analysis.ResolvedSpan {
+	t.Helper()
+	statements := make([]analysis.QuerySpanStatement, 0, len(texts))
+	for _, text := range texts {
+		statements = append(statements, analysis.QuerySpanStatement{Text: text})
+	}
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: schema, Catalog: mssqlSpanCatalog()}, statements)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return spans
+}
+
+func TestEngineQuerySpansResolveInTheDefaultSchema(t *testing.T) {
+	for schema, want := range map[string]string{"": "dbo", "s1": "s1"} {
+		spans := mssqlQuerySpans(t, schema, "SELECT id FROM t")
+		if len(spans[0].Results) != 1 || !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Schema: want, Table: "t", Column: "id"}] {
+			t.Fatalf("schema %q: spans = %+v", schema, spans[0])
+		}
+	}
+}
+
+func TestEngineQuerySpansCarryTheBatchStateAcrossStatements(t *testing.T) {
+	spans := mssqlQuerySpans(t, "", "CREATE TABLE #t (c1 INT);", "SELECT c1 FROM #t;", "SET SHOWPLAN_XML ON;", "SELECT id FROM t;", "SET SHOWPLAN_XML OFF;", "SET STATISTICS XML ON;", "SELECT id FROM t;")
+	if len(spans[1].Results) != 1 || spans[1].Results[0].Name != "c1" {
+		t.Fatalf("temp table read = %+v", spans[1])
+	}
+	if spans[3].Type != Explain || spans[6].Type != Select || !spans[6].ExplainAnalyze {
+		t.Fatalf("plan output: %+v, %+v", spans[3], spans[6])
+	}
+	if spans := mssqlQuerySpans(t, "", "SELECT id FROM t;"); spans[0].Type != Select || spans[0].ExplainAnalyze {
+		t.Fatalf("a new script starts with no plan option on: %+v", spans[0])
+	}
+}
+
+func TestEngineQuerySpansReturnTheParsersError(t *testing.T) {
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: mssqlSpanCatalog()}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM", Start: analysis.Position{Line: 3, Column: 1}}})
+	var parseErr *parser.ParseError
+	if !errors.As(err, &parseErr) || err != error(parseErr) {
+		t.Fatalf("err = %T %v", err, err)
 	}
 }
