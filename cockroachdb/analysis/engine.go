@@ -22,6 +22,7 @@ var (
 	_ analysis.Explainer         = Engine
 	_ analysis.ResultLimiter     = Engine
 	_ analysis.QuerySpanResolver = Engine
+	_ analysis.ChangeExtractor   = Engine
 )
 
 // Split cuts the script lexically; a segment's text ends at its own
@@ -154,4 +155,58 @@ func (d lookupDatabase) GetTable(schema, table string) *metadata.TableMetadata {
 
 func (d lookupDatabase) SearchRelation(searchPath []string, name string) (string, string) {
 	return d.lookup.SearchRelation(searchPath, name)
+}
+
+// ExtractChanges reports what the statements write. Unqualified names resolve
+// along the default schema alone, or else the default database's search path,
+// or else public. Each statement's Node is a ParsedStatement.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	stmts := make([]ParsedStatement, 0, len(statements))
+	for _, statement := range statements {
+		stmt, ok := statement.Node.(ParsedStatement)
+		if !ok {
+			return nil, errors.New("expected CockroachDB AST")
+		}
+		stmts = append(stmts, stmt)
+	}
+	var setting string
+	var lookup *analysis.Lookup
+	if request.Database != nil {
+		setting = request.Database.Metadata.GetSearchPath()
+		lookup = request.Database.Lookup(true)
+	}
+	searchPath := []string{request.DefaultSchema}
+	if request.DefaultSchema == "" {
+		// An empty search path means public.
+		searchPath = analysis.SearchPath(setting)
+	}
+	extracted := ExtractChangedResourcesFromParsed(stmts, request.DefaultDatabase, searchPath, changeLookup{lookup})
+	changes := &analysis.Changes{Resources: extracted.Resources, DMLCount: extracted.DMLCount, InsertCount: extracted.InsertCount}
+	for _, database := range extracted.Databases {
+		changes.Resources = append(changes.Resources, analysis.ChangedResource{Database: database, DatabaseOnly: true})
+	}
+	// A statement's search path is set only when it differs from the initial
+	// one, which is never empty.
+	for _, dml := range extracted.DMLStatements {
+		changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement(dml))
+	}
+	return changes, nil
+}
+
+// changeLookup is a synced database's ChangeMetadata, through the caller's
+// name matching; a nil lookup finds nothing.
+type changeLookup struct{ lookup *analysis.Lookup }
+
+func (m changeLookup) RelationSchema(searchPath []string, name string) string {
+	for _, schemaName := range searchPath {
+		s := m.lookup.Schema(schemaName)
+		if s.Table(name) != nil || s.View(name) != nil || s.MaterializedView(name) != nil {
+			return schemaName
+		}
+	}
+	return ""
+}
+
+func (m changeLookup) IndexTable(searchPath []string, name string) (string, string, bool) {
+	return m.lookup.SearchIndex(searchPath, name)
 }

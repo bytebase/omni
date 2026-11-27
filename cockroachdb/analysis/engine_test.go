@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
@@ -119,5 +120,95 @@ func TestEngineQuerySpansPositionASyntaxErrorInItsStatement(t *testing.T) {
 	}
 	if syntaxErr.Position != analysis.PositionAt(text, strings.Index(text, "WHERE")) || syntaxErr.RawMessage != syntaxErr.Message || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
 		t.Fatalf("err = %v at %+v", err, syntaxErr.Position)
+	}
+}
+
+func cockroachChangeRequest(schema string) analysis.ChangeRequest {
+	table := func(name, index string) *metadata.TableMetadata {
+		return &metadata.TableMetadata{Name: name, Indexes: []*metadata.IndexMetadata{{Name: index}}}
+	}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", app, public`, Schemas: []*metadata.SchemaMetadata{
+		{Name: "app", Tables: []*metadata.TableMetadata{table("t", "t_idx")}},
+		{Name: "public", Tables: []*metadata.TableMetadata{table("t2", "t2_idx")}, ExternalTables: []*metadata.ExternalTableMetadata{{Name: "ext"}}},
+	}}
+	return analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: schema, Database: &analysis.Database{Name: "db", Metadata: db, ObjectCaseSensitive: true}}
+}
+
+func parseCockroachForChanges(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	parsed, err := ParseScript(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	statements := make([]analysis.ParsedStatement, 0, len(parsed))
+	for _, stmt := range parsed {
+		statements = append(statements, analysis.ParsedStatement{Node: stmt})
+	}
+	return statements
+}
+
+func cockroachResourceSchemas(changes *analysis.Changes) []string {
+	var schemas []string
+	for _, resource := range changes.Resources {
+		schemas = append(schemas, resource.Schema+"."+resource.Table)
+	}
+	return schemas
+}
+
+func TestEngineExtractChangesResolveAlongTheSelectedSchemaAloneOrTheSyncedSearchPath(t *testing.T) {
+	noMetadata := cockroachChangeRequest("")
+	noMetadata.Database = nil
+	for name, tc := range map[string]struct {
+		request analysis.ChangeRequest
+		want    string
+	}{
+		// ext is an external table of public, which the lookup does not count.
+		"synced search path":      {cockroachChangeRequest(""), "app.t,public.t2,app.ext"},
+		"selected schema alone":   {cockroachChangeRequest("app"), "app.t,app.t2,app.ext"},
+		"public without metadata": {noMetadata, "public.t,public.t2,public.ext"},
+	} {
+		changes, err := Engine.ExtractChanges(tc.request, parseCockroachForChanges(t, "UPDATE t SET a = 1; UPDATE t2 SET a = 1; UPDATE ext SET a = 1;"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Join(cockroachResourceSchemas(changes), ","); got != tc.want {
+			t.Fatalf("%s: resources = %s", name, got)
+		}
+	}
+	empty := cockroachChangeRequest("")
+	empty.Database.Metadata.SearchPath = ""
+	changes, err := Engine.ExtractChanges(empty, parseCockroachForChanges(t, "UPDATE t SET a = 1;"))
+	if err != nil || strings.Join(cockroachResourceSchemas(changes), ",") != "public.t" {
+		t.Fatalf("empty search path: changes = %+v, err = %v", changes, err)
+	}
+}
+
+func TestEngineExtractChangesFindAnIndexTableOrItsOtherDatabase(t *testing.T) {
+	changes, err := Engine.ExtractChanges(cockroachChangeRequest(""), parseCockroachForChanges(t, "DROP INDEX t_idx; DROP INDEX \"T_idx\"; DROP INDEX otherdb.public.x_idx;"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []analysis.ChangedResource{{Database: "db", Schema: "app", Table: "t"}, {Database: "otherdb", DatabaseOnly: true}}
+	if !slices.Equal(changes.Resources, want) {
+		t.Fatalf("resources = %+v", changes.Resources)
+	}
+}
+
+func TestEngineExtractChangesKeepASearchPathOnlyAfterASet(t *testing.T) {
+	changes, err := Engine.ExtractChanges(cockroachChangeRequest(""), parseCockroachForChanges(t, "DELETE FROM t; SET search_path = public; DELETE FROM t2;"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes.DMLStatements) != 2 || changes.DMLStatements[0].SearchPath != nil || !slices.Equal(changes.DMLStatements[1].SearchPath, []string{"public"}) {
+		t.Fatalf("DML statements = %+v", changes.DMLStatements)
+	}
+}
+
+func TestEngineExtractChangesNeedCockroachDBNodes(t *testing.T) {
+	for _, node := range []any{nil, "not a node"} {
+		_, err := Engine.ExtractChanges(cockroachChangeRequest(""), []analysis.ParsedStatement{{Node: node}})
+		if err == nil || err.Error() != "expected CockroachDB AST" {
+			t.Fatalf("node %v: err = %v", node, err)
+		}
 	}
 }
