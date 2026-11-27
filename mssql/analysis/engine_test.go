@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
@@ -165,5 +166,81 @@ func TestEngineExtractChangesSkipANilNodeAndRejectAForeignOne(t *testing.T) {
 	}
 	if _, err := Engine.ExtractChanges(analysis.ChangeRequest{}, []analysis.ParsedStatement{{Node: "not a node"}}); err == nil || err.Error() != "expected AST for MSSQL" {
 		t.Fatalf("foreign node: err = %v", err)
+	}
+}
+
+func mssqlBackupCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PK_T", Primary: true, Unique: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db}, nil
+	}}
+}
+
+func mssqlRestoreRequest(script string, backup analysis.Backup) analysis.RestoreRequest {
+	return analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: backup.SourceTable, BackupDatabase: "bbdataarchive", BackupTable: backup.BackupTable,
+		Start: backup.Start, End: backup.End, Catalog: mssqlBackupCatalog(),
+	}
+}
+
+// The restore quotes every UPDATE and DELETE in the range, on any table.
+func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
+	script := "UPDATE t SET a = 1 WHERE id = 1\nGO\nDELETE FROM t1;\nUPDATE t SET a = 2 WHERE id = 2;"
+	backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "bbdataarchive", TablePrefix: "p"}, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 2 || backups[0].SourceTable != "t" || backups[0].SourceSchema != "dbo" ||
+		backups[0].Start != (analysis.Position{Line: 1, Column: 0}) || backups[0].End != (analysis.Position{Line: 4, Column: 31}) ||
+		backups[1].SourceTable != "t1" || backups[1].Start != (analysis.Position{Line: 3, Column: 0}) {
+		t.Fatalf("backups = %+v", backups)
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), mssqlRestoreRequest(script, backups[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(sql, "/*\nOriginal SQL:\nUPDATE t SET a = 1 WHERE id = 1;\nDELETE FROM t1;\nUPDATE t SET a = 2 WHERE id = 2;\n*/\n") ||
+		!strings.Contains(sql, "[db].[dbo].[t]") || !strings.Contains(sql, "[bbdataarchive].[dbo].["+backups[0].BackupTable+"]") {
+		t.Fatalf("sql = %s", sql)
+	}
+}
+
+func TestEngineRestoreSQLErrors(t *testing.T) {
+	script := "UPDATE t SET a = 1;"
+	request := mssqlRestoreRequest(script, analysis.Backup{SourceTable: "t", BackupTable: "p_t", Start: analysis.Position{Line: 2}, End: analysis.Position{Line: 3}})
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "no original SQL" {
+		t.Fatalf("err = %v", err)
+	}
+	request.Start, request.End, request.SourceDatabase = analysis.Position{Line: 1}, analysis.Position{Line: 2}, "other"
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "database metadata is nil" {
+		t.Fatalf("err = %v", err)
+	}
+	request.Script = "UPDATE t SET a = ("
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || !strings.HasPrefix(err.Error(), "failed to extract single SQL: failed to parse statement: ") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db"}, "UPDATE t SET a = ("); err == nil ||
+		!strings.HasPrefix(err.Error(), "failed to prepare transformation: failed to parse statement: ") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestEngineBackupsCompareTheUseDatabaseByTheRequestsCaseSensitivity(t *testing.T) {
+	script := "USE DB;\nUPDATE t SET a = 1;"
+	if backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "bbdataarchive"}, script); err != nil || len(backups) != 1 {
+		t.Fatalf("case-insensitive: backups = %+v, err = %v", backups, err)
+	}
+	if _, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "bbdataarchive", CaseSensitive: true}, script); err == nil {
+		t.Fatal("a case-sensitive USE of another database must fail")
 	}
 }
