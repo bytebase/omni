@@ -241,6 +241,38 @@ func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
 	}
 }
 
+func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Name: "public",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}, {Name: "b", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "t_pk", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}},
+				{Name: "t_b_key", Unique: true, IsConstraint: true, Expressions: []string{"b"}},
+			},
+		}},
+	}}}
+	catalog := analysis.Catalog{GetDatabase: func(context.Context, string) (*analysis.Database, error) {
+		return &analysis.Database{Name: "db", Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+	// The second UPDATE of t changes the primary key, so the conflict key is
+	// t_b_key, and u's column is no column of t.
+	script := "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE u SET z = 1;\nUPDATE t SET id = 5 WHERE id = 2;"
+	sql, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: "t", BackupSchema: "bbdataarchive", BackupTable: "b",
+		Start: analysis.Position{Line: 1, Column: 0}, End: analysis.Position{Line: 3, Column: 33}, Catalog: catalog,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/*\nOriginal SQL:\nUPDATE t SET a = 1 WHERE id = 1;\nUPDATE u SET z = 1;\nUPDATE t SET id = 5 WHERE id = 2\n*/\n" +
+		`INSERT INTO "public"."t" ("id", "a", "b") SELECT "id", "a", "b" FROM "bbdataarchive"."b" ON CONFLICT ON CONSTRAINT "t_b_key" DO UPDATE SET "a" = EXCLUDED."a", "id" = EXCLUDED."id";`
+	if sql != want {
+		t.Fatalf("sql = %q", sql)
+	}
+}
+
 func TestEngineRestoreSQLNeedsAStatementInRange(t *testing.T) {
 	_, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
 		Script: "UPDATE t SET a = 1;", SourceDatabase: "db", SourceTable: "t",

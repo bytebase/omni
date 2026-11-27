@@ -215,6 +215,37 @@ func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
 	}
 }
 
+func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}, {Name: "b", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "PK_T", Primary: true, Unique: true, Expressions: []string{"id"}},
+				{Name: "UQ_T_B", Unique: true, Expressions: []string{"b"}},
+			},
+		}},
+	}}}
+	request := mssqlRestoreRequest("", analysis.Backup{SourceTable: "t", BackupTable: "b"})
+	request.Catalog = analysis.Catalog{GetDatabase: func(context.Context, string) (*analysis.Database, error) {
+		return &analysis.Database{Name: "db", Metadata: db}, nil
+	}}
+	// The second UPDATE of t changes the primary key, so UQ_T_B keys the
+	// MERGE, and t1's column is no column of t.
+	request.Script = "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t1 SET z = 1;\nUPDATE x SET id = 5 FROM t AS x WHERE x.id = 2;"
+	request.Start, request.End = analysis.Position{Line: 1, Column: 0}, analysis.Position{Line: 3, Column: 47}
+	sql, err := Engine.RestoreSQL(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "MERGE INTO [db].[dbo].[t] AS t\nUSING [bbdataarchive].[dbo].[b] AS b\n  ON t.[b] = b.[b]\n" +
+		"WHEN MATCHED THEN\n  UPDATE SET t.[a] = b.[a], t.[id] = b.[id]\nWHEN NOT MATCHED THEN\n INSERT ([id], [a], [b]) VALUES (b.[id], b.[a], b.[b]);"
+	if !strings.HasSuffix(sql, "\n*/\n"+want) {
+		t.Fatalf("sql = %s", sql)
+	}
+}
+
 func TestEngineRestoreSQLErrors(t *testing.T) {
 	script := "UPDATE t SET a = 1;"
 	request := mssqlRestoreRequest(script, analysis.Backup{SourceTable: "t", BackupTable: "p_t", Start: analysis.Position{Line: 2}, End: analysis.Position{Line: 3}})

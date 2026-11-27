@@ -196,6 +196,38 @@ func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
 	}
 }
 
+func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "NUMBER"}, {Name: "a", Type: "NUMBER"}, {Name: "b", Type: "NUMBER"}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "t_pk", Primary: true, Unique: true, Expressions: []string{"id"}},
+				{Name: "t_b", Unique: true, Expressions: []string{"b"}},
+			},
+		}},
+	}}}
+	// The second UPDATE of t changes the primary key, so t_b keys the MERGE.
+	script := "UPDATE \"t\" SET \"a\" = 1 WHERE \"id\" = 1;\nUPDATE \"t1\" SET \"z\" = 1;\nUPDATE \"t\" SET \"id\" = 5 WHERE \"id\" = 2;"
+	backups := oracleBackups(t, nil, script)
+	if len(backups) != 2 || backups[0].SourceTable != "t" {
+		t.Fatalf("backups = %+v", backups)
+	}
+	request := oracleRestoreRequest(script, backups[0])
+	request.Catalog = analysis.Catalog{GetDatabase: func(context.Context, string) (*analysis.Database, error) {
+		return &analysis.Database{Name: "db", Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+	sql, err := Engine.RestoreSQL(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "MERGE INTO \"db\".\"t\" t\nUSING \"BBDATAARCHIVE\".\"" + backups[0].BackupTable + "\" b\n  ON( t.\"b\" = b.\"b\")\n" +
+		"WHEN MATCHED THEN\n  UPDATE SET t.\"a\" = b.\"a\", t.\"id\" = b.\"id\"\nWHEN NOT MATCHED THEN\n INSERT (\"id\", \"a\", \"b\") VALUES (b.\"id\", b.\"a\", b.\"b\");"
+	if !strings.HasSuffix(sql, "\n*/\n"+want) {
+		t.Fatalf("sql = %s", sql)
+	}
+}
+
 func TestEngineBackupsEndAtTheLastCharacterOrAfterAMultiByteOne(t *testing.T) {
 	for script, want := range map[string]analysis.Position{
 		`DELETE FROM "t" WHERE 2 = a;`: {Line: 1, Column: 26},

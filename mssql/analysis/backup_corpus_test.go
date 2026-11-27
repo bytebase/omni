@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/ast"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -326,8 +327,10 @@ func TestRestoreCorpus(t *testing.T) {
 			dmls := BackedUpDMLs(parseScript(t, tc.Input))
 			require.NotEmpty(t, dmls)
 			var sqls []string
+			var nodes []ast.Node
 			for _, dml := range dmls {
 				sqls = append(sqls, dml.SQL)
+				nodes = append(nodes, dml.Node)
 			}
 			table := tables[tc.OriginalTable]
 			require.NotNil(t, table)
@@ -338,7 +341,7 @@ func TestRestoreCorpus(t *testing.T) {
 					break
 				}
 			}
-			got, err := RestoreSQL(dmls[0].Node, RestoreOptions{
+			got, err := RestoreSQL(nodes, RestoreOptions{
 				OriginalDatabase: tc.OriginalDatabase,
 				OriginalSchema:   "dbo",
 				OriginalTable:    tc.OriginalTable,
@@ -378,7 +381,7 @@ func TestRestoreVariableAssignments(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			dmls := BackedUpDMLs(parseScript(t, tc.sql))
 			require.Len(t, dmls, 1)
-			got, err := RestoreSQL(dmls[0].Node, RestoreOptions{
+			got, err := RestoreSQL([]ast.Node{dmls[0].Node}, RestoreOptions{
 				OriginalDatabase: "db",
 				OriginalSchema:   "dbo",
 				OriginalTable:    "test",

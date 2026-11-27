@@ -238,6 +238,26 @@ func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
 	}
 }
 
+func TestEngineRestoreSQLMatchesTheDatabaseByCase(t *testing.T) {
+	script := "DELETE FROM DB.t WHERE id = 1;"
+	request := analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: "t", BackupDatabase: "bbdataarchive", BackupTable: "b",
+		Start: analysis.Position{Line: 1, Column: 1}, End: analysis.Position{Line: 1, Column: 31}, Catalog: mysqlBackupCatalog(),
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/*\nOriginal SQL:\nDELETE FROM DB.t WHERE id = 1;\n*/\nINSERT INTO `db`.`t` (`id`, `a`) SELECT `id`, `a` FROM `bbdataarchive`.`b`;"
+	if sql != want {
+		t.Fatalf("sql = %q", sql)
+	}
+	request.CaseSensitive = true
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "no DML statement found in extracted SQL" {
+		t.Fatalf("case-sensitive RestoreSQL err = %v", err)
+	}
+}
+
 func TestEngineBackupsAndRestoreSQLNameADatabaseTheCatalogDoesNotList(t *testing.T) {
 	script := "DELETE FROM t;\nSELECT 1;"
 	_, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "missing", Catalog: mysqlBackupCatalog()}, script)

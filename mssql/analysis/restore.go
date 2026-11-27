@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -58,13 +59,29 @@ func BackedUpDMLs(stmts []ParsedStatement) []BackedUpDML {
 	return dmls
 }
 
+// changesTable reports whether node, an UPDATE or DELETE, changes table in
+// schema, resolving its target as a backup does.
+func changesTable(node ast.Node, database, schema, table string) bool {
+	var target *tableReference
+	var err error
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		target, _, err = resolveDMLTargetTable(n.Relation, n.FromClause, database)
+	case *ast.DeleteStmt:
+		target, _, err = resolveDMLTargetTable(n.Relation, n.FromClause, database)
+	default:
+	}
+	return err == nil && target != nil && target.Schema == schema && target.Table == table
+}
+
 // RestoreSQL returns the statements that restore, from the backup table, the
-// rows node changed: an INSERT of the deleted rows for a DELETE, and for an
-// UPDATE a MERGE on a unique key the UPDATE leaves alone. A table with an
-// IDENTITY column turns IDENTITY_INSERT on around them and reseeds after. A
-// comment quotes the original SQL. An UPDATE whose every unique key it
-// changes is an error.
-func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
+// rows nodes, the UPDATE and DELETE statements one backup covers, changed:
+// when any is an UPDATE, a MERGE of every column the UPDATEs set on a unique
+// key none of them changes, which also inserts deleted rows again; otherwise
+// an INSERT of the deleted rows. A table with an IDENTITY column turns
+// IDENTITY_INSERT on around them and reseeds after. A comment quotes the
+// original SQL. UPDATEs that change every unique key are an error.
+func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
 	sqlForComment, truncated := truncateString(opts.OriginalSQL, maxCommentLength)
 	if truncated {
 		sqlForComment += "..."
@@ -79,7 +96,7 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 		pk:               opts.PrimaryKey,
 		table:            opts.Table,
 	}
-	result, err := g.generate(node)
+	result, err := g.generate(nodes)
 	if err != nil {
 		return "", err
 	}
@@ -128,15 +145,30 @@ func quoteTSQLColumns(columns []string) string {
 	return strings.Join(quotedColumns, ", ")
 }
 
-func (g *generator) generate(node ast.Node) (string, error) {
-	switch n := node.(type) {
-	case *ast.DeleteStmt:
-		return g.generateDelete()
-	case *ast.UpdateStmt:
-		return g.generateUpdate(n)
-	default:
-		return "", fmt.Errorf("unsupported restore statement %T", node)
+func (g *generator) generate(nodes []ast.Node) (string, error) {
+	if len(nodes) == 0 {
+		return "", fmt.Errorf("no DML statement to restore")
 	}
+	var updateColumns []string
+	hasUpdate := false
+	for _, node := range nodes {
+		switch n := node.(type) {
+		case *ast.DeleteStmt:
+		case *ast.UpdateStmt:
+			hasUpdate = true
+			for _, column := range updateSetColumns(n.SetClause) {
+				if !slices.Contains(updateColumns, column) {
+					updateColumns = append(updateColumns, column)
+				}
+			}
+		default:
+			return "", fmt.Errorf("unsupported restore statement %T", node)
+		}
+	}
+	if !hasUpdate {
+		return g.generateDelete()
+	}
+	return g.generateUpdate(updateColumns)
 }
 
 func (g *generator) generateDelete() (string, error) {
@@ -205,8 +237,7 @@ func (g *generator) findDisjointUniqueKey(updateColumns []string) ([]string, err
 	return nil, fmt.Errorf("no disjoint unique key found for %s.%s.%s", g.originalDatabase, g.originalSchema, g.originalTable)
 }
 
-func (g *generator) generateUpdate(stmt *ast.UpdateStmt) (string, error) {
-	updateColumns := updateSetColumns(stmt.SetClause)
+func (g *generator) generateUpdate(updateColumns []string) (string, error) {
 	uk, err := g.findDisjointUniqueKey(updateColumns)
 	if err != nil {
 		return "", err

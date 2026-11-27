@@ -381,7 +381,16 @@ func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (
 	if err != nil {
 		return "", err
 	}
-	return RestoreSQL(dmls[0].Node, RestoreOptions{
+	var nodes []ast.Node
+	for _, dml := range dmls {
+		if changesTable(dml.Node, table.Schema, request.SourceTable) {
+			nodes = append(nodes, dml.Node)
+		}
+	}
+	if len(nodes) == 0 {
+		return "", analysis.StatementNotFoundError(request)
+	}
+	return RestoreSQL(nodes, RestoreOptions{
 		OriginalSchema:    table.Schema,
 		OriginalTable:     request.SourceTable,
 		BackupSchema:      request.BackupSchema,

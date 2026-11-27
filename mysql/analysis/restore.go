@@ -56,15 +56,15 @@ func DMLs(statement string) ([]ast.Node, error) {
 }
 
 // ReferencesTable reports whether an UPDATE or DELETE of statement names
-// database.table. An unqualified table is in database. It returns the
-// parser's error as is.
-func ReferencesTable(statement, database, table string) (bool, error) {
+// database.table, comparing names as caseSensitive says. An unqualified table
+// is in database. It returns the parser's error as is.
+func ReferencesTable(statement, database, table string, caseSensitive bool) (bool, error) {
 	stmtList, err := parser.Parse(statement)
 	if err != nil {
 		return false, err
 	}
 	for _, node := range stmtList.Items {
-		if containsTable(node, database, table) {
+		if containsTable(node, database, table, caseSensitive) {
 			return true, nil
 		}
 	}
@@ -439,22 +439,22 @@ func disjoint(a []string, b map[string]bool) bool {
 }
 
 // containsTable checks whether the given AST node references the specified table.
-func containsTable(node ast.Node, database, table string) bool {
+func containsTable(node ast.Node, database, table string, caseSensitive bool) bool {
 	switch n := node.(type) {
 	case *ast.UpdateStmt:
 		for _, expr := range n.Tables {
-			if tableExprReferences(expr, database, table) {
+			if tableExprReferences(expr, database, table, caseSensitive) {
 				return true
 			}
 		}
 	case *ast.DeleteStmt:
 		for _, expr := range n.Tables {
-			if tableExprReferences(expr, database, table) {
+			if tableExprReferences(expr, database, table, caseSensitive) {
 				return true
 			}
 		}
 		for _, expr := range n.Using {
-			if tableExprReferences(expr, database, table) {
+			if tableExprReferences(expr, database, table, caseSensitive) {
 				return true
 			}
 		}
@@ -463,16 +463,16 @@ func containsTable(node ast.Node, database, table string) bool {
 	return false
 }
 
-func tableExprReferences(expr ast.TableExpr, database, table string) bool {
+func tableExprReferences(expr ast.TableExpr, database, table string, caseSensitive bool) bool {
 	switch n := expr.(type) {
 	case *ast.TableRef:
 		db := n.Schema
 		if db == "" {
 			db = database
 		}
-		return db == database && strings.EqualFold(n.Name, table)
+		return equalIdentifier(db, database, caseSensitive) && equalIdentifier(n.Name, table, caseSensitive)
 	case *ast.JoinClause:
-		return tableExprReferences(n.Left, database, table) || tableExprReferences(n.Right, database, table)
+		return tableExprReferences(n.Left, database, table, caseSensitive) || tableExprReferences(n.Right, database, table, caseSensitive)
 	}
 	return false
 }

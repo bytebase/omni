@@ -13,6 +13,7 @@ import (
 	"github.com/bytebase/omni/metadata"
 	omnipg "github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/analysis"
+	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -196,11 +197,14 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		exec(t, db, rt.script)
 		require.NotEqual(t, before, tableRows(t, db, rt.schema, rt.table), rt.name)
 
-		// Bytebase restores a backup by its first statement's type.
 		dmls := analysis.BackedUpDMLs(stmts)
 		require.NotEmpty(t, dmls, rt.name)
+		var nodes []ast.Node
+		for _, dml := range dmls {
+			nodes = append(nodes, dml.Node)
+		}
 		table, primaryKey := tableMetadata(t, db, rt.schema, rt.table)
-		restore, err := analysis.RestoreSQL(dmls[0].Node, analysis.RestoreOptions{
+		restore, err := analysis.RestoreSQL(nodes, analysis.RestoreOptions{
 			OriginalSchema: rt.schema,
 			OriginalTable:  rt.table,
 			BackupSchema:   backupSchema,

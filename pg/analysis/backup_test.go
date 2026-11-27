@@ -6,6 +6,7 @@ import (
 
 	"github.com/bytebase/omni/metadata"
 	omnipg "github.com/bytebase/omni/pg"
+	"github.com/bytebase/omni/pg/ast"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,21 +129,30 @@ func TestRestoreSQL(t *testing.T) {
 	require.Len(t, dmls, 4)
 	require.Equal(t, "SET search_path = public", PrependStatements(stmts))
 
-	got, err := RestoreSQL(dmls[0].Node, options)
+	got, err := RestoreSQL([]ast.Node{dmls[0].Node}, options)
 	require.NoError(t, err)
 	require.Equal(t, "/*\nOriginal SQL:\nDELETE FROM t\n*/\nINSERT INTO \"public\".\"t\" (\"id\", \"a\") SELECT \"id\", \"a\" FROM \"bbdataarchive\".\"_bb__t_public\";", got)
 
 	options.PrependStatements = PrependStatements(stmts)
-	got, err = RestoreSQL(dmls[1].Node, options)
+	got, err = RestoreSQL([]ast.Node{dmls[1].Node}, options)
 	require.NoError(t, err)
 	require.Equal(t, "SET search_path = public;\n/*\nOriginal SQL:\nDELETE FROM t\n*/\nINSERT INTO \"public\".\"t\" (\"id\", \"a\") SELECT \"id\", \"a\" FROM \"bbdataarchive\".\"_bb__t_public\" ON CONFLICT ON CONSTRAINT \"t_pkey\" DO UPDATE SET \"a\" = EXCLUDED.\"a\";", got)
 
 	// An UPDATE of every unique key cannot be restored.
-	_, err = RestoreSQL(dmls[2].Node, options)
+	_, err = RestoreSQL([]ast.Node{dmls[2].Node}, options)
+	require.EqualError(t, err, "no disjoint unique key found for table")
+
+	// The upsert also inserts the deleted rows again.
+	got, err = RestoreSQL([]ast.Node{dmls[0].Node, dmls[1].Node}, options)
+	require.NoError(t, err)
+	require.True(t, strings.HasSuffix(got, ` ON CONFLICT ON CONSTRAINT "t_pkey" DO UPDATE SET "a" = EXCLUDED."a";`), got)
+
+	// One UPDATE leaves the primary key alone, the other changes it.
+	_, err = RestoreSQL([]ast.Node{dmls[1].Node, dmls[2].Node}, options)
 	require.EqualError(t, err, "no disjoint unique key found for table")
 
 	// Assigning fields of a composite column restores the column, once.
-	got, err = RestoreSQL(dmls[3].Node, options)
+	got, err = RestoreSQL([]ast.Node{dmls[3].Node}, options)
 	require.NoError(t, err)
 	require.True(t, strings.HasSuffix(got, ` ON CONFLICT ON CONSTRAINT "t_pkey" DO UPDATE SET "a" = EXCLUDED."a";`), got)
 }
@@ -154,7 +164,7 @@ func TestRestoreSQLConflictTarget(t *testing.T) {
 	pk := &metadata.IndexMetadata{Name: "t_pkey", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{`"Id"`}}
 	update := BackedUpDMLs(parseScript(t, `UPDATE t SET "Id" = 2, b = 3`))[0].Node
 	restore := func(table *metadata.TableMetadata) (string, error) {
-		return RestoreSQL(update, RestoreOptions{OriginalSchema: "public", OriginalTable: "t", BackupSchema: "bb", BackupTable: "b", Table: table, PrimaryKey: pk})
+		return RestoreSQL([]ast.Node{update}, RestoreOptions{OriginalSchema: "public", OriginalTable: "t", BackupSchema: "bb", BackupTable: "b", Table: table, PrimaryKey: pk})
 	}
 	const plainIndex = "CREATE UNIQUE INDEX t_a ON public.t USING btree (a)"
 
@@ -188,15 +198,15 @@ func TestRestoreSQLIdentityAlways(t *testing.T) {
 	options := RestoreOptions{OriginalSchema: "public", OriginalTable: "t", BackupSchema: "bb", BackupTable: "b", Table: table, PrimaryKey: pk}
 	dmls := BackedUpDMLs(parseScript(t, "DELETE FROM t; UPDATE t SET a = 1; UPDATE t SET id = DEFAULT"))
 
-	got, err := RestoreSQL(dmls[0].Node, options)
+	got, err := RestoreSQL([]ast.Node{dmls[0].Node}, options)
 	require.NoError(t, err)
 	require.Contains(t, got, `INSERT INTO "public"."t" ("id", "a") OVERRIDING SYSTEM VALUE SELECT "id", "a" FROM "bb"."b";`)
 
-	got, err = RestoreSQL(dmls[1].Node, options)
+	got, err = RestoreSQL([]ast.Node{dmls[1].Node}, options)
 	require.NoError(t, err)
 	require.Contains(t, got, `INSERT INTO "public"."t" ("id", "a") OVERRIDING SYSTEM VALUE SELECT "id", "a" FROM "bb"."b" ON CONFLICT ON CONSTRAINT "t_pkey" DO UPDATE SET "a" = EXCLUDED."a";`)
 
 	// DO UPDATE can set the column only to DEFAULT.
-	_, err = RestoreSQL(dmls[2].Node, options)
+	_, err = RestoreSQL([]ast.Node{dmls[2].Node}, options)
 	require.EqualError(t, err, `cannot restore an UPDATE of "id", a GENERATED ALWAYS identity column`)
 }

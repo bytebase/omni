@@ -54,12 +54,46 @@ func BackedUpDMLs(stmts []omnipg.Statement) []BackedUpDML {
 	return dmls
 }
 
+// changesTable reports whether node, an UPDATE or DELETE, changes table in
+// schema. An unqualified table matches by name.
+func changesTable(node ast.Node, schema, table string) bool {
+	var relation *ast.RangeVar
+	switch n := node.(type) {
+	case *ast.UpdateStmt:
+		relation = n.Relation
+	case *ast.DeleteStmt:
+		relation = n.Relation
+	default:
+	}
+	return relation != nil && relation.Relname == table && (relation.Schemaname == "" || relation.Schemaname == schema)
+}
+
 // RestoreSQL returns the statement that restores, from its backup table, the
-// rows node changed: an INSERT of the deleted rows for a DELETE, and for an
-// UPDATE an upsert on a unique key the UPDATE leaves alone. A comment quotes
-// the original statement. An UPDATE whose every unique key it changes is an
-// error.
-func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
+// rows nodes, the UPDATE and DELETE statements one backup covers, changed:
+// when any is an UPDATE, an upsert of every column the UPDATEs set on a
+// unique key none of them changes, which also inserts deleted rows again;
+// otherwise an INSERT of the deleted rows. A comment quotes the original
+// statements. UPDATEs that change every unique key are an error.
+func RestoreSQL(nodes []ast.Node, opts RestoreOptions) (string, error) {
+	if len(nodes) == 0 {
+		return "", fmt.Errorf("no DML statement to restore")
+	}
+	var fields []string
+	hasUpdate := false
+	for _, node := range nodes {
+		switch n := node.(type) {
+		case *ast.DeleteStmt:
+		case *ast.UpdateStmt:
+			hasUpdate = true
+			for _, field := range extractSetFieldNames(n) {
+				if !slices.Contains(fields, field) {
+					fields = append(fields, field)
+				}
+			}
+		default:
+			return "", fmt.Errorf("unexpected statement type: %T", node)
+		}
+	}
 	sqlForComment := opts.OriginalSQL
 	prependStatements := opts.PrependStatements
 	backupSchema := opts.BackupSchema
@@ -75,11 +109,9 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 	}
 
 	var result string
-	switch n := node.(type) {
-	case *ast.DeleteStmt:
+	if !hasUpdate {
 		result = fmt.Sprintf(`INSERT INTO %s.%s (%s)%s SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, overriding, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
-	case *ast.UpdateStmt:
-		fields := extractSetFieldNames(n)
+	} else {
 		// ON CONFLICT DO UPDATE can set such a column only to DEFAULT.
 		for _, column := range alwaysIdentityColumns(opts.Table) {
 			if slices.Contains(fields, column) {
@@ -109,8 +141,6 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 			return "", fmt.Errorf("failed to generate update statement: %w", err)
 		}
 		result = buf.String()
-	default:
-		return "", fmt.Errorf("unexpected statement type: %T", node)
 	}
 
 	sqlForComment = commentText(sqlForComment)

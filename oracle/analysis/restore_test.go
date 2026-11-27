@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 func restoreTable() (*metadata.TableMetadata, *metadata.IndexMetadata) {
@@ -34,7 +35,7 @@ func restore(t *testing.T, sql string) (string, error) {
 	require.NoError(t, err)
 	require.NotNil(t, node)
 	table, pk := restoreTable()
-	return RestoreSQL(sql, node, RestoreOptions{
+	return RestoreSQL(sql, []ast.StmtNode{node}, RestoreOptions{
 		SourceDatabase: "DB",
 		SourceTable:    "T",
 		BackupDatabase: "BB",
@@ -55,6 +56,16 @@ func TestRestoreSQL(t *testing.T) {
 		"MERGE INTO \"DB\".\"T\" t\nUSING \"BB\".\"B\" b\n  ON( t.\"ID\" = b.\"ID\")\nWHEN MATCHED THEN\n  UPDATE SET t.\"A\" = b.\"A\""+
 		"\nWHEN NOT MATCHED THEN\n INSERT (\"ID\", \"A\", \"B\") VALUES (b.\"ID\", b.\"A\", b.\"B\");", got)
 
+	// The MERGE also inserts the deleted rows again.
+	deleteNode, err := FindFirstDML("DELETE FROM t WHERE a = 1")
+	require.NoError(t, err)
+	updateNode, err := FindFirstDML("UPDATE t SET a = 1")
+	require.NoError(t, err)
+	table, pk := restoreTable()
+	got, err = RestoreSQL("", []ast.StmtNode{deleteNode, updateNode}, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
+	require.NoError(t, err)
+	require.Contains(t, got, "\nWHEN MATCHED THEN\n  UPDATE SET t.\"A\" = b.\"A\"\n")
+
 	// The primary key is set, so the next unique key that is not
 	// function-based decides.
 	got, err = restore(t, "UPDATE t SET (ID, A) = (SELECT 1, 2 FROM DUAL)")
@@ -67,9 +78,9 @@ func TestRestoreSQL(t *testing.T) {
 	// A unique key on a nullable column cannot match its rows' NULLs.
 	node, err := FindFirstDML("UPDATE t SET id = 1")
 	require.NoError(t, err)
-	table, pk := restoreTable()
+	table, pk = restoreTable()
 	table.Columns[2].Nullable = true
-	_, err = RestoreSQL("UPDATE t SET id = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
+	_, err = RestoreSQL("UPDATE t SET id = 1", []ast.StmtNode{node}, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
 	require.EqualError(t, err, "no disjoint unique key found for DB.T")
 
 	// A unique constraint on a non-unique index enforces uniqueness all the
@@ -81,7 +92,7 @@ func TestRestoreSQL(t *testing.T) {
 	}
 	node, err = FindFirstDML("UPDATE t SET a = 1")
 	require.NoError(t, err)
-	got, err = RestoreSQL("UPDATE t SET a = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	got, err = RestoreSQL("UPDATE t SET a = 1", []ast.StmtNode{node}, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
 	require.NoError(t, err)
 	require.Contains(t, got, `ON( t."ID" = b."ID")`)
 
@@ -104,7 +115,7 @@ func TestRestoreSQL(t *testing.T) {
 	}
 	node, err = FindFirstDML("UPDATE t SET b = 1")
 	require.NoError(t, err)
-	got, err = RestoreSQL("UPDATE t SET b = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	got, err = RestoreSQL("UPDATE t SET b = 1", []ast.StmtNode{node}, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
 	require.NoError(t, err)
 	require.Contains(t, got, `ON( t."A" = b."A")`)
 
@@ -125,7 +136,7 @@ func TestRestoreSQL(t *testing.T) {
 	}
 	node, err = FindFirstDML("UPDATE t SET other = 1")
 	require.NoError(t, err)
-	got, err = RestoreSQL("UPDATE t SET other = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	got, err = RestoreSQL("UPDATE t SET other = 1", []ast.StmtNode{node}, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
 	require.NoError(t, err)
 	require.Contains(t, got, `ON( t."UPPER_A" = b."UPPER_A")`)
 
