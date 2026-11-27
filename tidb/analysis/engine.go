@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -35,10 +36,7 @@ func (engine) Split(script string) []analysis.Statement {
 	}
 	statements := make([]analysis.Statement, 0, len(segments))
 	for _, s := range segments {
-		end := s.ByteEnd
-		if end < len(script) && script[end] == ';' {
-			end++
-		}
+		end := withSemicolon(script, s.ByteEnd)
 		statements = append(statements, analysis.Statement{
 			Text:  script[s.ByteStart:end],
 			Empty: s.Empty(),
@@ -47,6 +45,14 @@ func (engine) Split(script string) []analysis.Statement {
 		})
 	}
 	return statements
+}
+
+// withSemicolon extends a split segment's end over the ";" that follows it.
+func withSemicolon(script string, end int) int {
+	if end < len(script) && script[end] == ';' {
+		end++
+	}
+	return end
 }
 
 // syntaxError converts a parse error in text, which starts on base's line in
@@ -142,16 +148,7 @@ var _ analysis.QuerySpanResolver = Engine
 // as TiDB does whatever IgnoreCaseSensitive asks. A parse error is the
 // parser's own, unpositioned in the script.
 func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
-	var catalog Catalog
-	if get := request.Catalog.GetDatabase; get != nil {
-		catalog.GetDatabase = func(name string) (Database, error) {
-			database, err := get(ctx, name)
-			if err != nil || database == nil {
-				return nil, err
-			}
-			return lookupDatabase{database}, nil
-		}
-	}
+	catalog := unnamedSchemaCatalog(ctx, request.Catalog)
 	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
 	for _, statement := range statements {
 		span, err := ResolveQuerySpan(statement.Text, ResolveOptions{DefaultDatabase: request.DefaultDatabase, Catalog: catalog})
@@ -161,6 +158,25 @@ func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest,
 		spans = append(spans, span)
 	}
 	return spans, nil
+}
+
+// unnamedSchemaCatalog reads the request's catalog, each database through its
+// unnamed schema.
+func unnamedSchemaCatalog(ctx context.Context, catalog analysis.Catalog) Catalog {
+	var c Catalog
+	if list := catalog.ListDatabaseNames; list != nil {
+		c.ListDatabaseNames = func() ([]string, error) { return list(ctx) }
+	}
+	if get := catalog.GetDatabase; get != nil {
+		c.GetDatabase = func(name string) (Database, error) {
+			database, err := get(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return lookupDatabase{database}, nil
+		}
+	}
+	return c
 }
 
 // lookupDatabase is a synced database's Database, through the caller's name
@@ -203,4 +219,123 @@ func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analys
 		changes.InsertCount += c.InsertCount
 	}
 	return &changes, nil
+}
+
+var (
+	_ analysis.BackupGenerator  = Engine
+	_ analysis.RestoreGenerator = Engine
+)
+
+// Backups backs up the script's UPDATE and DELETE statements, an unqualified
+// table being in the source database. A backup starts where its first
+// statement's segment starts and ends where its last one's ends, as Split
+// places them.
+func (engine) Backups(ctx context.Context, request analysis.BackupRequest, script string) ([]analysis.Backup, error) {
+	catalog := unnamedSchemaCatalog(ctx, request.Catalog)
+	backups, err := TransformDMLToSelect(script, BackupOptions{
+		DefaultDatabase:      request.SourceDatabase,
+		BackupDatabase:       request.BackupDatabase,
+		TablePrefix:          request.TablePrefix,
+		CaseSensitive:        request.CaseSensitive,
+		Catalog:              catalog,
+		ReferencingDatabases: request.ReferencingDatabases,
+		Columns:              columnClassifier(catalog, request.CaseSensitive),
+	})
+	if err != nil || backups == nil {
+		return nil, err
+	}
+	positions := analysis.NewPositions(script)
+	result := make([]analysis.Backup, 0, len(backups))
+	for _, backup := range backups {
+		result = append(result, analysis.Backup{
+			Statement:   backup.Statement,
+			SourceTable: backup.SourceTable,
+			BackupTable: backup.BackupTable,
+			Start:       positions.At(backup.ByteStart),
+			End:         positions.At(withSemicolon(script, backup.ByteEnd)),
+		})
+	}
+	return result, nil
+}
+
+// columnClassifier is ClassifyColumns over catalog, naming the database the
+// catalog does not list.
+func columnClassifier(catalog Catalog, caseSensitive bool) func(database, table string) (TableColumns, error) {
+	return func(database, table string) (TableColumns, error) {
+		columns, err := ClassifyColumns(catalog, caseSensitive, database, table)
+		var notFound *NotFoundError
+		if errors.As(err, &notFound) {
+			return TableColumns{}, fmt.Errorf("failed to get database metadata for Database %q", database)
+		}
+		return columns, err
+	}
+}
+
+// RestoreSQL restores the rows the statements in the backup's range that
+// change the source table changed. The source table's columns decide whether
+// an unqualified SET column changes it.
+func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (string, error) {
+	catalog := unnamedSchemaCatalog(ctx, request.Catalog)
+	tableColumns, err := NormalColumnSet(catalog, request.SourceDatabase, request.SourceTable)
+	if err != nil {
+		return "", fmt.Errorf("failed to get target table columns: %w", err)
+	}
+	var originalSQL strings.Builder
+	for _, statement := range statementsInRange(request.Script, request.Start, request.End) {
+		matched, err := MutatesTable(statement.Text, request.SourceDatabase, request.SourceTable, tableColumns)
+		if err != nil {
+			return "", fmt.Errorf("failed to extract single SQL: failed to parse sql: %v", err)
+		}
+		if matched {
+			originalSQL.WriteString(statement.Text)
+		}
+	}
+	// One backup can cover several DMLs on the table, and the restore covers
+	// each.
+	nodes, err := MatchingDMLs(originalSQL.String(), request.SourceDatabase, request.SourceTable, tableColumns)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse statement: %w", err)
+	}
+	if len(nodes) == 0 {
+		return "", errors.New("no DML statement found in extracted SQL")
+	}
+	columns, err := columnClassifier(catalog, request.CaseSensitive)(request.SourceDatabase, request.SourceTable)
+	if err != nil {
+		return "", fmt.Errorf("failed to classify columns for %s.%s: %w", request.SourceDatabase, request.SourceTable, err)
+	}
+	return RestoreSQL(nodes, RestoreOptions{
+		Statement:      originalSQL.String(),
+		Database:       request.SourceDatabase,
+		Table:          request.SourceTable,
+		BackupDatabase: request.BackupDatabase,
+		BackupTable:    request.BackupTable,
+		Columns:        columns.Normal,
+		Catalog:        catalog,
+	})
+}
+
+// statementsInRange returns Split's statements from the last one starting at
+// or before start up to the first one starting at or after end, which it
+// leaves out.
+func statementsInRange(script string, start, end analysis.Position) []analysis.Statement {
+	statements := Engine.Split(script)
+	positions := analysis.NewPositions(script)
+	first, last, ended := 0, len(statements)-1, false
+	for i, statement := range statements {
+		at := positions.At(statement.Start)
+		if !before(start, at) {
+			first = i
+		}
+		if !ended && !before(at, end) {
+			last, ended = i-1, true
+		}
+	}
+	if first > last {
+		return nil
+	}
+	return statements[first : last+1]
+}
+
+func before(a, b analysis.Position) bool {
+	return a.Line < b.Line || a.Line == b.Line && a.Column < b.Column
 }

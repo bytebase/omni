@@ -180,3 +180,55 @@ func TestEngineExtractChangesKeepATableWithoutAName(t *testing.T) {
 		t.Fatalf("changes = %+v, err = %v", changes, err)
 	}
 }
+
+func tidbBackupCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}, {Name: "g", Type: "int", Generation: &metadata.GenerationMetadata{Expression: "a + 1"}}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"db"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name != "db" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: name, Metadata: db}, nil
+		},
+	}
+}
+
+func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
+	script := "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t SET a = 2 WHERE id = 2;"
+	backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "bbdataarchive", TablePrefix: "p", Catalog: tidbBackupCatalog()}, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Each statement has its own backup, which ends where the next one starts.
+	if len(backups) != 2 || backups[0].Start != (analysis.Position{Line: 1, Column: 1}) || backups[0].End != (analysis.Position{Line: 1, Column: 33}) || backups[1].Start != backups[0].End {
+		t.Fatalf("backups = %+v", backups)
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: "t", BackupDatabase: "bbdataarchive", BackupTable: backups[0].BackupTable,
+		Start: backups[0].Start, End: backups[0].End, Catalog: tidbBackupCatalog(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(sql, "/*\nOriginal SQL:\nUPDATE t SET a = 1 WHERE id = 1;\n*/\nINSERT INTO `db`.`t` (`id`, `a`) SELECT") {
+		t.Fatalf("sql = %q", sql)
+	}
+}
+
+func TestEngineRestoreSQLReadsTheSourceTablesColumnsFirst(t *testing.T) {
+	request := analysis.RestoreRequest{Script: "DELETE FROM t;", SourceDatabase: "missing", SourceTable: "t", Start: analysis.Position{Line: 1, Column: 1}, End: analysis.Position{Line: 1, Column: 15}, Catalog: tidbBackupCatalog()}
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "failed to get target table columns: database metadata is nil for missing" {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "missing", Catalog: tidbBackupCatalog()}, request.Script); err == nil ||
+		err.Error() != `failed to classify columns: failed to get database metadata for Database "missing"` {
+		t.Fatalf("Backups err = %v", err)
+	}
+}
