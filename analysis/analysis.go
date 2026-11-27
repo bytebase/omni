@@ -111,6 +111,10 @@ type ResolvedSpan struct {
 	// NotFoundError is set when a resource the query names is missing from the
 	// catalog; Results is then empty.
 	NotFoundError *ResourceNotFoundError
+	// LookupError is set instead of NotFoundError when a lookup failed with an
+	// error other than a missing resource, which the caller reports in its
+	// place.
+	LookupError error
 	// UnresolvedColumnsError is set when a relation the query reads has no
 	// columns in the synced metadata, so its lineage cannot be trusted.
 	UnresolvedColumnsError *UnresolvedColumnsError

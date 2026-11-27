@@ -15,9 +15,13 @@ type Catalog struct {
 	// GetDatabase returns a database's synced metadata, or nil for a database
 	// the caller has not synced.
 	GetDatabase func(ctx context.Context, name string) (*Database, error)
+	// GetInstanceDatabase is GetDatabase on the named instance, for an engine
+	// whose database links reach other instances.
+	GetInstanceDatabase func(ctx context.Context, instance, name string) (*Database, error)
 	// GetLinkedDatabase returns the synced metadata of a schema that a database
-	// link reaches (an Oracle @link), or nil when the caller has not synced it.
-	GetLinkedDatabase func(ctx context.Context, link, schema string) (*Database, error)
+	// link on the named instance reaches (an Oracle @link), with the instance it
+	// is on, or nil when the caller has not synced it.
+	GetLinkedDatabase func(ctx context.Context, instance, link, schema string) (*Database, error)
 }
 
 // Database is one synced database.
@@ -29,6 +33,9 @@ type Database struct {
 	// ObjectCaseSensitive reports whether the database compares schema and
 	// table names as written.
 	ObjectCaseSensitive bool
+	// Instance is the instance a database link reached the database on, and
+	// empty for any other lookup.
+	Instance string
 
 	lookupOnce sync.Once
 	lookup     *Lookup
