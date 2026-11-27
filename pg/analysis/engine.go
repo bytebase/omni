@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -288,4 +289,106 @@ func (m changeLookup) RelationSchema(searchPath []string, name string) string {
 
 func (m changeLookup) IndexTable(searchPath []string, name string) (string, string, bool) {
 	return m.lookup.SearchIndex(searchPath, name)
+}
+
+var (
+	_ analysis.BackupGenerator  = Engine
+	_ analysis.RestoreGenerator = Engine
+)
+
+// Backups resolves the script's tables along the default database's search
+// path and backs them up into the request's backup schema. A backup starts at
+// a 0-based column and ends at a 1-based one.
+func (engine) Backups(ctx context.Context, request analysis.BackupRequest, script string) ([]analysis.Backup, error) {
+	stmts, err := pg.Parse(script)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare transformation: failed to parse statement: %w", err)
+	}
+	if request.Catalog.GetDatabase == nil {
+		return nil, errors.New("failed to prepare transformation: the catalog cannot look databases up")
+	}
+	database, err := request.Catalog.GetDatabase(ctx, request.DefaultDatabase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare transformation: failed to get database metadata: %w", err)
+	}
+	if database == nil {
+		return nil, fmt.Errorf("failed to prepare transformation: database metadata for database %q not found (database not synced)", request.DefaultDatabase)
+	}
+	lookup := database.Lookup(true)
+	backups, err := TransformDMLToSelect(stmts, script, BackupOptions{
+		SearchPath: analysis.SearchPath(database.Metadata.GetSearchPath()),
+		SearchRelation: func(searchPath []string, name string) string {
+			schema, _ := lookup.SearchRelation(searchPath, name)
+			return schema
+		},
+		TargetSchema: request.BackupDatabase,
+		TablePrefix:  request.TablePrefix,
+	})
+	if err != nil {
+		return nil, err
+	}
+	positions := analysis.NewPositions(script)
+	result := make([]analysis.Backup, 0, len(backups))
+	for _, backup := range backups {
+		start := positions.At(backup.StartOffset)
+		start.Column--
+		result = append(result, analysis.Backup{
+			Statement:    backup.Statement,
+			SourceSchema: backup.SourceSchema,
+			SourceTable:  backup.SourceTableName,
+			BackupTable:  backup.TargetTableName,
+			Start:        start,
+			End:          positions.At(backup.EndOffset),
+		})
+	}
+	return result, nil
+}
+
+// restoreCommentLimit is how many characters of the backed-up statements the
+// restore's comment quotes.
+const restoreCommentLimit = 1000
+
+// RestoreSQL restores the rows the UPDATE and DELETE statements in the
+// backup's range changed, writing them back into the source table, which an
+// unqualified name finds in public.
+func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (string, error) {
+	stmts, err := pg.Parse(request.Script)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract single SQL: failed to parse statement: %v", err)
+	}
+	positions := analysis.NewPositions(request.Script)
+	var dmls []BackedUpDML
+	var sqls []string
+	for _, dml := range BackedUpDMLs(stmts) {
+		start := positions.At(dml.Start)
+		start.Column--
+		if !analysis.InRange(start, positions.At(dml.End), request.Start, request.End) {
+			continue
+		}
+		dmls = append(dmls, dml)
+		sqls = append(sqls, strings.TrimRight(strings.TrimSpace(dml.Text), ";"))
+	}
+	originalSQL := strings.Join(sqls, ";\n")
+	if originalSQL == "" {
+		return "", errors.New("no original SQL")
+	}
+	if len(dmls) == 0 {
+		return "", analysis.StatementNotFoundError(request)
+	}
+	table, err := analysis.LookUpRestoreTable(ctx, request, "public", true, func(database string) error {
+		return fmt.Errorf("database metadata not found for %s", database)
+	})
+	if err != nil {
+		return "", err
+	}
+	return RestoreSQL(dmls[0].Node, RestoreOptions{
+		OriginalSchema:    table.Schema,
+		OriginalTable:     request.SourceTable,
+		BackupSchema:      request.BackupSchema,
+		BackupTable:       request.BackupTable,
+		Table:             table.Table,
+		PrimaryKey:        table.PrimaryKey,
+		OriginalSQL:       analysis.TruncateComment(originalSQL, restoreCommentLimit),
+		PrependStatements: PrependStatements(stmts),
+	})
 }

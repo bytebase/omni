@@ -202,3 +202,55 @@ func TestEngineExtractChangesNeedSyncedMetadataAndPostgreSQLNodes(t *testing.T) 
 		}
 	}
 }
+
+func backupEngineCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", public`, Schemas: []*metadata.SchemaMetadata{{
+		Name: "public",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "t_pk", Primary: true, Unique: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
+	script := "SET ROLE admin;\nUPDATE t SET a = 1;"
+	backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{DefaultDatabase: "db", BackupDatabase: "bbdataarchive", TablePrefix: "p", Catalog: backupEngineCatalog()}, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 || backups[0].SourceSchema != "public" || backups[0].Start != (analysis.Position{Line: 2, Column: 0}) || backups[0].End != (analysis.Position{Line: 2, Column: 19}) {
+		t.Fatalf("backups = %+v", backups)
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: "t", BackupSchema: "bbdataarchive", BackupTable: backups[0].BackupTable,
+		Start: backups[0].Start, End: backups[0].End, Catalog: backupEngineCatalog(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(sql, "SET ROLE admin;\n") || !strings.Contains(sql, `"public"."t"`) {
+		t.Fatalf("sql = %s", sql)
+	}
+}
+
+func TestEngineRestoreSQLNeedsAStatementInRange(t *testing.T) {
+	_, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
+		Script: "UPDATE t SET a = 1;", SourceDatabase: "db", SourceTable: "t",
+		Start: analysis.Position{Line: 2}, End: analysis.Position{Line: 3}, Catalog: backupEngineCatalog(),
+	})
+	if err == nil || err.Error() != "no original SQL" {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.Backups(context.Background(), analysis.BackupRequest{DefaultDatabase: "other", Catalog: backupEngineCatalog()}, "UPDATE t SET a = 1;"); err == nil ||
+		err.Error() != `failed to prepare transformation: database metadata for database "other" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+}
