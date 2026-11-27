@@ -28,7 +28,9 @@ cd "$(git rev-parse --show-toplevel)"
 
 # Tracked files only: a worktree or build tree under an ignored directory
 # (.claude/worktrees/) holds whole copies of the repo, go.mod files included.
-modules=$(git ls-files '*/go.mod' | xargs -r dirname | sort -u)
+# A tapes directory's go.mod only keeps the tapes out of the module zip; it
+# holds no package to test.
+modules=$(git ls-files '*/go.mod' | grep -v '/testdata/tapes/go.mod$' | xargs -r dirname | sort -u)
 dirs=() mods=()
 while IFS= read -r f; do
 	case "$f" in
