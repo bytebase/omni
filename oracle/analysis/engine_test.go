@@ -10,6 +10,7 @@ import (
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
+	"github.com/bytebase/omni/oracle/parser"
 )
 
 func TestEngineSplitAndParse(t *testing.T) {
@@ -102,6 +103,90 @@ func oracleChangeStatements(t *testing.T, script string) []analysis.ParsedStatem
 		t.Fatal(err)
 	}
 	return statements
+}
+
+// oracleSpanCatalog has APP on the connected instance i and SCHEMA1 on remote,
+// which i's link REMOTE reaches; reads counts each instance database read.
+func oracleSpanCatalog(reads map[string]int) analysis.Catalog {
+	instances := map[string]map[string]*metadata.DatabaseSchemaMetadata{
+		"i": {"APP": {Name: "APP", Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{Name: "T", Columns: []*metadata.ColumnMetadata{{Name: "A"}}}},
+		}}}},
+		"remote": {"SCHEMA1": {Name: "SCHEMA1", Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{Name: "LT1", Columns: []*metadata.ColumnMetadata{{Name: "LC1"}}}},
+			Views:  []*metadata.ViewMetadata{{Name: "LV1", Definition: "SELECT LC1 FROM LT1"}},
+		}}}},
+	}
+	return analysis.Catalog{
+		GetInstanceDatabase: func(_ context.Context, instance, name string) (*analysis.Database, error) {
+			reads[instance+"."+name]++
+			if m := instances[instance][name]; m != nil {
+				return &analysis.Database{Name: name, Metadata: m, ObjectCaseSensitive: true}, nil
+			}
+			return nil, nil
+		},
+		GetLinkedDatabase: func(_ context.Context, instance, link, schema string) (*analysis.Database, error) {
+			if instance != "i" || link != "REMOTE" || instances["remote"][schema] == nil {
+				return nil, nil
+			}
+			return &analysis.Database{Name: schema, Metadata: instances["remote"][schema], ObjectCaseSensitive: true, Instance: "remote"}, nil
+		},
+	}
+}
+
+func oracleQuerySpans(t *testing.T, reads map[string]int, texts ...string) []*analysis.ResolvedSpan {
+	t.Helper()
+	statements := make([]analysis.QuerySpanStatement, 0, len(texts))
+	for _, text := range texts {
+		statements = append(statements, analysis.QuerySpanStatement{Text: text})
+	}
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{Instance: "i", DefaultDatabase: "APP", Catalog: oracleSpanCatalog(reads)}, statements)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return spans
+}
+
+func TestEngineQuerySpansReadEachInstanceDatabaseOncePerScript(t *testing.T) {
+	reads := map[string]int{}
+	spans := oracleQuerySpans(t, reads, "SELECT A FROM T", "SELECT A FROM APP.T")
+	for _, span := range spans {
+		if !span.SourceColumns[analysis.ColumnResource{Database: "APP", Table: "T"}] {
+			t.Fatalf("span = %+v", span)
+		}
+	}
+	if !reflect.DeepEqual(reads, map[string]int{"i.APP": 1}) {
+		t.Fatalf("reads = %v", reads)
+	}
+}
+
+func TestEngineQuerySpansResolveALinkedViewOnTheInstanceTheLinkReaches(t *testing.T) {
+	reads := map[string]int{}
+	span := oracleQuerySpans(t, reads, "SELECT * FROM SCHEMA1.LV1@REMOTE")[0]
+	if !span.SourceColumns[analysis.ColumnResource{Instance: "remote", Server: "REMOTE", Database: "SCHEMA1", Table: "LV1"}] {
+		t.Fatalf("source columns = %v", span.SourceColumns)
+	}
+	if len(span.Results) != 1 || !span.Results[0].SourceColumns[analysis.ColumnResource{Database: "SCHEMA1", Table: "LT1", Column: "LC1"}] {
+		t.Fatalf("results = %+v", span.Results)
+	}
+	if reads["remote.SCHEMA1"] == 0 || reads["i.SCHEMA1"] != 0 {
+		t.Fatalf("reads = %v", reads)
+	}
+}
+
+func TestEngineQuerySpansKeepAnUnresolvedLinkAsWritten(t *testing.T) {
+	span := oracleQuerySpans(t, map[string]int{}, "DELETE FROM SCHEMA1.LT1@NOLINK")[0]
+	if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Server: "NOLINK", Database: "SCHEMA1", Table: "LT1"}: true}) {
+		t.Fatalf("source columns = %v", span.SourceColumns)
+	}
+}
+
+func TestEngineQuerySpansWrapTheStatementsError(t *testing.T) {
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{Instance: "i", DefaultDatabase: "APP", Catalog: oracleSpanCatalog(map[string]int{})}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM", Start: analysis.Position{Line: 3, Column: 1}}})
+	var parseErr *parser.ParseError
+	if !errors.As(err, &parseErr) || !strings.HasPrefix(err.Error(), "failed to get query span from statement: SELECT * FROM: failed to parse statement: ") {
+		t.Fatalf("err = %T %v", err, err)
+	}
 }
 
 func oracleChangeDatabase() *analysis.Database {
