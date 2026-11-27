@@ -15,8 +15,8 @@ type QuerySpanRequest struct {
 // QuerySpanStatement is one non-empty statement of a script.
 type QuerySpanStatement struct {
 	Text string
-	// Start is where the statement begins in its script, for positioning a
-	// syntax error.
+	// Start is where the statement begins in its script (1-based line and
+	// column), for positioning a syntax error.
 	Start Position
 }
 

@@ -139,11 +139,7 @@ func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest,
 			Catalog:             catalog,
 		})
 		if err != nil {
-			start := statement.Start
-			if start == (analysis.Position{}) {
-				start = analysis.Position{Line: 1, Column: 1}
-			}
-			return nil, syntaxError(err, statement.Text, start)
+			return nil, syntaxError(err, statement.Text, statement.Start)
 		}
 		spans = append(spans, span)
 	}

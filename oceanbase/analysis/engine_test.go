@@ -141,7 +141,7 @@ func TestEngineQuerySpansPositionASyntaxErrorInTheScript(t *testing.T) {
 	request := analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: oceanbaseSpanCatalog()}
 	for start, want := range map[analysis.Position]analysis.Position{
 		{Line: 3, Column: 5}: {Line: 3, Column: 14},
-		{}:                   {Line: 1, Column: 10},
+		{Line: 1, Column: 1}: {Line: 1, Column: 10},
 	} {
 		_, err := Engine.QuerySpans(context.Background(), request, []analysis.QuerySpanStatement{{Text: "SELECT * FORM t", Start: start}})
 		var syntaxErr *analysis.SyntaxError
