@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -131,5 +132,51 @@ func TestEngineQuerySpansWrapTheParseError(t *testing.T) {
 	var syntaxErr *analysis.SyntaxError
 	if !errors.As(err, &parseErr) || errors.As(err, &syntaxErr) || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func parseTiDBForChanges(t *testing.T, texts ...string) []analysis.ParsedStatement {
+	t.Helper()
+	var statements []analysis.ParsedStatement
+	for _, text := range texts {
+		list, err := parser.Parse(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, node := range list.Items {
+			statements = append(statements, analysis.ParsedStatement{Statement: analysis.Statement{Text: text}, Node: node})
+		}
+	}
+	return statements
+}
+
+func TestEngineExtractChangesInTheDefaultDatabase(t *testing.T) {
+	statements := append(parseTiDBForChanges(t, "INSERT INTO t VALUES (1), (2);", "\nUPDATE other.t1 SET a = 1;"), analysis.ParsedStatement{})
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: "s1"}, statements)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &analysis.Changes{
+		Resources:     []analysis.ChangedResource{{Database: "db", Table: "t"}, {Database: "other", Table: "t1"}},
+		DMLStatements: []analysis.DMLStatement{{Text: "UPDATE other.t1 SET a = 1"}},
+		DMLCount:      1,
+		InsertCount:   2,
+	}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v", changes)
+	}
+}
+
+func TestEngineExtractChangesRejectAForeignNode(t *testing.T) {
+	_, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, []analysis.ParsedStatement{{Node: "not a node"}})
+	if err == nil || err.Error() != "expected TiDB AST" {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestEngineExtractChangesKeepATableWithoutAName(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, parseTiDBForChanges(t, "TRUNCATE ``"))
+	if err != nil || len(changes.Resources) != 1 || changes.Resources[0] != (analysis.ChangedResource{Database: "db", AffectsData: true}) {
+		t.Fatalf("changes = %+v, err = %v", changes, err)
 	}
 }
