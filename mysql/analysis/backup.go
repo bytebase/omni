@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -179,8 +180,13 @@ func prepareTransformation(databaseName, statement string, catalog Catalog, case
 				if name := volatileFunction(node, text); name != "" {
 					return nil, fmt.Errorf("prior backup cannot back up a statement whose rows depend on %s, whose value can differ when the backup runs", name)
 				}
-				for read := range statementReads(databaseName, node, text, tables) {
-					for _, changed := range written {
+				// The first table changed is named; reads, a set, are sorted
+				// so a case variant is named the same on every run.
+				reads := slices.SortedFunc(maps.Keys(statementReads(databaseName, node, text, tables)), func(a, b ColumnResource) int {
+					return strings.Compare(a.String(), b.String())
+				})
+				for _, changed := range written {
+					for _, read := range reads {
 						if equalIdentifier(read.Database, changed.Database, caseSensitive) && equalIdentifier(read.Table, changed.Table, caseSensitive) {
 							return nil, fmt.Errorf("prior backup cannot handle a statement that reads %s.%s after an earlier statement changes it", read.Database, read.Table)
 						}
@@ -536,7 +542,7 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 	cteNames := collectCTENames(fullSQL, n.Loc)
 	stmtText := extractStatementText(fullSQL, n.Loc)
 
-	singleTables := collectSingleTables(databaseName, n.Tables)
+	singleTables, keys := collectSingleTables(databaseName, n.Tables)
 
 	if len(n.Using) == 0 {
 		// Single-table DELETE: DELETE FROM t WHERE ...
@@ -546,7 +552,7 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 		for _, ref := range singleTables {
 			ref.StatementType = DMLTypeDelete
 		}
-		first := singleTables[firstKey(singleTables)]
+		first := singleTables[keys[0]]
 		return []DMLTarget{{
 			Offset:    offset,
 			Statement: stmtText,
@@ -558,10 +564,11 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 
 	// Multi-table DELETE: DELETE t1, t2 FROM t1 JOIN t2 ... WHERE ...
 	// Tables = targets to delete from, Using = referenced table list.
-	refTables := collectSingleTables(databaseName, n.Using)
+	refTables, _ := collectSingleTables(databaseName, n.Using)
 
 	var result []DMLTarget
-	for _, target := range singleTables {
+	for _, key := range keys {
+		target := singleTables[key]
 		name := target.Table
 		if target.Alias != "" {
 			name = target.Alias
@@ -593,7 +600,7 @@ func extractTablesFromDelete(databaseName string, n *ast.DeleteStmt, fullSQL str
 func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL string, offset int, catalog Catalog) ([]DMLTarget, error) {
 	cteNames := collectCTENames(fullSQL, n.Loc)
 	stmtText := extractStatementText(fullSQL, n.Loc)
-	singleTables := collectSingleTables(databaseName, n.Tables)
+	singleTables, keys := collectSingleTables(databaseName, n.Tables)
 
 	// Determine which tables are updated via SET clause column prefixes.
 	updatedTables := make(map[string]bool)
@@ -602,6 +609,9 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 		if assign.Column != nil {
 			table := assign.Column.Table
 			ref, ok := singleTables[table]
+			if !ok && table != "" && !cteNames[table] {
+				return nil, fmt.Errorf("cannot extract reference table: no matched updated table %q in referenced table list", table)
+			}
 			if (ok && !ref.isCTE(cteNames)) || (!ok && !cteNames[table]) {
 				updatedTables[table] = true
 				if table == "" {
@@ -635,11 +645,11 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	}
 
 	var result []DMLTarget
-	for table := range updatedTables {
-		ref, ok := singleTables[table]
-		if !ok {
-			return nil, fmt.Errorf("cannot extract reference table: no matched updated table %q in referenced table list", table)
+	for _, table := range keys {
+		if !updatedTables[table] {
+			continue
 		}
+		ref := singleTables[table]
 		ref.StatementType = DMLTypeUpdate
 		result = append(result, DMLTarget{
 			Offset:    offset,
@@ -652,16 +662,18 @@ func extractTablesFromUpdate(databaseName string, n *ast.UpdateStmt, fullSQL str
 	return result, nil
 }
 
-// collectSingleTables walks TableExpr slices and collects TableRef entries keyed by alias or name.
-func collectSingleTables(databaseName string, exprs []ast.TableExpr) map[string]*TableReference {
+// collectSingleTables walks TableExpr slices and collects TableRef entries keyed
+// by alias or name, and the keys in the order the statement first names them.
+func collectSingleTables(databaseName string, exprs []ast.TableExpr) (map[string]*TableReference, []string) {
 	result := make(map[string]*TableReference)
+	var keys []string
 	for _, expr := range exprs {
-		collectSingleTablesFromExpr(databaseName, expr, result)
+		keys = collectSingleTablesFromExpr(databaseName, expr, result, keys)
 	}
-	return result
+	return result, keys
 }
 
-func collectSingleTablesFromExpr(databaseName string, expr ast.TableExpr, out map[string]*TableReference) {
+func collectSingleTablesFromExpr(databaseName string, expr ast.TableExpr, out map[string]*TableReference, keys []string) []string {
 	switch e := expr.(type) {
 	case *ast.TableRef:
 		db := e.Schema
@@ -678,16 +690,20 @@ func collectSingleTablesFromExpr(databaseName string, expr ast.TableExpr, out ma
 		if e.Alias != "" {
 			key = e.Alias
 		}
+		if _, ok := out[key]; !ok {
+			keys = append(keys, key)
+		}
 		out[key] = ref
 	case *ast.JoinClause:
 		if e.Left != nil {
-			collectSingleTablesFromExpr(databaseName, e.Left, out)
+			keys = collectSingleTablesFromExpr(databaseName, e.Left, out, keys)
 		}
 		if e.Right != nil {
-			collectSingleTablesFromExpr(databaseName, e.Right, out)
+			keys = collectSingleTablesFromExpr(databaseName, e.Right, out, keys)
 		}
 	default:
 	}
+	return keys
 }
 
 // collectCTENames returns the names of the CTEs the statement at stmtLoc opens with.
@@ -1020,21 +1036,21 @@ func hasColumn(table *metadata.TableMetadata, name string) bool {
 	return false
 }
 
-func firstKey(m map[string]*TableReference) string {
-	for k := range m {
-		return k
-	}
-	return ""
-}
-
 func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, error) {
+	// Tables are visited in the order the script first changes them, so an
+	// error names the same table on every run.
 	groupByTable := make(map[string][]DMLTarget)
+	var tableKeys []string
 	for _, item := range targets {
 		key := fmt.Sprintf("%s.%s", item.Table.Database, item.Table.Table)
+		if _, ok := groupByTable[key]; !ok {
+			tableKeys = append(tableKeys, key)
+		}
 		groupByTable[key] = append(groupByTable[key], item)
 	}
 
-	for key, list := range groupByTable {
+	for _, key := range tableKeys {
+		list := groupByTable[key]
 		stmtType := DMLTypeUnknown
 		for _, item := range list {
 			if stmtType == DMLTypeUnknown {
@@ -1058,8 +1074,8 @@ func generateSQL(targets []DMLTarget, opts BackupOptions) ([]BackupStatement, er
 		statement BackupStatement
 	}
 	var backups []keyed
-	for key, list := range groupByTable {
-		backupStatement, err := generateSQLForTable(list, opts)
+	for _, key := range tableKeys {
+		backupStatement, err := generateSQLForTable(groupByTable[key], opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate SQL for table %s: %w", key, err)
 		}

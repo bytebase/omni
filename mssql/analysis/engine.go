@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -219,4 +220,88 @@ func appendChanges(changes *analysis.Changes, statement StatementChanges) {
 	}
 	changes.DMLCount += statement.DMLCount
 	changes.InsertCount += statement.InsertCount
+}
+
+var (
+	_ analysis.BackupGenerator  = Engine
+	_ analysis.RestoreGenerator = Engine
+)
+
+// Backups backs up the script's UPDATE and DELETE statements, whose
+// unqualified tables are in the source database, into the backup database.
+// A backup's positions are TransformDMLToSelect's.
+func (e engine) Backups(_ context.Context, request analysis.BackupRequest, script string) ([]analysis.Backup, error) {
+	stmts, err := e.parseForBackup(script)
+	if err != nil {
+		return nil, fmt.Errorf("failed to prepare transformation: failed to parse statement: %w", err)
+	}
+	backups, err := TransformDMLToSelect(stmts, request.SourceDatabase, request.BackupDatabase, request.TablePrefix, request.CaseSensitive)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]analysis.Backup, 0, len(backups))
+	for _, backup := range backups {
+		result = append(result, analysis.Backup{
+			Statement:    backup.Statement,
+			SourceSchema: backup.SourceSchema,
+			SourceTable:  backup.SourceTableName,
+			BackupTable:  backup.TargetTableName,
+			Start:        analysis.Position(backup.StartPosition),
+			End:          analysis.Position(backup.EndPosition),
+		})
+	}
+	return result, nil
+}
+
+// RestoreSQL restores the rows the UPDATE and DELETE statements in the
+// backup's range changed, writing them back into the source table, which an
+// unqualified name finds in dbo.
+func (e engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (string, error) {
+	stmts, err := e.parseForBackup(request.Script)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract single SQL: failed to parse statement: %v", err)
+	}
+	var dmls []BackedUpDML
+	var sqls []string
+	for _, dml := range BackedUpDMLs(stmts) {
+		if analysis.InRange(analysis.Position(dml.StartPosition), analysis.Position(dml.EndPosition), request.Start, request.End) {
+			dmls = append(dmls, dml)
+			sqls = append(sqls, dml.SQL)
+		}
+	}
+	if len(dmls) == 0 {
+		return "", errors.New("no original SQL")
+	}
+	table, err := analysis.LookUpRestoreTable(ctx, request, defaultSchema, false, func(string) error {
+		return errors.New("database metadata is nil")
+	})
+	if err != nil {
+		return "", err
+	}
+	return RestoreSQL(dmls[0].Node, RestoreOptions{
+		OriginalDatabase: request.SourceDatabase,
+		OriginalSchema:   table.Schema,
+		OriginalTable:    request.SourceTable,
+		BackupDatabase:   request.BackupDatabase,
+		BackupTable:      request.BackupTable,
+		Table:            table.Table,
+		PrimaryKey:       table.PrimaryKey,
+		OriginalSQL:      strings.Join(sqls, ";\n") + ";",
+	})
+}
+
+// parseForBackup is Parse's statements with the line each starts on in the
+// script.
+func (e engine) parseForBackup(script string) ([]ParsedStatement, error) {
+	parsed, err := e.Parse(script)
+	if err != nil {
+		return nil, err
+	}
+	positions := analysis.NewPositions(script)
+	stmts := make([]ParsedStatement, 0, len(parsed))
+	for _, statement := range parsed {
+		node, _ := statement.Node.(ast.Node)
+		stmts = append(stmts, ParsedStatement{Text: statement.Text, Node: node, StartLine: positions.At(statement.Start).Line})
+	}
+	return stmts, nil
 }

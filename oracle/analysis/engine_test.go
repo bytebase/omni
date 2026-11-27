@@ -1,8 +1,10 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
@@ -142,5 +144,93 @@ func TestEngineExtractChangesSkipANilOrForeignNode(t *testing.T) {
 	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{}, []analysis.ParsedStatement{{Node: nil}, {Node: "not a node"}})
 	if err != nil || len(changes.Resources) != 0 || changes.DMLCount != 0 {
 		t.Fatalf("changes = %+v, err = %v", changes, err)
+	}
+}
+
+func oracleBackupCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "NUMBER"}, {Name: "a", Type: "NUMBER"}},
+			Indexes: []*metadata.IndexMetadata{{Name: "t_pk", Primary: true, Unique: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func oracleBackups(t *testing.T, version any, script string) []analysis.Backup {
+	t.Helper()
+	backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "BBDATAARCHIVE", TablePrefix: "p", Version: version}, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return backups
+}
+
+func oracleRestoreRequest(script string, backup analysis.Backup) analysis.RestoreRequest {
+	return analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: backup.SourceTable, BackupDatabase: "BBDATAARCHIVE", BackupTable: backup.BackupTable,
+		Start: backup.Start, End: backup.End, Catalog: oracleBackupCatalog(),
+	}
+}
+
+// The restore quotes only the range's statements on the source table.
+func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
+	script := "UPDATE \"t\" SET \"a\" = 1 WHERE \"id\" = 1;\nDELETE FROM \"t1\";\nUPDATE \"t\" SET \"a\" = 2;"
+	backups := oracleBackups(t, nil, script)
+	if len(backups) != 2 || backups[0].SourceTable != "t" || backups[0].Start != (analysis.Position{Line: 1, Column: 0}) || backups[0].End != (analysis.Position{Line: 3, Column: 21}) {
+		t.Fatalf("backups = %+v", backups)
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), oracleRestoreRequest(script, backups[0]))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(sql, "/*\nOriginal SQL:\nUPDATE \"t\" SET \"a\" = 1 WHERE \"id\" = 1\nUPDATE \"t\" SET \"a\" = 2\n*/\n") ||
+		!strings.Contains(sql, `MERGE INTO "db"."t"`) || !strings.Contains(sql, `"BBDATAARCHIVE"."`+backups[0].BackupTable+`"`) {
+		t.Fatalf("sql = %s", sql)
+	}
+}
+
+func TestEngineBackupsEndAtTheLastCharacterOrAfterAMultiByteOne(t *testing.T) {
+	for script, want := range map[string]analysis.Position{
+		`DELETE FROM "t" WHERE 2 = a;`: {Line: 1, Column: 26},
+		`DELETE FROM "t" WHERE 2 = 名;`: {Line: 1, Column: 27},
+	} {
+		if backups := oracleBackups(t, nil, script); len(backups) != 1 || backups[0].End != want {
+			t.Fatalf("%s: backups = %+v", script, backups)
+		}
+	}
+}
+
+func TestEngineBackupsCapTheTableNameByTheVersion(t *testing.T) {
+	script := `UPDATE "` + strings.Repeat("a", 40) + `" SET "a" = 1;`
+	for _, version := range []any{nil, &Version{First: 12, Second: 1}, Version{First: 19}} {
+		if backups := oracleBackups(t, version, script); len(backups) != 1 || len(backups[0].BackupTable) > 30 {
+			t.Fatalf("version %v: backups = %+v", version, backups)
+		}
+	}
+	if backups := oracleBackups(t, &Version{First: 12, Second: 2}, script); len(backups) != 1 || len(backups[0].BackupTable) <= 30 {
+		t.Fatalf("12.2: backups = %+v", backups)
+	}
+}
+
+func TestEngineRestoreSQLErrors(t *testing.T) {
+	script := `UPDATE "t" SET "a" = 1;`
+	request := oracleRestoreRequest(script, analysis.Backup{SourceTable: "t1", BackupTable: "p_t", Start: analysis.Position{Line: 1}, End: analysis.Position{Line: 2}})
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "no DML statement found in extracted SQL" {
+		t.Fatalf("err = %v", err)
+	}
+	request.SourceTable, request.SourceDatabase = "t", "other"
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != `database metadata for database "other" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+	request.Script = `UPDATE "t" SET "a" = (`
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || !strings.HasPrefix(err.Error(), "failed to extract single SQL: failed to prepare transformation: ") {
+		t.Fatalf("err = %v", err)
 	}
 }

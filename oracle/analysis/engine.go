@@ -1,8 +1,11 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/oracle/ast"
@@ -131,4 +134,108 @@ func appendChanges(changes *analysis.Changes, statement StatementChanges) {
 	}
 	changes.DMLCount += statement.DMLCount
 	changes.InsertCount += statement.InsertCount
+}
+
+var (
+	_ analysis.BackupGenerator  = Engine
+	_ analysis.RestoreGenerator = Engine
+)
+
+// Backups backs up the script's UPDATE and DELETE statements, whose
+// unqualified tables are in the source database, into the backup database, a
+// schema. A *Version request version caps the backup table names. A backup
+// starts at its first character's 0-based column and ends at its last's, or
+// one column later when that character is multi-byte.
+func (engine) Backups(_ context.Context, request analysis.BackupRequest, script string) ([]analysis.Backup, error) {
+	version, _ := request.Version.(*Version)
+	backups, err := TransformDMLToSelect(script, BackupOptions{
+		SourceDatabase: request.SourceDatabase,
+		TargetDatabase: request.BackupDatabase,
+		TablePrefix:    request.TablePrefix,
+		Version:        version,
+	})
+	if err != nil {
+		return nil, err
+	}
+	positions := analysis.NewPositions(script)
+	result := make([]analysis.Backup, 0, len(backups))
+	for _, backup := range backups {
+		start := positions.At(backup.Start)
+		start.Column--
+		// End is the last character's last byte, which puts a multi-byte
+		// character before it.
+		endOffset := backup.End
+		for endOffset < len(script) && !utf8.RuneStart(script[endOffset]) {
+			endOffset++
+		}
+		end := positions.At(endOffset)
+		end.Column--
+		result = append(result, analysis.Backup{
+			Statement:    backup.Statement,
+			SourceSchema: backup.SourceSchema,
+			SourceTable:  backup.SourceTableName,
+			BackupTable:  backup.TargetTableName,
+			Start:        start,
+			End:          end,
+		})
+	}
+	return result, nil
+}
+
+// RestoreSQL restores the rows the statements in the backup's range that
+// change the source table changed. A statement starting at or before the
+// range's start begins it, and one starting at or after its end ends it.
+func (e engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (string, error) {
+	statements := e.Split(request.Script)
+	positions := analysis.NewPositions(request.Script)
+	starts := make([]analysis.Position, 0, len(statements))
+	for _, statement := range statements {
+		starts = append(starts, positions.At(statement.Start))
+	}
+	first, last := 0, len(statements)-1
+	for i, start := range starts {
+		if !before(request.Start, start) {
+			first = i
+		}
+	}
+	for i := len(starts) - 1; i >= 0; i-- {
+		if !before(starts[i], request.End) {
+			last = i
+		}
+	}
+	var sqls []string
+	for i := first; i <= last; i++ {
+		matched, err := ReferencesTable(statements[i].Text, request.SourceDatabase, request.SourceTable)
+		if err != nil {
+			return "", fmt.Errorf("failed to extract single SQL: failed to prepare transformation: %v", err)
+		}
+		if matched {
+			sqls = append(sqls, NormalizeRestoreSQL(statements[i].Text))
+		}
+	}
+	originalSQL := strings.Join(sqls, "\n")
+	node, err := FindFirstDML(originalSQL)
+	if err != nil {
+		return "", err
+	}
+	if node == nil {
+		return "", errors.New("no DML statement found in extracted SQL")
+	}
+	table, err := analysis.LookUpRestoreTable(ctx, request, "", true, nil)
+	if err != nil {
+		return "", err
+	}
+	return RestoreSQL(originalSQL, node, RestoreOptions{
+		SourceDatabase: request.SourceDatabase,
+		SourceTable:    request.SourceTable,
+		BackupDatabase: request.BackupDatabase,
+		BackupTable:    request.BackupTable,
+		Table:          table.Table,
+		PrimaryKey:     table.PrimaryKey,
+	})
+}
+
+// before reports whether a is before b, comparing lines, then columns.
+func before(a, b analysis.Position) bool {
+	return a.Line < b.Line || a.Line == b.Line && a.Column < b.Column
 }
