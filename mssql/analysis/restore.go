@@ -58,8 +58,8 @@ func BackedUpDMLs(stmts []ParsedStatement) []BackedUpDML {
 	return dmls
 }
 
-// changesTable reports whether node, an UPDATE or DELETE, changes table in
-// schema, resolving its target as a backup does.
+// changesTable reports whether node, an UPDATE or DELETE, changes
+// database.schema.table, resolving its target as a backup does.
 func changesTable(node ast.Node, database, schema, table string) bool {
 	var target *tableReference
 	var err error
@@ -70,7 +70,7 @@ func changesTable(node ast.Node, database, schema, table string) bool {
 		target, _, err = resolveDMLTargetTable(n.Relation, n.FromClause, database)
 	default:
 	}
-	return err == nil && target != nil && target.Schema == schema && target.Table == table
+	return err == nil && target != nil && target.Database == database && target.Schema == schema && target.Table == table
 }
 
 // RestoreSQL returns the statements that restore, from the backup table, the

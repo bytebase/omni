@@ -233,9 +233,10 @@ func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
 	}}
 	// The second UPDATE of t changes the primary key, so UQ_T_B keys the
 	// MERGE, and t1's column is no column of t.
-	// A is a, as the case-insensitive collation reads it.
-	request.Script = "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t1 SET z = 1;\nUPDATE x SET id = 5 FROM t AS x WHERE x.id = 2;\nUPDATE t SET A = 2;"
-	request.Start, request.End = analysis.Position{Line: 1, Column: 0}, analysis.Position{Line: 4, Column: 19}
+	// other.dbo.t is another database's t. A is a, as the case-insensitive
+	// collation reads it.
+	request.Script = "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t1 SET z = 1;\nUPDATE other.dbo.t SET z = 1;\nUPDATE x SET id = 5 FROM t AS x WHERE x.id = 2;\nUPDATE t SET A = 2;"
+	request.Start, request.End = analysis.Position{Line: 1, Column: 0}, analysis.Position{Line: 5, Column: 19}
 	sql, err := Engine.RestoreSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
