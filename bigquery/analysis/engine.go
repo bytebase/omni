@@ -1,12 +1,15 @@
 package analysis
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/bigquery/diagnostics"
 	"github.com/bytebase/omni/bigquery/parser"
+	"github.com/bytebase/omni/metadata"
 )
 
 // Engine is BigQuery's implementation of the omni/analysis capability
@@ -97,4 +100,35 @@ func (engine) ResultLimit(statement string, limit int, _ string) string {
 		limitPart = fmt.Sprintf(" LIMIT %d", limit)
 	}
 	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result%s;", analysis.TrimStatement(statement), limitPart)
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement with its written dataset as the
+// database, the default one filling in, and a SET statement as a select. The
+// default schema and IgnoreCaseSensitive are not read, and predicate columns
+// are not reported. A syntax error is the parser's own.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	load := request.Catalog.MetadataLoader()
+	options := ResolveOptions{
+		DefaultDatabase:      request.DefaultDatabase,
+		SetStatementIsSelect: true,
+		GetDatabaseMetadata: func(database string) (*metadata.DatabaseSchemaMetadata, error) {
+			if load == nil {
+				return nil, &ResourceNotFoundError{Database: &database}
+			}
+			return load(ctx, database)
+		},
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, options)
+		if err != nil {
+			return nil, err
+		}
+		resolved := &analysis.ResolvedSpan{Type: span.Type, SourceColumns: span.SourceColumns, Results: span.Results}
+		errors.As(span.NotFoundError, &resolved.NotFoundError)
+		spans = append(spans, resolved)
+	}
+	return spans, nil
 }

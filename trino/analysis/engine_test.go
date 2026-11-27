@@ -1,10 +1,13 @@
 package analysis
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -70,5 +73,57 @@ func TestEngineValidateAndExplain(t *testing.T) {
 	}
 	if _, err := Engine.Explain("EXPLAIN ANALYZE SELECT 1", analysis.ExplainFormatDefault); !errors.Is(err, analysis.ErrExplainAnalyzeExecutes) {
 		t.Fatalf("Explain(EXPLAIN ANALYZE) err = %v", err)
+	}
+}
+
+func trinoSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "cat", Schemas: []*metadata.SchemaMetadata{
+		{Name: "public", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id"}}}}},
+		{Name: "s1", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "x"}}}}},
+	}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"cat"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name != "cat" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+		},
+	}
+}
+
+func TestEngineQuerySpansResolveInTheDefaultCatalogAndSchema(t *testing.T) {
+	statements := []analysis.QuerySpanStatement{{Text: "SELECT * FROM t WHERE true;"}, {Text: "\nSELECT * FROM cat.public.t"}}
+	for schema, want := range map[string]analysis.ColumnResource{
+		"":   {Database: "cat", Schema: "public", Table: "t", Column: "id"},
+		"s1": {Database: "cat", Schema: "s1", Table: "t", Column: "x"},
+	} {
+		spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "cat", DefaultSchema: schema, Catalog: trinoSpanCatalog()}, statements)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(spans) != 2 || !spans[0].Results[0].SourceColumns[want] || !spans[1].SourceColumns[analysis.ColumnResource{Database: "cat", Schema: "public", Table: "t", Column: "id"}] {
+			t.Fatalf("schema %q: spans = %+v", schema, spans)
+		}
+	}
+}
+
+func TestEngineQuerySpansReportAMissingTableOnTheSpan(t *testing.T) {
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "cat", Catalog: trinoSpanCatalog()}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM nope"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notFound := spans[0].NotFoundError; notFound == nil || notFound.Table == nil || *notFound.Table != "nope" {
+		t.Fatalf("NotFoundError = %+v", notFound)
+	}
+}
+
+func TestEngineQuerySpansKeepTheParserErrorOfAStatement(t *testing.T) {
+	text := "SELECT *\nFROM"
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "cat", Catalog: trinoSpanCatalog()}, []analysis.QuerySpanStatement{{Text: text, Start: analysis.Position{Line: 5, Column: 1}}})
+	var parseErr *parser.ParseError
+	var syntaxErr *analysis.SyntaxError
+	if !errors.As(err, &parseErr) || errors.As(err, &syntaxErr) || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
+		t.Fatalf("err = %v", err)
 	}
 }
