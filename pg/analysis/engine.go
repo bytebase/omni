@@ -244,3 +244,48 @@ func (d lookupDatabase) SearchFunctions(searchPath []string, name string) []*met
 	_, functions := d.lookup.SearchFunctions(searchPath, name)
 	return functions
 }
+
+var _ analysis.ChangeExtractor = Engine
+
+// ExtractChanges reports what the statements write, resolving unqualified
+// names along the default database's search path, narrowed to the default
+// schema when one is set.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	if request.Database == nil {
+		return nil, fmt.Errorf("database metadata for database %q not found (database not synced)", request.DefaultDatabase)
+	}
+	searchPath := analysis.SearchPath(request.Database.Metadata.GetSearchPath())
+	if request.DefaultSchema != "" {
+		searchPath = SearchPathForSelectedSchema(request.DefaultSchema, searchPath)
+	}
+	stmts := make([]ChangeStatement, 0, len(statements))
+	for _, statement := range statements {
+		node, ok := statement.Node.(ast.Node)
+		if !ok || node == nil {
+			return nil, errors.New("expected AST for PostgreSQL")
+		}
+		stmts = append(stmts, ChangeStatement{Node: node, Text: statement.Text})
+	}
+	changes := ExtractChangedResources(stmts, request.DefaultDatabase, searchPath, changeLookup{request.Database.Lookup(true)})
+	return &changes, nil
+}
+
+// changeLookup is a synced database's ChangeMetadata, through the caller's
+// name matching.
+type changeLookup struct{ lookup *analysis.Lookup }
+
+func (m changeLookup) HasSchema(name string) bool { return m.lookup.Schema(name) != nil }
+
+func (m changeLookup) RelationSchema(searchPath []string, name string) string {
+	for _, schemaName := range searchPath {
+		s := m.lookup.Schema(schemaName)
+		if s.Table(name) != nil || s.View(name) != nil || s.MaterializedView(name) != nil || s.ExternalTable(name) != nil {
+			return s.Proto().GetName()
+		}
+	}
+	return ""
+}
+
+func (m changeLookup) IndexTable(searchPath []string, name string) (string, string, bool) {
+	return m.lookup.SearchIndex(searchPath, name)
+}

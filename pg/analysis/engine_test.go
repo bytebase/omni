@@ -146,3 +146,59 @@ func TestEngineQuerySpansPositionASyntaxErrorInItsStatement(t *testing.T) {
 		t.Fatalf("err = %v at %+v", err, syntaxErr.Position)
 	}
 }
+
+func changeEngineRequest(schema string) analysis.ChangeRequest {
+	table := func(name, index string) *metadata.TableMetadata {
+		return &metadata.TableMetadata{Name: name, Indexes: []*metadata.IndexMetadata{{Name: index}}}
+	}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", public`, Schemas: []*metadata.SchemaMetadata{
+		{Name: "public", Tables: []*metadata.TableMetadata{table("t", "t_idx")}},
+		{Name: "s1", Tables: []*metadata.TableMetadata{table("t", "s1_idx")}},
+	}}
+	return analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: schema, Database: &analysis.Database{Name: "db", Metadata: db, ObjectCaseSensitive: true}}
+}
+
+func parseForChanges(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	statements, err := Engine.Parse(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return statements
+}
+
+func TestEngineExtractChangesResolveAlongTheSelectedSchema(t *testing.T) {
+	for schema, want := range map[string]string{"": "public", "s1": "s1"} {
+		changes, err := Engine.ExtractChanges(changeEngineRequest(schema), parseForChanges(t, "UPDATE t SET a = 1;"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(changes.Resources) != 1 || changes.Resources[0].Schema != want || changes.DMLCount != 1 {
+			t.Fatalf("schema %q: changes = %+v", schema, changes)
+		}
+	}
+}
+
+func TestEngineExtractChangesFindTheTableOfAnIndex(t *testing.T) {
+	changes, err := Engine.ExtractChanges(changeEngineRequest(""), parseForChanges(t, "DROP INDEX s1_idx; DROP INDEX s1.s1_idx;"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(changes.Resources) != 1 || changes.Resources[0].Schema != "s1" || changes.Resources[0].Table != "t" {
+		t.Fatalf("changes = %+v", changes.Resources)
+	}
+}
+
+func TestEngineExtractChangesNeedSyncedMetadataAndPostgreSQLNodes(t *testing.T) {
+	request := changeEngineRequest("")
+	request.Database = nil
+	if _, err := Engine.ExtractChanges(request, nil); err == nil || err.Error() != `database metadata for database "db" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+	for _, node := range []any{nil, "not a node"} {
+		_, err := Engine.ExtractChanges(changeEngineRequest(""), []analysis.ParsedStatement{{Node: node}})
+		if err == nil || err.Error() != "expected AST for PostgreSQL" {
+			t.Fatalf("node %v: err = %v", node, err)
+		}
+	}
+}

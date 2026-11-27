@@ -12,26 +12,10 @@ import (
 type ChangedResource = analysis.ChangedResource
 
 // DMLStatement is a DML statement whose affected rows Bytebase estimates.
-type DMLStatement struct {
-	// Text is the statement, ending with ';'.
-	Text string
-	// SearchPath is the search path the statement runs under when an earlier
-	// statement changed it, and nil when it runs under the initial one.
-	SearchPath []string
-}
+type DMLStatement = analysis.DMLStatement
 
 // Changes is what a script changes.
-type Changes struct {
-	// Resources holds the tables the statements write, in the order they name
-	// them, duplicates included.
-	Resources []ChangedResource
-	// DMLStatements holds the DML statements to estimate, in order.
-	DMLStatements []DMLStatement
-	// DMLCount counts the DML statements DMLStatements holds.
-	DMLCount int
-	// InsertCount counts the rows of INSERT ... VALUES and INSERT ... DEFAULT VALUES.
-	InsertCount int
-}
+type Changes = analysis.Changes
 
 // ChangeStatement is one statement of a script, parsed on its own: Node's
 // locations are byte offsets into Text, as when each split segment is parsed

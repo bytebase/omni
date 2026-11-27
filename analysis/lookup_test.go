@@ -106,3 +106,37 @@ func TestDatabaseLookupIsBuiltOnce(t *testing.T) {
 		t.Fatal("Lookup must be built once")
 	}
 }
+
+func TestLookupFindsTheTableThatHoldsAnIndex(t *testing.T) {
+	db := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{
+		{
+			Name: "s",
+			Tables: []*metadata.TableMetadata{
+				{Name: "T", Indexes: []*metadata.IndexMetadata{{Name: "Idx"}}},
+				{Name: "t", Indexes: []*metadata.IndexMetadata{{Name: "shadowed"}}},
+			},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{Name: "mv", Indexes: []*metadata.IndexMetadata{{Name: "MvIdx"}}}},
+		},
+		{Name: "other", Tables: []*metadata.TableMetadata{{Name: "o", Indexes: []*metadata.IndexMetadata{{Name: "idx"}}}}},
+	}}
+	s := NewLookup(db, false, true).Schema("s")
+	if table, ok := s.IndexTable("Idx"); ok {
+		t.Fatalf("IndexTable(Idx) = %q: the table T is shadowed by the later t", table)
+	}
+	if table, ok := s.IndexTable("shadowed"); !ok || table != "t" {
+		t.Fatalf("IndexTable(shadowed) = %q, %v", table, ok)
+	}
+	if _, ok := s.IndexTable("SHADOWED"); ok {
+		t.Fatal("a table's index names follow detail case sensitivity")
+	}
+	if table, ok := s.IndexTable("mvidx"); !ok || table != "mv" {
+		t.Fatal("a materialized view's index names follow object case sensitivity")
+	}
+	l := NewLookup(db, false, false)
+	if schema, table, ok := l.SearchIndex([]string{"missing", "OTHER", "s"}, "IDX"); !ok || schema != "other" || table != "o" {
+		t.Fatalf("SearchIndex = %q, %q, %v", schema, table, ok)
+	}
+	if _, _, ok := l.SearchIndex([]string{"s"}, "nope"); ok {
+		t.Fatal("SearchIndex found a missing index")
+	}
+}

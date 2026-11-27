@@ -34,6 +34,44 @@ type StatementChanges struct {
 	InsertCount int
 }
 
+// DMLStatement is a DML statement whose affected rows the caller estimates.
+type DMLStatement struct {
+	// Text is the statement as the caller runs it.
+	Text string
+	// SearchPath is the search path the statement runs under when an earlier
+	// statement changed it, and nil when it runs under the initial one.
+	SearchPath []string
+}
+
+// Changes is what a script changes.
+type Changes struct {
+	// Resources holds the objects the statements write, in the order they name
+	// them, duplicates included.
+	Resources []ChangedResource
+	// DMLStatements holds the DML statements to estimate, in order.
+	DMLStatements []DMLStatement
+	// DMLCount counts the DML statements, including those DMLStatements omits.
+	DMLCount int
+	// InsertCount counts the rows of INSERT ... VALUES statements.
+	InsertCount int
+}
+
+// ChangeRequest is a script whose changes are extracted.
+type ChangeRequest struct {
+	DefaultDatabase string
+	DefaultSchema   string
+	// Database is the default database's synced metadata, or nil when it is
+	// not synced.
+	Database *Database
+	// Script is the whole script the statements were parsed from.
+	Script string
+}
+
+// ChangeExtractor reports what a script's parsed statements write.
+type ChangeExtractor interface {
+	ExtractChanges(request ChangeRequest, statements []ParsedStatement) (*Changes, error)
+}
+
 // ByteRange is a half-open byte range [Start, End) in a SQL script.
 type ByteRange struct {
 	Start int
