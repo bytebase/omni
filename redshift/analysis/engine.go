@@ -22,6 +22,7 @@ var (
 	_ analysis.QueryValidator  = Engine
 	_ analysis.Explainer       = Engine
 	_ analysis.ResultLimiter   = Engine
+	_ analysis.ChangeExtractor = Engine
 )
 
 // Split cuts the script lexically; a segment's text ends at its own
@@ -82,4 +83,18 @@ func (engine) Explain(statement string, _ analysis.ExplainFormat) (string, error
 
 func (engine) ResultLimit(statement string, limit int, _ string) string {
 	return StatementWithResultLimit(statement, limit)
+}
+
+// ExtractChanges reports what the request's script writes, re-parsing the
+// script rather than reading the statements.
+func (engine) ExtractChanges(request analysis.ChangeRequest, _ []analysis.ParsedStatement) (*analysis.Changes, error) {
+	extracted, err := ExtractChangedResources(request.Script, request.DefaultDatabase, request.DefaultSchema)
+	if err != nil {
+		return nil, err
+	}
+	changes := &analysis.Changes{Resources: extracted.Resources, DMLCount: extracted.DMLCount, InsertCount: extracted.InsertCount}
+	for _, text := range extracted.DMLStatements {
+		changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
+	}
+	return changes, nil
 }
