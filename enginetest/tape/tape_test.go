@@ -1711,3 +1711,23 @@ func TestVerifyFailsOnMismatchedRequestsStreamsPinMissingParseErrorAndTimeout(t 
 		t.Errorf("verify overwrote corrupt tape on disk")
 	}
 }
+
+func TestWriteModuleStubKeepsAnExistingGoMod(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeModuleStub(dir); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil || string(got) != moduleStub {
+		t.Fatalf("go.mod = %q, %v", got, err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module kept\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeModuleStub(dir); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "go.mod")); string(got) != "module kept\n" {
+		t.Fatalf("an existing go.mod was replaced: %q", got)
+	}
+}
