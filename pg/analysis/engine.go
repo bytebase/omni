@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg"
 	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/pg/parser"
@@ -158,4 +160,87 @@ func (engine) ResultLimit(statement string, limit int, _ string) string {
 		return fmt.Sprintf("WITH result AS (\n%s\n) SELECT * FROM result LIMIT %d;", analysis.TrimStatement(statement), limit)
 	}
 	return rewritten
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement against the default database's search
+// path, narrowed to the default schema when one is set. A syntax error is
+// positioned in its statement's own text.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	if request.Catalog.GetDatabase == nil {
+		return nil, errors.New("the catalog cannot look databases up")
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := querySpan(ctx, request, statement.Text)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement string) (*analysis.ResolvedSpan, error) {
+	database, err := request.Catalog.GetDatabase(ctx, request.DefaultDatabase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database metadata for database %q: %w", request.DefaultDatabase, err)
+	}
+	if database == nil {
+		return nil, fmt.Errorf("database metadata for database %q not found (database not synced)", request.DefaultDatabase)
+	}
+	searchPath := analysis.SearchPath(database.Metadata.GetSearchPath())
+	if request.DefaultSchema != "" {
+		searchPath = SearchPathForSelectedSchema(request.DefaultSchema, searchPath)
+	}
+	span, err := ResolveQuerySpan(ctx, statement, ResolveOptions{
+		DefaultDatabase: request.DefaultDatabase,
+		SearchPath:      searchPath,
+		Catalog: Catalog{GetDatabase: func(name string) (Database, error) {
+			database, err := request.Catalog.GetDatabase(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return lookupDatabase{database.Lookup(true)}, nil
+		}},
+	})
+	if err != nil {
+		var syntaxErr *SyntaxError
+		if errors.As(err, &syntaxErr) {
+			err = spanSyntaxError(statement, syntaxErr)
+		}
+		return nil, fmt.Errorf("failed to get query span from statement: %s: %w", statement, err)
+	}
+	return span, nil
+}
+
+// spanSyntaxError positions a span's syntax error one byte before the parser's
+// offset in the statement, or at its start when the parser did not locate it.
+func spanSyntaxError(statement string, err *SyntaxError) *analysis.SyntaxError {
+	position := analysis.Position{Line: 1, Column: 1}
+	var parseErr *parser.ParseError
+	if errors.As(err.Err, &parseErr) && parseErr.Position > 0 {
+		position = analysis.PositionAt(statement, parseErr.Position-1)
+	}
+	return &analysis.SyntaxError{Position: position, Message: err.Error()}
+}
+
+// lookupDatabase is a synced database's Database, through the caller's name
+// matching.
+type lookupDatabase struct{ lookup *analysis.Lookup }
+
+func (d lookupDatabase) Metadata() *metadata.DatabaseSchemaMetadata { return d.lookup.Metadata() }
+
+func (d lookupDatabase) GetTable(schema, table string) *metadata.TableMetadata {
+	return d.lookup.Schema(schema).Table(table)
+}
+
+func (d lookupDatabase) SearchRelation(searchPath []string, name string) (string, string) {
+	return d.lookup.SearchRelation(searchPath, name)
+}
+
+func (d lookupDatabase) SearchFunctions(searchPath []string, name string) []*metadata.FunctionMetadata {
+	_, functions := d.lookup.SearchFunctions(searchPath, name)
+	return functions
 }

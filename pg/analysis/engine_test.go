@@ -1,10 +1,13 @@
 package analysis
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/pg/ast"
 )
 
@@ -92,5 +95,54 @@ func TestEngineValidateExplainAndLimit(t *testing.T) {
 	}
 	if ranges := Engine.StatementRanges("SELECT 1;\nSELECT 2"); len(ranges) != 2 || ranges[1].Start.Line != 1 {
 		t.Fatalf("StatementRanges = %+v", ranges)
+	}
+}
+
+func spanEngineCatalog() analysis.Catalog {
+	schema := func(name string) *metadata.SchemaMetadata {
+		return &metadata.SchemaMetadata{Name: name, Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}}}
+	}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", public`, Schemas: []*metadata.SchemaMetadata{schema("public"), schema("s1")}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func TestEngineQuerySpansResolveAlongTheSelectedSchema(t *testing.T) {
+	statements := []analysis.QuerySpanStatement{{Text: "SELECT id FROM t;"}, {Text: "\nSELECT id FROM public.t;"}}
+	for schema, want := range map[string]string{"": "public", "s1": "s1"} {
+		spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: schema, Catalog: spanEngineCatalog()}, statements)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(spans) != 2 || !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Schema: want, Table: "t", Column: "id"}] {
+			t.Fatalf("schema %q: spans = %+v", schema, spans)
+		}
+	}
+}
+
+func TestEngineQuerySpansNeedASyncedDefaultDatabase(t *testing.T) {
+	statements := []analysis.QuerySpanStatement{{Text: "SELECT 1"}}
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "other", Catalog: spanEngineCatalog()}, statements)
+	if err == nil || err.Error() != `database metadata for database "other" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db"}, statements); err == nil {
+		t.Fatal("a catalog without GetDatabase must fail")
+	}
+}
+
+func TestEngineQuerySpansPositionASyntaxErrorInItsStatement(t *testing.T) {
+	text := "SELECT 1;\nSELECT * FROM"
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: spanEngineCatalog()}, []analysis.QuerySpanStatement{{Text: text, Start: analysis.Position{Line: 5, Column: 1}}})
+	var syntaxErr *analysis.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("err = %v", err)
+	}
+	if syntaxErr.Position != analysis.PositionAt(text, len(text)-1) || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
+		t.Fatalf("err = %v at %+v", err, syntaxErr.Position)
 	}
 }

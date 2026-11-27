@@ -114,4 +114,7 @@ type ResolvedSpan struct {
 	// UnresolvedColumnsError is set when a relation the query reads has no
 	// columns in the synced metadata, so its lineage cannot be trusted.
 	UnresolvedColumnsError *UnresolvedColumnsError
+	// FunctionNotSupportedError is set when the query calls a function whose
+	// lineage the engine cannot trace.
+	FunctionNotSupportedError *FunctionNotSupportedError
 }
