@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 
 	"github.com/bytebase/omni/analysis"
@@ -66,6 +67,35 @@ func (engine) Explain(statement string, _ analysis.ExplainFormat) (string, error
 
 func (engine) ResultLimit(statement string, limit int, _ string) string {
 	return RewriteResultLimit(statement, limit)
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves the tables each statement reads, an unqualified one in
+// the default database, without the catalog: the span carries no column
+// lineage. A syntax error is positioned in the script.
+func (engine) QuerySpans(_ context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		resolved, err := ResolveQuerySpan(statement.Text, ResolveOptions{
+			DefaultDatabase:     request.DefaultDatabase,
+			IgnoreCaseSensitive: request.IgnoreCaseSensitive,
+		})
+		if err != nil {
+			err = syntaxError(statement.Text, err)
+			if syntaxErr, ok := err.(*analysis.SyntaxError); ok {
+				syntaxErr.Position = syntaxErr.Position.Shift(statement.Start)
+			}
+			return nil, err
+		}
+		spans = append(spans, &analysis.ResolvedSpan{
+			Type:             resolved.Type,
+			SourceColumns:    resolved.SourceColumns,
+			PredicateColumns: analysis.ColumnSet{},
+			Results:          []analysis.QuerySpanResult{},
+		})
+	}
+	return spans, nil
 }
 
 // syntaxError positions the first parse error of text; any other error is

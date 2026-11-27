@@ -1,12 +1,14 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/cassandra"
 	"github.com/bytebase/omni/cassandra/parser"
+	"github.com/bytebase/omni/metadata"
 )
 
 // Engine is Cassandra's implementation of the omni/analysis capability
@@ -16,9 +18,10 @@ var Engine engine
 type engine struct{}
 
 var (
-	_ analysis.Splitter       = Engine
-	_ analysis.Parser         = Engine
-	_ analysis.QueryValidator = Engine
+	_ analysis.Splitter          = Engine
+	_ analysis.Parser            = Engine
+	_ analysis.QueryValidator    = Engine
+	_ analysis.QuerySpanResolver = Engine
 )
 
 // Split cuts the script lexically; a segment's text excludes its semicolon.
@@ -49,7 +52,7 @@ func (e engine) Parse(script string) ([]analysis.ParsedStatement, error) {
 		}
 		statements, err := cassandra.Parse(segment.Text)
 		if err != nil {
-			return nil, segmentSyntaxError(script, segment, err)
+			return nil, syntaxError(segment.Text, err, analysis.PositionAt(script, segment.Start))
 		}
 		for _, statement := range statements {
 			parsed = append(parsed, analysis.ParsedStatement{Statement: segment, Node: statement.AST})
@@ -58,12 +61,14 @@ func (e engine) Parse(script string) ([]analysis.ParsedStatement, error) {
 	return parsed, nil
 }
 
-func segmentSyntaxError(script string, segment analysis.Statement, err error) error {
+// syntaxError positions a parse error of text in the script that holds text
+// at start; any other error is returned as is.
+func syntaxError(text string, err error, start analysis.Position) error {
 	var parseErr *parser.ParseError
 	if !errors.As(err, &parseErr) {
 		return err
 	}
-	position := analysis.PositionAt(segment.Text, parseErr.Position).Shift(analysis.PositionAt(script, segment.Start))
+	position := analysis.PositionAt(text, parseErr.Position).Shift(start)
 	return &analysis.SyntaxError{
 		Position:   position,
 		Message:    fmt.Sprintf("Syntax error at line %d: %s", position.Line, parseErr.Message),
@@ -74,4 +79,25 @@ func segmentSyntaxError(script string, segment analysis.Statement, err error) er
 // ValidateQuery returns the parser's own error for a script it rejects.
 func (engine) ValidateQuery(script string) (bool, bool, error) {
 	return ValidateQuery(script)
+}
+
+// QuerySpans resolves each statement in the default keyspace, expanding a star
+// from the keyspace's synced metadata as stored. A syntax error is positioned
+// in its statement's own text.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	opts := ResolveOptions{DefaultKeyspace: request.DefaultDatabase}
+	if load := request.Catalog.MetadataLoader(); load != nil {
+		opts.GetDatabaseMetadata = func(keyspace string) (*metadata.DatabaseSchemaMetadata, error) {
+			return load(ctx, keyspace)
+		}
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, opts)
+		if err != nil {
+			return nil, syntaxError(statement.Text, err, analysis.Position{Line: 1, Column: 1})
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
 }
