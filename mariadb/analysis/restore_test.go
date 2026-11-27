@@ -69,17 +69,23 @@ func TestReferencesTable(t *testing.T) {
 	}{
 		{"UPDATE t SET a = 1", true},
 		{"UPDATE db.T SET a = 1", true},
+		{"UPDATE DB.t SET a = 1", true},
 		{"UPDATE other.t SET a = 1", false},
 		{"DELETE t1 FROM t1 JOIN t ON t1.a = t.a", true},
 		{"UPDATE t1 JOIN (t2 JOIN t ON t2.c = t.a) ON t1.a = t2.c SET t1.b = 1", true},
 		{"SELECT * FROM t", false},
 	}
 	for _, tc := range tests {
-		got, err := analysis.ReferencesTable(tc.statement, "db", "t")
+		got, err := analysis.ReferencesTable(tc.statement, "db", "t", false)
 		require.NoError(t, err)
 		require.Equal(t, tc.want, got, tc.statement)
 	}
-	_, err := analysis.ReferencesTable("UPDATE", "db", "t")
+	for _, statement := range []string{"UPDATE DB.t SET a = 1", "UPDATE T SET a = 1"} {
+		got, err := analysis.ReferencesTable(statement, "db", "t", true)
+		require.NoError(t, err)
+		require.False(t, got, statement)
+	}
+	_, err := analysis.ReferencesTable("UPDATE", "db", "t", false)
 	require.Error(t, err)
 }
 

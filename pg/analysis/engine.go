@@ -381,7 +381,25 @@ func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (
 	if err != nil {
 		return "", err
 	}
-	return RestoreSQL(dmls[0].Node, RestoreOptions{
+	database, err := request.Catalog.GetDatabase(ctx, request.SourceDatabase)
+	if err != nil || database == nil {
+		return "", fmt.Errorf("failed to get database metadata for %s: %v", request.SourceDatabase, err)
+	}
+	lookup := database.Lookup(true)
+	onTable := tableDMLs(stmts, analysis.SearchPath(database.Metadata.GetSearchPath()), func(searchPath []string, name string) string {
+		schema, _ := lookup.SearchRelation(searchPath, name)
+		return schema
+	}, table.Schema, request.SourceTable)
+	var nodes []ast.Node
+	for _, dml := range dmls {
+		if onTable[dml.Node] {
+			nodes = append(nodes, dml.Node)
+		}
+	}
+	if len(nodes) == 0 {
+		return "", analysis.StatementNotFoundError(request)
+	}
+	return RestoreSQL(nodes, RestoreOptions{
 		OriginalSchema:    table.Schema,
 		OriginalTable:     request.SourceTable,
 		BackupSchema:      request.BackupSchema,

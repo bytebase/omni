@@ -450,7 +450,7 @@ func restoreSQL(t *testing.T, script, database, backupDatabase string, backup an
 		if segment.ByteStart < backup.ByteStart || segment.ByteEnd > backup.ByteEnd {
 			continue
 		}
-		ok, err := analysis.ReferencesTable(segment.Text, database, backup.SourceTable)
+		ok, err := analysis.ReferencesTable(segment.Text, database, backup.SourceTable, false)
 		require.NoError(t, err)
 		if ok {
 			statements = append(statements, segment.Text+";")

@@ -6,6 +6,7 @@ import (
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
+	"github.com/bytebase/omni/mssql/ast"
 )
 
 // parseScript parses each statement of script on its own, with the line it
@@ -122,7 +123,7 @@ func TestRestoreSQL(t *testing.T) {
 		t.Fatalf("got %+v", dmls)
 	}
 
-	got, err := RestoreSQL(dmls[0].Node, opts)
+	got, err := RestoreSQL([]ast.Node{dmls[0].Node}, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,10 +135,18 @@ func TestRestoreSQL(t *testing.T) {
 	if got != want {
 		t.Errorf("update:\ngot  %q\nwant %q", got, want)
 	}
+	// The MERGE also inserts the deleted rows again.
+	got, err = RestoreSQL([]ast.Node{dmls[1].Node, dmls[0].Node}, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != want {
+		t.Errorf("delete and update:\ngot  %q\nwant %q", got, want)
+	}
 
 	opts.Table = &metadata.TableMetadata{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "a"}}}
 	opts.OriginalSQL = "DELETE FROM t"
-	got, err = RestoreSQL(dmls[1].Node, opts)
+	got, err = RestoreSQL([]ast.Node{dmls[1].Node}, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +157,7 @@ func TestRestoreSQL(t *testing.T) {
 	// SQL Server nests block comments: the quoted statement must neither close
 	// the comment nor open another.
 	opts.OriginalSQL = "DELETE FROM t WHERE a IN ('*/ DROP TABLE x; /*', '/*/')"
-	got, err = RestoreSQL(dmls[1].Node, opts)
+	got, err = RestoreSQL([]ast.Node{dmls[1].Node}, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +166,7 @@ func TestRestoreSQL(t *testing.T) {
 	}
 
 	opts.PrimaryKey = nil
-	if _, err := RestoreSQL(parseScript(t, "UPDATE t SET a = 1")[0].Node, opts); err == nil {
+	if _, err := RestoreSQL([]ast.Node{parseScript(t, "UPDATE t SET a = 1")[0].Node}, opts); err == nil {
 		t.Error("update of every unique key: got no error")
 	}
 }

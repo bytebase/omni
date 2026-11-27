@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/review"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -198,17 +199,20 @@ func TestRestoreCorpus(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.Input, func(t *testing.T) {
 			var parts []string
+			var nodes []ast.StmtNode
 			for _, stmt := range SplitStatements(tc.Input) {
 				ok, err := ReferencesTable(stmt.Text, tc.OriginalDatabase, tc.OriginalTable)
 				require.NoError(t, err)
 				if ok {
-					parts = append(parts, NormalizeRestoreSQL(stmt.Text))
+					part := NormalizeRestoreSQL(stmt.Text)
+					parts = append(parts, part)
+					node, err := FindFirstDML(part)
+					require.NoError(t, err)
+					require.NotNil(t, node)
+					nodes = append(nodes, node)
 				}
 			}
 			originalSQL := strings.Join(parts, "\n")
-			node, err := FindFirstDML(originalSQL)
-			require.NoError(t, err)
-			require.NotNil(t, node)
 
 			table := tables[tc.OriginalTable]
 			require.NotNil(t, table)
@@ -219,7 +223,7 @@ func TestRestoreCorpus(t *testing.T) {
 					break
 				}
 			}
-			got, err := RestoreSQL(originalSQL, node, RestoreOptions{
+			got, err := RestoreSQL(originalSQL, nodes, RestoreOptions{
 				SourceDatabase: tc.OriginalDatabase,
 				SourceTable:    tc.OriginalTable,
 				BackupDatabase: tc.BackupDatabase,

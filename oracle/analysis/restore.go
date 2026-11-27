@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -24,11 +25,13 @@ type RestoreOptions struct {
 	PrimaryKey *metadata.IndexMetadata
 }
 
-// RestoreSQL returns the SQL that puts back the rows a backup holds: an
-// INSERT for a DELETE, a MERGE on a unique key the UPDATE leaves alone for an
-// UPDATE. node is FindFirstDML's, and originalSQL, the statements the backup
-// covers, is quoted in a leading comment.
-func RestoreSQL(originalSQL string, node ast.StmtNode, opts RestoreOptions) (string, error) {
+// RestoreSQL returns the SQL that puts back the rows a backup holds. nodes are
+// the UPDATE and DELETE statements the backup covers: when any is an UPDATE,
+// a MERGE of every column the UPDATEs set on a unique key none of them
+// changes, which also inserts deleted rows again; otherwise an INSERT.
+// originalSQL, the statements the backup covers, is quoted in a leading
+// comment.
+func RestoreSQL(originalSQL string, nodes []ast.StmtNode, opts RestoreOptions) (string, error) {
 	sqlForComment, truncated := truncateString(originalSQL, maxCommentLength)
 	if truncated {
 		sqlForComment += "..."
@@ -42,9 +45,8 @@ func RestoreSQL(originalSQL string, node ast.StmtNode, opts RestoreOptions) (str
 		originalTable:    opts.SourceTable,
 		pk:               opts.PrimaryKey,
 		table:            opts.Table,
-		isFirst:          true,
 	}
-	if err := g.generate(node); err != nil {
+	if err := g.generate(nodes); err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("/*\nOriginal SQL:\n%s\n*/\n%s", sqlForComment, g.result), nil
@@ -121,25 +123,43 @@ type generator struct {
 	pk               *metadata.IndexMetadata
 	table            *metadata.TableMetadata
 
-	isFirst bool
-	result  string
+	result string
 }
 
-func (g *generator) generate(node ast.StmtNode) error {
-	if !g.isFirst {
+func (g *generator) generate(nodes []ast.StmtNode) error {
+	if len(nodes) == 0 {
+		return fmt.Errorf("no DML statement to restore")
+	}
+	var updateColumns []string
+	hasUpdate := false
+	for _, node := range nodes {
+		switch n := node.(type) {
+		case *ast.DeleteStmt:
+		case *ast.UpdateStmt:
+			// SET VALUE (t) = ... replaces whole rows, whose columns the
+			// restore cannot list.
+			if n.SetClauses != nil {
+				for _, item := range n.SetClauses.Items {
+					if clause, ok := item.(*ast.SetClause); ok && clause.ValueOf != "" {
+						return fmt.Errorf("cannot restore SET VALUE (%s), which replaces whole rows", clause.ValueOf)
+					}
+				}
+			}
+			hasUpdate = true
+			for _, column := range extractUpdateColumns(n) {
+				if !slices.Contains(updateColumns, column) {
+					updateColumns = append(updateColumns, column)
+				}
+			}
+		default:
+			return fmt.Errorf("unexpected statement type: %T", node)
+		}
+	}
+	if !hasUpdate {
+		g.generateDelete()
 		return nil
 	}
-	g.isFirst = false
-
-	switch n := node.(type) {
-	case *ast.DeleteStmt:
-		g.generateDelete()
-	case *ast.UpdateStmt:
-		return g.generateUpdate(n)
-	default:
-		return fmt.Errorf("unexpected statement type: %T", node)
-	}
-	return nil
+	return g.generateUpdate(updateColumns)
 }
 
 func (g *generator) generateDelete() {
@@ -270,17 +290,7 @@ func (g *generator) notNull(columns []string) bool {
 	return true
 }
 
-func (g *generator) generateUpdate(stmt *ast.UpdateStmt) error {
-	// SET VALUE (t) = ... replaces whole rows, whose columns the restore
-	// cannot list.
-	if stmt.SetClauses != nil {
-		for _, item := range stmt.SetClauses.Items {
-			if clause, ok := item.(*ast.SetClause); ok && clause.ValueOf != "" {
-				return fmt.Errorf("cannot restore SET VALUE (%s), which replaces whole rows", clause.ValueOf)
-			}
-		}
-	}
-	updateColumns := extractUpdateColumns(stmt)
+func (g *generator) generateUpdate(updateColumns []string) error {
 	uk, err := g.findDisjointUniqueKey(updateColumns)
 	if err != nil {
 		return err

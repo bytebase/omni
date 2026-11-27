@@ -165,7 +165,7 @@ func TestRestoreCorpus(t *testing.T) {
 		var matched []string
 		for _, seg := range parser.Split(tc.Input) {
 			stmtText := tc.Input[seg.ByteStart:endWithSemicolon(tc.Input, seg.ByteEnd)]
-			ok, err := analysis.ReferencesTable(stmtText, tc.OriginalDatabase, tc.OriginalTable)
+			ok, err := analysis.ReferencesTable(stmtText, tc.OriginalDatabase, tc.OriginalTable, false)
 			require.NoError(t, err, tc.Input)
 			if ok {
 				matched = append(matched, stmtText)

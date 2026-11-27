@@ -235,6 +235,11 @@ func TestClassifyColumns(t *testing.T) {
 	_, err = analysis.ClassifyColumns(catalog, false, "db", "t")
 	require.EqualError(t, err, `failed to get database metadata for database "DB": down`)
 
+	catalog = backupCatalog()
+	catalog.ListDatabaseNames = nil
+	_, err = analysis.ClassifyColumns(catalog, false, "db", "t")
+	require.EqualError(t, err, "the catalog has no ListDatabaseNames")
+
 	_, err = analysis.ClassifyColumns(analysis.Catalog{}, false, "db", "t")
 	require.Error(t, err)
 }

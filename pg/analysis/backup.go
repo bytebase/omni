@@ -390,18 +390,8 @@ func prepareTransformation(stmts []omnipg.Statement, statement string, opts Back
 
 		switch n := stmt.AST.(type) {
 		case *ast.VariableSetStmt:
-			if strings.EqualFold(n.Name, "search_path") && n.Args != nil {
-				var newSearchPath []string
-				for _, arg := range n.Args.Items {
-					if ac, ok := arg.(*ast.A_Const); ok {
-						if s, ok := ac.Val.(*ast.String); ok {
-							newSearchPath = append(newSearchPath, s.Str)
-						}
-					}
-				}
-				if len(newSearchPath) > 0 {
-					searchPath = newSearchPath
-				}
+			if newSearchPath := setSearchPath(n); len(newSearchPath) > 0 {
+				searchPath = newSearchPath
 			}
 		case *ast.UpdateStmt:
 			if err := rejectDataModifyingCTE(n); err != nil {
@@ -452,6 +442,22 @@ func prepareTransformation(stmts []omnipg.Statement, statement string, opts Back
 	}
 
 	return dmls, nil
+}
+
+// setSearchPath returns the schemas a SET search_path names, or nil.
+func setSearchPath(n *ast.VariableSetStmt) []string {
+	if !strings.EqualFold(n.Name, "search_path") || n.Args == nil {
+		return nil
+	}
+	var searchPath []string
+	for _, arg := range n.Args.Items {
+		if ac, ok := arg.(*ast.A_Const); ok {
+			if s, ok := ac.Val.(*ast.String); ok {
+				searchPath = append(searchPath, s.Str)
+			}
+		}
+	}
+	return searchPath
 }
 
 func extractTableReferenceFromRangeVar(rv *ast.RangeVar, searchRelation func(searchPath []string, name string) string, searchPath []string) (*tableReference, error) {

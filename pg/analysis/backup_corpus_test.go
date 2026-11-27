@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/pg/ast"
 	"github.com/bytebase/omni/review"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
@@ -203,8 +204,10 @@ func TestRestoreCorpus(t *testing.T) {
 			require.NotEmpty(t, dmls)
 
 			var sqls []string
+			var nodes []ast.Node
 			for _, dml := range dmls {
 				sqls = append(sqls, strings.TrimRight(strings.TrimSpace(dml.Text), ";"))
+				nodes = append(nodes, dml.Node)
 			}
 			table := db.GetTable("public", tc.OriginalTable)
 			require.NotNil(t, table)
@@ -216,7 +219,7 @@ func TestRestoreCorpus(t *testing.T) {
 				}
 			}
 
-			got, err := RestoreSQL(dmls[0].Node, RestoreOptions{
+			got, err := RestoreSQL(nodes, RestoreOptions{
 				OriginalSchema:    "public",
 				OriginalTable:     tc.OriginalTable,
 				BackupSchema:      tc.BackupDatabase,

@@ -269,7 +269,7 @@ func columnClassifier(catalog Catalog, caseSensitive bool) func(database, table 
 func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (string, error) {
 	var originalSQL strings.Builder
 	for _, statement := range statementsInRange(request.Script, request.Start, request.End) {
-		matched, err := ReferencesTable(statement.Text, request.SourceDatabase, request.SourceTable)
+		matched, err := ReferencesTable(statement.Text, request.SourceDatabase, request.SourceTable, request.CaseSensitive)
 		if err != nil {
 			return "", fmt.Errorf("failed to extract single SQL: failed to parse sql: %v", err)
 		}

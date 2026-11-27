@@ -204,28 +204,34 @@ func (e engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest)
 		}
 	}
 	var sqls []string
+	var nodes []ast.StmtNode
 	for i := first; i <= last; i++ {
 		matched, err := ReferencesTable(statements[i].Text, request.SourceDatabase, request.SourceTable)
 		if err != nil {
 			return "", fmt.Errorf("failed to extract single SQL: failed to prepare transformation: %v", err)
 		}
-		if matched {
-			sqls = append(sqls, NormalizeRestoreSQL(statements[i].Text))
+		if !matched {
+			continue
+		}
+		sql := NormalizeRestoreSQL(statements[i].Text)
+		sqls = append(sqls, sql)
+		node, err := FindFirstDML(sql)
+		if err != nil {
+			return "", err
+		}
+		if node != nil {
+			nodes = append(nodes, node)
 		}
 	}
-	originalSQL := strings.Join(sqls, "\n")
-	node, err := FindFirstDML(originalSQL)
-	if err != nil {
-		return "", err
-	}
-	if node == nil {
+	if len(nodes) == 0 {
 		return "", errors.New("no DML statement found in extracted SQL")
 	}
+	originalSQL := strings.Join(sqls, "\n")
 	table, err := analysis.LookUpRestoreTable(ctx, request, "", true, nil)
 	if err != nil {
 		return "", err
 	}
-	return RestoreSQL(originalSQL, node, RestoreOptions{
+	return RestoreSQL(originalSQL, nodes, RestoreOptions{
 		SourceDatabase: request.SourceDatabase,
 		SourceTable:    request.SourceTable,
 		BackupDatabase: request.BackupDatabase,

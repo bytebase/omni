@@ -1486,6 +1486,9 @@ func ClassifyColumns(catalog Catalog, caseSensitive bool, database, table string
 	if catalog.GetDatabase == nil {
 		return TableColumns{}, errors.New("the catalog has no GetDatabase")
 	}
+	if catalog.ListDatabaseNames == nil {
+		return TableColumns{}, errors.New("the catalog has no ListDatabaseNames")
+	}
 
 	var db Database
 	allDatabaseNames, err := catalog.ListDatabaseNames()
