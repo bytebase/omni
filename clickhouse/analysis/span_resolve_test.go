@@ -689,3 +689,36 @@ func TestResolveQuerySpanMergeTableColumn(t *testing.T) {
 		t.Errorf("* returns %+v, want id and email", got.Results)
 	}
 }
+
+// A deeply dotted identifier is flattened in linear time.
+func TestResolveQuerySpanDeepDottedName(t *testing.T) {
+	start := time.Now()
+	if _, err := ResolveQuerySpan("SELECT t"+strings.Repeat(".x", 8000)+" FROM t", ResolveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Errorf("took %v", d)
+	}
+}
+
+// APPLY after REPLACE applies to the replacement's value.
+func TestResolveQuerySpanReplaceThenApply(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT * REPLACE(i + 1 AS i) EXCEPT (j) APPLY(sum) FROM (SELECT 1 AS i, 2 AS j, 3 AS k)", ResolveOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, r := range got.Results {
+		names = append(names, r.Name)
+	}
+	if want := []string{"sum(plus(i, 1))", "sum(k)"}; !slices.Equal(names, want) {
+		t.Errorf("names %v, want %v", names, want)
+	}
+}
+
+// A * that asterisk_include_virtual_columns widens fails the span.
+func TestResolveQuerySpanStarVirtualColumns(t *testing.T) {
+	if _, err := ResolveQuerySpan("SELECT *, 42 FROM customers SETTINGS asterisk_include_virtual_columns = 1", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()}); err == nil {
+		t.Fatal("no error")
+	}
+}

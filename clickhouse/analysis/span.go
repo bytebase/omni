@@ -138,7 +138,7 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedSpan, err
 // long as the query is resolved: a subquery's own SETTINGS hold inside it.
 // The returned function restores the enclosing query's.
 func (r *spanResolver) settings(q *parser.SelectUnionStmt) func() {
-	saved := [4]bool{r.preferColumns, r.starAlias, r.starMaterialized, r.localWith}
+	saved := [5]bool{r.preferColumns, r.starAlias, r.starMaterialized, r.localWith, r.starVirtual}
 	for name, flag := range map[string]*bool{
 		"prefer_column_name_to_alias":           &r.preferColumns,
 		"asterisk_include_alias_columns":        &r.starAlias,
@@ -148,11 +148,14 @@ func (r *spanResolver) settings(q *parser.SelectUnionStmt) func() {
 			*flag = v
 		}
 	}
+	if v, ok := setting(q, "asterisk_include_virtual_columns"); ok {
+		r.starVirtual = v
+	}
 	if v, ok := setting(q, "enable_global_with_statement"); ok {
 		r.localWith = !v
 	}
 	return func() {
-		r.preferColumns, r.starAlias, r.starMaterialized, r.localWith = saved[0], saved[1], saved[2], saved[3]
+		r.preferColumns, r.starAlias, r.starMaterialized, r.localWith, r.starVirtual = saved[0], saved[1], saved[2], saved[3], saved[4]
 	}
 }
 
@@ -195,6 +198,9 @@ type spanColumn struct {
 	// virtual marks a virtual column (merge's _table), which only a name
 	// reads.
 	virtual bool
+	// value names a REPLACE's expression, which a later APPLY applies to
+	// though the column keeps its name.
+	value string
 	// rel is the FROM relation the column was read from, if any.
 	rel *relation
 }
@@ -309,6 +315,10 @@ type spanResolver struct {
 	// asterisk_include_alias_columns and
 	// asterisk_include_materialized_columns: * expands to those columns too.
 	starAlias, starMaterialized bool
+	// starVirtual is asterisk_include_virtual_columns: * expands to a
+	// table's virtual columns too, in an order the metadata does not say,
+	// so such a * fails the span.
+	starVirtual bool
 	// localWith is enable_global_with_statement = 0: a set operation's
 	// first query's WITH clause is its own, not the later queries'.
 	localWith bool
@@ -1157,6 +1167,9 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 		if rel.arrayJoin || len(s.Qualifier) > 0 && !qualifies(rel, s.Qualifier) {
 			continue
 		}
+		if r.starVirtual && rel.virtual {
+			r.err = errors.Join(r.err, fmt.Errorf("* over %s.%s with asterisk_include_virtual_columns: its virtual columns, and so the result's, are not known", rel.database, rel.table))
+		}
 		if rel.open && len(rel.columns) == 0 {
 			sources := union(union(SourceColumnSet{}, rel.starTables), rel.starColumns)
 			if rel.table != "" {
@@ -1224,6 +1237,8 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 				for i := range kept {
 					if kept[i].name == rep.Alias {
 						kept[i].sources, kept[i].plain, replaced = sources, false, true
+						// A later APPLY applies to the replacement's value.
+						kept[i].value = newNamer(r, sc, ctes).top(rep.Expr)
 					}
 				}
 				if !replaced {
@@ -1245,7 +1260,11 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 				applied = union(applied, r.expr(&parser.FuncCallExpr{Name: t.ApplyFunc}, sc, ctes))
 			}
 			for i := range kept {
-				kept[i].name = newNamer(r, sc, ctes).apply(t, kept[i].name)
+				value := kept[i].name
+				if kept[i].value != "" {
+					value = kept[i].value
+				}
+				kept[i].name, kept[i].value = newNamer(r, sc, ctes).apply(t, value), ""
 				kept[i].sources = union(kept[i].sources, applied)
 				kept[i].plain = false
 			}
@@ -1685,20 +1704,31 @@ func (r *spanResolver) lambdaAlias(name string, sc *spanScope) *parser.LambdaExp
 // identParts flattens a.b.`c` (parsed as tuple access on an identifier)
 // into the identifier's parts.
 func identParts(e parser.Expr) ([]string, bool) {
-	switch n := e.(type) {
-	case *parser.IdentExpr:
-		return n.Parts, true
-	case *parser.TupleAccessExpr:
-		if n.Member == "" || n.Member[0] >= '0' && n.Member[0] <= '9' {
+	// Walk down to the identifier, collecting the members, once: a deep
+	// a.b.c... is not copied per level.
+	var members []string
+	for {
+		switch n := e.(type) {
+		case *parser.IdentExpr:
+			if members == nil {
+				return n.Parts, true
+			}
+			parts := make([]string, 0, len(n.Parts)+len(members))
+			parts = append(parts, n.Parts...)
+			for i := len(members) - 1; i >= 0; i-- {
+				parts = append(parts, members[i])
+			}
+			return parts, true
+		case *parser.TupleAccessExpr:
+			if n.Member == "" || n.Member[0] >= '0' && n.Member[0] <= '9' {
+				return nil, false
+			}
+			members = append(members, n.Member)
+			e = n.Expr
+		default:
 			return nil, false
 		}
-		parts, ok := identParts(n.Expr)
-		if !ok {
-			return nil, false
-		}
-		return append(append([]string(nil), parts...), n.Member), true
 	}
-	return nil, false
 }
 
 // ident resolves a name: a lambda parameter reads nothing; an alias reads
