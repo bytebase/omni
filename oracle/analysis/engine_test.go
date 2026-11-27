@@ -2,9 +2,11 @@ package analysis
 
 import (
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
 )
 
@@ -88,5 +90,57 @@ func TestEngineResultLimit(t *testing.T) {
 		if got := Engine.ResultLimit(tc.statement, 10, tc.version); got != tc.want {
 			t.Fatalf("ResultLimit(%q, %q) = %q", tc.statement, tc.version, got)
 		}
+	}
+}
+
+func oracleChangeStatements(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	statements, err := Engine.Parse(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return statements
+}
+
+func oracleChangeDatabase() *analysis.Database {
+	table := &metadata.TableMetadata{Name: "T", Indexes: []*metadata.IndexMetadata{{Name: "T_IDX"}}}
+	return &analysis.Database{Name: "ORCL", ObjectCaseSensitive: true, Metadata: &metadata.DatabaseSchemaMetadata{
+		Name: "ORCL", Schemas: []*metadata.SchemaMetadata{{Name: "S1", Tables: []*metadata.TableMetadata{table}}},
+	}}
+}
+
+func TestEngineExtractChangesTakeTheDefaultDatabaseAsTheSchema(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "S1", DefaultSchema: "S2"}, oracleChangeStatements(t, "UPDATE t SET a = 1;"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(changes.Resources, []analysis.ChangedResource{{Database: "S1", Table: "T"}}) || changes.DMLCount != 1 {
+		t.Fatalf("changes = %+v", changes)
+	}
+	if !reflect.DeepEqual(changes.DMLStatements, []analysis.DMLStatement{{Text: "UPDATE t SET a = 1;"}}) {
+		t.Fatalf("DML statements = %+v", changes.DMLStatements)
+	}
+}
+
+func TestEngineExtractChangesFindTheTableOfADroppedIndex(t *testing.T) {
+	request := analysis.ChangeRequest{DefaultDatabase: "S1", Database: oracleChangeDatabase()}
+	changes, err := Engine.ExtractChanges(request, oracleChangeStatements(t, `DROP INDEX t_idx; DROP INDEX s1.t_idx; DROP INDEX "t_idx"; DROP INDEX s2.t_idx;`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []analysis.ChangedResource{{Database: "S1", Table: "T"}, {Database: "S1", Table: "T"}}
+	if !reflect.DeepEqual(changes.Resources, want) {
+		t.Fatalf("changes = %+v", changes.Resources)
+	}
+	request.Database = nil
+	if changes, err := Engine.ExtractChanges(request, oracleChangeStatements(t, "DROP INDEX t_idx;")); err != nil || len(changes.Resources) != 0 {
+		t.Fatalf("without metadata: changes = %+v, err = %v", changes, err)
+	}
+}
+
+func TestEngineExtractChangesSkipANilOrForeignNode(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{}, []analysis.ParsedStatement{{Node: nil}, {Node: "not a node"}})
+	if err != nil || len(changes.Resources) != 0 || changes.DMLCount != 0 {
+		t.Fatalf("changes = %+v, err = %v", changes, err)
 	}
 }

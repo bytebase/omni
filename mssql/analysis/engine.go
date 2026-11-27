@@ -8,6 +8,7 @@ import (
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
+	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/mssql/parser"
 )
 
@@ -190,3 +191,32 @@ func (s lookupSchema) GetTable(name string) *metadata.TableMetadata { return s.s
 func (s lookupSchema) ListViewNames() []string { return s.schema.ListViewNames() }
 
 func (s lookupSchema) GetView(name string) *metadata.ViewMetadata { return s.schema.View(name) }
+
+var _ analysis.ChangeExtractor = Engine
+
+// ExtractChanges reports what the statements write, resolving unqualified
+// names in the default database and schema. A statement without a node
+// changes nothing.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	changes := &analysis.Changes{}
+	for _, statement := range statements {
+		if statement.Node == nil {
+			continue
+		}
+		node, ok := statement.Node.(ast.Node)
+		if !ok {
+			return nil, errors.New("expected AST for MSSQL")
+		}
+		appendChanges(changes, ExtractChangedResources(node, request.DefaultDatabase, request.DefaultSchema, statement.Text))
+	}
+	return changes, nil
+}
+
+func appendChanges(changes *analysis.Changes, statement StatementChanges) {
+	changes.Resources = append(changes.Resources, statement.Resources...)
+	for _, text := range statement.DMLStatements {
+		changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
+	}
+	changes.DMLCount += statement.DMLCount
+	changes.InsertCount += statement.InsertCount
+}
