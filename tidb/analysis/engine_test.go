@@ -1,10 +1,14 @@
 package analysis
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/tidb/parser"
 )
 
 func TestEngineSplit(t *testing.T) {
@@ -90,5 +94,42 @@ func TestEngineExplainLimitAndRanges(t *testing.T) {
 	}
 	if ranges := Engine.StatementRanges("   -- comment\n"); ranges != nil {
 		t.Fatalf("StatementRanges of a comment = %#v", ranges)
+	}
+}
+
+func tidbSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+	}}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: "resolved", Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func TestEngineQuerySpansResolveInTheDefaultDatabase(t *testing.T) {
+	for _, ignoreCase := range []bool{false, true} {
+		request := analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: "s1", IgnoreCaseSensitive: ignoreCase, Catalog: tidbSpanCatalog()}
+		spans, err := Engine.QuerySpans(context.Background(), request, []analysis.QuerySpanStatement{{Text: "SELECT id FROM t"}, {Text: "SELECT id FROM T"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, span := range spans {
+			if span.NotFoundError != nil || !span.Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Table: "t", Column: "id"}] {
+				t.Fatalf("ignoreCase %v: span = %+v", ignoreCase, span)
+			}
+		}
+	}
+}
+
+func TestEngineQuerySpansWrapTheParseError(t *testing.T) {
+	text := "SELECT * FORM t"
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: tidbSpanCatalog()}, []analysis.QuerySpanStatement{{Text: text, Start: analysis.Position{Line: 3, Column: 5}}})
+	var parseErr *parser.ParseError
+	var syntaxErr *analysis.SyntaxError
+	if !errors.As(err, &parseErr) || errors.As(err, &syntaxErr) || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
+		t.Fatalf("err = %v", err)
 	}
 }

@@ -2,6 +2,7 @@ package analysis
 
 import (
 	"context"
+	"sync"
 
 	"github.com/bytebase/omni/metadata"
 )
@@ -14,6 +15,9 @@ type Catalog struct {
 	// GetDatabase returns a database's synced metadata, or nil for a database
 	// the caller has not synced.
 	GetDatabase func(ctx context.Context, name string) (*Database, error)
+	// GetLinkedDatabase returns the synced metadata of a schema that a database
+	// link reaches (an Oracle @link), or nil when the caller has not synced it.
+	GetLinkedDatabase func(ctx context.Context, link, schema string) (*Database, error)
 }
 
 // Database is one synced database.
@@ -25,6 +29,18 @@ type Database struct {
 	// ObjectCaseSensitive reports whether the database compares schema and
 	// table names as written.
 	ObjectCaseSensitive bool
+
+	lookupOnce sync.Once
+	lookup     *Lookup
+}
+
+// Lookup returns the database's index by name, built on first use. The
+// detail case sensitivity of the first call holds for later ones.
+func (d *Database) Lookup(detailCaseSensitive bool) *Lookup {
+	d.lookupOnce.Do(func() {
+		d.lookup = NewLookup(d.Metadata, d.ObjectCaseSensitive, detailCaseSensitive)
+	})
+	return d.lookup
 }
 
 // MetadataLoader returns a function that loads a database's synced

@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
 	"github.com/bytebase/omni/mssql/parser"
 )
@@ -115,3 +117,76 @@ func (engine) ResultLimit(statement string, limit int, _ string) string {
 	}
 	return rewritten
 }
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves the statements as one batch: the temp tables and plan
+// options a statement declares hold for the ones after it. A span leaves out
+// Untraced.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	opts := ResolveOptions{
+		DefaultDatabase:     request.DefaultDatabase,
+		DefaultSchema:       request.DefaultSchema,
+		IgnoreCaseSensitive: request.IgnoreCaseSensitive,
+		Catalog:             spanCatalog(ctx, request.Catalog),
+		TempTables:          map[string]*TempTable{},
+		PlanOutput:          map[string]bool{},
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, opts)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, &analysis.ResolvedSpan{
+			Type:             span.Type,
+			ExplainAnalyze:   span.ExplainAnalyze,
+			SourceColumns:    span.SourceColumns,
+			Results:          span.Results,
+			PredicateColumns: span.PredicateColumns,
+			NotFoundError:    span.NotFoundError,
+		})
+	}
+	return spans, nil
+}
+
+func spanCatalog(ctx context.Context, catalog analysis.Catalog) Catalog {
+	var c Catalog
+	if list := catalog.ListDatabaseNames; list != nil {
+		c.ListDatabaseNames = func() ([]string, error) { return list(ctx) }
+	}
+	if get := catalog.GetDatabase; get != nil {
+		c.GetDatabase = func(name string) (Database, error) {
+			database, err := get(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return lookupDatabase{database.Lookup(false)}, nil
+		}
+	}
+	return c
+}
+
+// lookupDatabase is a synced database's Database, through the caller's name
+// matching.
+type lookupDatabase struct{ lookup *analysis.Lookup }
+
+func (d lookupDatabase) ListSchemaNames() []string { return d.lookup.ListSchemaNames() }
+
+func (d lookupDatabase) GetSchema(name string) Schema {
+	schema := d.lookup.Schema(name)
+	if schema == nil {
+		return nil
+	}
+	return lookupSchema{schema}
+}
+
+type lookupSchema struct{ schema *analysis.SchemaLookup }
+
+func (s lookupSchema) ListTableNames() []string { return s.schema.ListTableNames() }
+
+func (s lookupSchema) GetTable(name string) *metadata.TableMetadata { return s.schema.Table(name) }
+
+func (s lookupSchema) ListViewNames() []string { return s.schema.ListViewNames() }
+
+func (s lookupSchema) GetView(name string) *metadata.ViewMetadata { return s.schema.View(name) }
