@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
@@ -151,5 +152,45 @@ func TestEngineQuerySpansPositionASyntaxErrorInTheScript(t *testing.T) {
 		if !errors.As(err, &syntaxErr) || syntaxErr.Position != want || err != error(syntaxErr) {
 			t.Fatalf("start %+v: err = %v", start, err)
 		}
+	}
+}
+
+func parseMySQLForChanges(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	statements, err := Engine.Parse(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return statements
+}
+
+func TestEngineExtractChangesInTheDefaultDatabase(t *testing.T) {
+	statements := append(parseMySQLForChanges(t, "INSERT INTO t VALUES (1), (2);\nUPDATE other.t1 SET a = 1;"), analysis.ParsedStatement{})
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: "s1"}, statements)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &analysis.Changes{
+		Resources:     []analysis.ChangedResource{{Database: "db", Table: "t"}, {Database: "other", Table: "t1"}},
+		DMLStatements: []analysis.DMLStatement{{Text: "UPDATE other.t1 SET a = 1;"}},
+		DMLCount:      1,
+		InsertCount:   2,
+	}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v", changes)
+	}
+}
+
+func TestEngineExtractChangesRejectAForeignNode(t *testing.T) {
+	_, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, []analysis.ParsedStatement{{Node: "not a node"}})
+	if err == nil || err.Error() != "expected AST for MySQL" {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestEngineExtractChangesKeepATableWithoutAName(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, parseMySQLForChanges(t, "TRUNCATE ``;"))
+	if err != nil || len(changes.Resources) != 1 || changes.Resources[0] != (analysis.ChangedResource{Database: "db", AffectsData: true}) {
+		t.Fatalf("changes = %+v, err = %v", changes, err)
 	}
 }

@@ -3,9 +3,11 @@ package analysis
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/starrocks/parser"
 )
 
 func TestEngineSplitKeepsSemicolonsAndEmptySegments(t *testing.T) {
@@ -102,5 +104,52 @@ func TestEngineQuerySpansShiftASyntaxErrorToItsStatementStart(t *testing.T) {
 	}
 	if syntaxErr.Position != want.Position.Shift(start) || syntaxErr.Message != want.Message || syntaxErr.RawMessage != want.RawMessage {
 		t.Fatalf("err = %+v, want %+v shifted to %+v", syntaxErr, want, start)
+	}
+}
+
+func parseStarRocksForChanges(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	var statements []analysis.ParsedStatement
+	for _, statement := range SplitStatements(script) {
+		if statement.Empty {
+			continue
+		}
+		file, err := parser.Parse(statement.Text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		statements = append(statements, analysis.ParsedStatement{Statement: statement, Node: file.Stmts[0]})
+	}
+	return statements
+}
+
+func TestEngineExtractChangesResolveInTheDefaultDatabase(t *testing.T) {
+	request := analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: "s1"}
+	changes, err := Engine.ExtractChanges(request, parseStarRocksForChanges(t, "INSERT INTO t VALUES (1), (2); UPDATE other.t1 SET a = 1; CREATE VIEW v2.x AS SELECT 1;"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := &analysis.Changes{
+		Resources: []analysis.ChangedResource{
+			{Database: "db", Table: "t"},
+			{Database: "other", Table: "t1"},
+			{Database: "v2", DatabaseOnly: true},
+		},
+		DMLStatements: []analysis.DMLStatement{{Text: "UPDATE other.t1 SET a = 1;"}},
+		DMLCount:      1,
+		InsertCount:   2,
+	}
+	if !reflect.DeepEqual(changes, want) {
+		t.Fatalf("changes = %+v, want %+v", changes, want)
+	}
+}
+
+func TestEngineExtractChangesSkipAMissingNodeAndRejectAForeignOne(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, []analysis.ParsedStatement{{Node: nil}})
+	if err != nil || !reflect.DeepEqual(changes, &analysis.Changes{}) {
+		t.Fatalf("changes = %+v, err = %v", changes, err)
+	}
+	if _, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db"}, []analysis.ParsedStatement{{Node: "not a node"}}); err == nil || err.Error() != "expected astNode for StarRocks" {
+		t.Fatalf("err = %v", err)
 	}
 }

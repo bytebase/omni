@@ -3,6 +3,7 @@ package analysis
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
@@ -131,5 +132,38 @@ func TestEngineQuerySpansReturnTheParsersError(t *testing.T) {
 	var parseErr *parser.ParseError
 	if !errors.As(err, &parseErr) || err != error(parseErr) {
 		t.Fatalf("err = %T %v", err, err)
+	}
+}
+
+func mssqlChangeStatements(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	statements, err := Engine.Parse(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return statements
+}
+
+func TestEngineExtractChangesResolveInTheDefaultDatabaseAndSchema(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{DefaultDatabase: "db", DefaultSchema: "s1"}, mssqlChangeStatements(t, "UPDATE t SET a = 1;\nGO\nINSERT INTO other.dbo.t1 VALUES (1), (2);"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []analysis.ChangedResource{{Database: "db", Schema: "s1", Table: "t"}, {Database: "other", Schema: "dbo", Table: "t1"}}
+	if !reflect.DeepEqual(changes.Resources, want) || changes.DMLCount != 1 || changes.InsertCount != 2 {
+		t.Fatalf("changes = %+v", changes)
+	}
+	if !reflect.DeepEqual(changes.DMLStatements, []analysis.DMLStatement{{Text: "UPDATE t SET a = 1;"}}) {
+		t.Fatalf("DML statements = %+v", changes.DMLStatements)
+	}
+}
+
+func TestEngineExtractChangesSkipANilNodeAndRejectAForeignOne(t *testing.T) {
+	changes, err := Engine.ExtractChanges(analysis.ChangeRequest{}, []analysis.ParsedStatement{{Node: nil}})
+	if err != nil || len(changes.Resources) != 0 {
+		t.Fatalf("nil node: changes = %+v, err = %v", changes, err)
+	}
+	if _, err := Engine.ExtractChanges(analysis.ChangeRequest{}, []analysis.ParsedStatement{{Node: "not a node"}}); err == nil || err.Error() != "expected AST for MSSQL" {
+		t.Fatalf("foreign node: err = %v", err)
 	}
 }

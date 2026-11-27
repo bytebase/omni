@@ -139,6 +139,18 @@ func (l *Lookup) SearchFunctions(searchPath []string, name string) ([]string, []
 	return schemas, functions
 }
 
+// SearchIndex returns the schema and holding table of the first index of that
+// name along searchPath, as SchemaLookup.IndexTable finds it.
+func (l *Lookup) SearchIndex(searchPath []string, name string) (string, string, bool) {
+	for _, schemaName := range searchPath {
+		s := l.Schema(schemaName)
+		if table, ok := s.IndexTable(name); ok {
+			return s.proto.GetName(), table, true
+		}
+	}
+	return "", "", false
+}
+
 // Proto returns the schema's metadata.
 func (s *SchemaLookup) Proto() *metadata.SchemaMetadata { return s.proto }
 
@@ -198,6 +210,38 @@ func (s *SchemaLookup) Function(name string) *metadata.FunctionMetadata {
 		}
 	}
 	return nil
+}
+
+// IndexTable returns the name of the table, or else the materialized view,
+// that holds the index of that name. A table's index names follow detail case
+// sensitivity and a materialized view's follow object case sensitivity, as the
+// caller's model has it. Where two such indexes share a name, the first in
+// metadata order wins.
+func (s *SchemaLookup) IndexTable(name string) (string, bool) {
+	if s == nil {
+		return "", false
+	}
+	for _, table := range s.proto.GetTables() {
+		if s.tables[fold(table.GetName(), s.objectCaseSensitive)] != table {
+			continue
+		}
+		for _, index := range table.GetIndexes() {
+			if sameName(index.GetName(), name, s.detailCaseSensitive) {
+				return table.GetName(), true
+			}
+		}
+	}
+	for _, view := range s.proto.GetMaterializedViews() {
+		if s.materializedViews[fold(view.GetName(), s.objectCaseSensitive)] != view {
+			continue
+		}
+		for _, index := range view.GetIndexes() {
+			if sameName(index.GetName(), name, s.objectCaseSensitive) {
+				return view.GetName(), true
+			}
+		}
+	}
+	return "", false
 }
 
 // ListTableNames returns the names of the schema's tables, partitions

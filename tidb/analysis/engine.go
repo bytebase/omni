@@ -182,3 +182,25 @@ func (d lookupDatabase) GetTable(name string) *metadata.TableMetadata {
 func (d lookupDatabase) GetView(name string) *metadata.ViewMetadata {
 	return d.schema().View(name)
 }
+
+var _ analysis.ChangeExtractor = Engine
+
+// ExtractChanges reports what the statements write, resolving unqualified
+// names in the default database. A statement without a node writes nothing.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	var changes analysis.Changes
+	for _, statement := range statements {
+		node, ok := statement.Node.(ast.Node)
+		if !ok && statement.Node != nil {
+			return nil, errors.New("expected TiDB AST")
+		}
+		c := ExtractChangedResources(node, request.DefaultDatabase, statement.Text)
+		changes.Resources = append(changes.Resources, c.Resources...)
+		for _, text := range c.DMLStatements {
+			changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
+		}
+		changes.DMLCount += c.DMLCount
+		changes.InsertCount += c.InsertCount
+	}
+	return &changes, nil
+}

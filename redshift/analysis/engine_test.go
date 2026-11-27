@@ -2,6 +2,8 @@ package analysis
 
 import (
 	"errors"
+	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
@@ -64,5 +66,29 @@ func TestEngineExplainAndLimit(t *testing.T) {
 	}
 	if got := Engine.ResultLimit("SELECT 1; SELECT 2;", 10, ""); got != "WITH result AS (\nSELECT 1; SELECT 2\n) SELECT * FROM result LIMIT 10;" {
 		t.Fatalf("ResultLimit fallback = %q", got)
+	}
+}
+
+func TestEngineExtractChangesReadTheScript(t *testing.T) {
+	request := analysis.ChangeRequest{DefaultDatabase: "db", Script: "TRUNCATE t; INSERT INTO t VALUES (1), (2); SET search_path TO s1; DELETE FROM t;"}
+	changes, err := Engine.ExtractChanges(request, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantResources := []analysis.ChangedResource{
+		{Database: "db", Schema: "public", Table: "t"},
+		{Database: "db", Schema: "s1", Table: "t"},
+		{Database: "db", Schema: "public", Table: "t", AffectsData: true},
+	}
+	if !slices.Equal(changes.Resources, wantResources) {
+		t.Fatalf("resources = %+v", changes.Resources)
+	}
+	// The script's own extractor prefixes the search path, so SearchPath stays nil.
+	wantDML := []analysis.DMLStatement{{Text: "SET LOCAL search_path TO \"s1\";\nDELETE FROM t;"}}
+	if !reflect.DeepEqual(changes.DMLStatements, wantDML) || changes.DMLCount != 1 || changes.InsertCount != 2 {
+		t.Fatalf("changes = %+v", changes)
+	}
+	if _, err := Engine.ExtractChanges(analysis.ChangeRequest{Script: "DELETE FROM"}, nil); err == nil {
+		t.Fatal("want the script's syntax error")
 	}
 }

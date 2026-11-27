@@ -101,3 +101,34 @@ func (engine) ResultLimit(statement string, limit int, engineVersion string) str
 	}
 	return rewritten
 }
+
+var _ analysis.ChangeExtractor = Engine
+
+// ExtractChanges reports what the statements write, the default database
+// being the schema of unqualified names, as Oracle has it. Without synced
+// metadata a dropped index changes nothing; a foreign node is skipped.
+func (engine) ExtractChanges(request analysis.ChangeRequest, statements []analysis.ParsedStatement) (*analysis.Changes, error) {
+	var indexTable IndexTableFunc
+	if request.Database != nil {
+		lookup := request.Database.Lookup(true)
+		indexTable = func(schema, index string) (string, bool) { return lookup.Schema(schema).IndexTable(index) }
+	}
+	changes := &analysis.Changes{}
+	for _, statement := range statements {
+		node, ok := statement.Node.(ast.Node)
+		if !ok {
+			continue
+		}
+		appendChanges(changes, ExtractChangedResources(node, request.DefaultDatabase, statement.Text, indexTable))
+	}
+	return changes, nil
+}
+
+func appendChanges(changes *analysis.Changes, statement StatementChanges) {
+	changes.Resources = append(changes.Resources, statement.Resources...)
+	for _, text := range statement.DMLStatements {
+		changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
+	}
+	changes.DMLCount += statement.DMLCount
+	changes.InsertCount += statement.InsertCount
+}
