@@ -1,8 +1,10 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/snowflake/diagnostics"
@@ -16,13 +18,14 @@ var Engine engine
 type engine struct{}
 
 var (
-	_ analysis.Splitter        = Engine
-	_ analysis.Parser          = Engine
-	_ analysis.StatementRanger = Engine
-	_ analysis.Diagnoser       = Engine
-	_ analysis.QueryValidator  = Engine
-	_ analysis.Explainer       = Engine
-	_ analysis.ResultLimiter   = Engine
+	_ analysis.Splitter          = Engine
+	_ analysis.Parser            = Engine
+	_ analysis.StatementRanger   = Engine
+	_ analysis.Diagnoser         = Engine
+	_ analysis.QueryValidator    = Engine
+	_ analysis.Explainer         = Engine
+	_ analysis.ResultLimiter     = Engine
+	_ analysis.QuerySpanResolver = Engine
 )
 
 // Split returns SplitStatements: a segment's text ends at the semicolon that
@@ -102,4 +105,88 @@ func (engine) ResultLimit(statement string, limit int, _ string) string {
 		return fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", analysis.TrimStatement(statement), limit)
 	}
 	return rewritten
+}
+
+// QuerySpans resolves each statement in the default database and schema. A
+// table missing from the catalog sets the span's NotFoundError, with the
+// tables the statement accesses as its SourceColumns.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := querySpan(ctx, request, statement.Text)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement string) (*ResolvedSpan, error) {
+	span, err := ResolveQuerySpan(statement, ResolveOptions{
+		DefaultDatabase:     request.DefaultDatabase,
+		DefaultSchema:       request.DefaultSchema,
+		IgnoreCaseSensitive: request.IgnoreCaseSensitive,
+		ResolveTable: func(database, schema, table string) (*Table, error) {
+			return lookupTable(ctx, request.Catalog, database, schema, table)
+		},
+	})
+	if err == nil || errors.Is(err, ErrMixUserSystemTables) {
+		return span, err
+	}
+	var resolveErr *ResolveError
+	if !errors.As(err, &resolveErr) {
+		return nil, err
+	}
+	var notFound *analysis.ResourceNotFoundError
+	if errors.As(resolveErr.Err, &notFound) {
+		return &ResolvedSpan{SourceColumns: resolveErr.SourceColumns, Results: []QuerySpanResult{}, NotFoundError: notFound}, nil
+	}
+	return nil, resolveErr.Err
+}
+
+// lookupTable finds a table by its folded names, which must match the
+// catalog's spelling exactly. An empty database or schema name matches any
+// listed one but looks up the empty name itself.
+func lookupTable(ctx context.Context, catalog analysis.Catalog, databaseName, schemaName, tableName string) (*Table, error) {
+	if catalog.ListDatabaseNames == nil || catalog.GetDatabase == nil {
+		return nil, errors.New("the catalog cannot look tables up")
+	}
+	databaseNames, err := catalog.ListDatabaseNames(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all databases: %w", err)
+	}
+	notFound := fmt.Errorf("table %s.%s.%s is not found", databaseName, schemaName, tableName)
+	if !listed(databaseNames, databaseName) {
+		return nil, notFound
+	}
+	database, err := catalog.GetDatabase(ctx, databaseName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database %s: %w", databaseName, err)
+	}
+	if database == nil {
+		return nil, fmt.Errorf("database metadata for database %q not found (database not synced)", databaseName)
+	}
+	lookup := database.Lookup(true)
+	if !listed(lookup.ListSchemaNames(), schemaName) {
+		return nil, notFound
+	}
+	schema := lookup.Schema(schemaName)
+	if schema == nil {
+		return nil, fmt.Errorf("schema %s.%s is not found", databaseName, schemaName)
+	}
+	if !slices.Contains(schema.ListTableNames(), tableName) {
+		return nil, notFound
+	}
+	table := schema.Table(tableName)
+	var columns []string
+	for _, column := range table.GetColumns() {
+		columns = append(columns, column.GetName())
+	}
+	return &Table{Name: table.GetName(), Columns: columns}, nil
+}
+
+// listed reports whether names holds name, or any name when name is empty.
+func listed(names []string, name string) bool {
+	return name == "" && len(names) > 0 || slices.Contains(names, name)
 }

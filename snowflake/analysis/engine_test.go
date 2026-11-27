@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/snowflake/ast"
 )
 
@@ -92,5 +94,67 @@ func TestEngineValidateExplainAndLimit(t *testing.T) {
 	}
 	if ranges := Engine.StatementRanges("SELECT 1;\nSELECT 2;"); len(ranges) != 2 || ranges[1].Start.Line != 1 {
 		t.Fatalf("StatementRanges = %+v", ranges)
+	}
+}
+
+// snowflakeSpanCatalog lists DB1 and GONE; GONE's lookup reports it not found.
+func snowflakeSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "DB1", Schemas: []*metadata.SchemaMetadata{{
+		Name:   "PUBLIC",
+		Tables: []*metadata.TableMetadata{{Name: "T1", Columns: []*metadata.ColumnMetadata{{Name: "A"}}}, {Name: "t2", Columns: []*metadata.ColumnMetadata{{Name: "B"}}}},
+	}}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"DB1", "GONE"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name == "GONE" {
+				return nil, &analysis.ResourceNotFoundError{Database: &name}
+			}
+			if name != "DB1" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: false}, nil
+		},
+	}
+}
+
+func snowflakeQuerySpan(t *testing.T, statement, schema string) (*analysis.ResolvedSpan, error) {
+	t.Helper()
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "DB1", DefaultSchema: schema, Catalog: snowflakeSpanCatalog()}, []analysis.QuerySpanStatement{{Text: statement}})
+	if err != nil {
+		return nil, err
+	}
+	return spans[0], nil
+}
+
+func TestEngineQuerySpansMatchTheCatalogsSpellingExactly(t *testing.T) {
+	span, err := snowflakeQuerySpan(t, `SELECT A FROM t1`, "")
+	if err != nil || !span.Results[0].SourceColumns[analysis.ColumnResource{Database: "DB1", Schema: "PUBLIC", Table: "T1", Column: "A"}] {
+		t.Fatalf("span = %+v, err = %v", span, err)
+	}
+	// A database that ignores case still needs the folded name spelled as synced.
+	if _, err := snowflakeQuerySpan(t, `SELECT B FROM t2`, ""); err == nil || err.Error() != "table DB1.PUBLIC.T2 is not found" {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := snowflakeQuerySpan(t, `SELECT B FROM "t2"`, ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := snowflakeQuerySpan(t, `SELECT A FROM "public".T1`, ""); err == nil || err.Error() != "table DB1.public.T1 is not found" {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestEngineQuerySpansKeepTheAccessedTablesOfANotFoundSpan(t *testing.T) {
+	span, err := snowflakeQuerySpan(t, `SELECT * FROM T1 JOIN GONE.PUBLIC.T1 USING (A)`, "")
+	if err != nil || span.NotFoundError == nil || len(span.Results) != 0 || !span.SourceColumns[analysis.ColumnResource{Database: "GONE", Schema: "PUBLIC", Table: "T1"}] {
+		t.Fatalf("span = %+v, err = %v", span, err)
+	}
+}
+
+func TestEngineQuerySpansNeedACatalogToResolveATable(t *testing.T) {
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "DB1"}, []analysis.QuerySpanStatement{{Text: "SELECT 1"}}); err != nil {
+		t.Fatalf("a statement without tables needs no catalog: %v", err)
+	}
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "DB1"}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM T1"}}); err == nil {
+		t.Fatal("a catalog that cannot look tables up must fail")
 	}
 }

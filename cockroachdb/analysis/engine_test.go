@@ -1,10 +1,13 @@
 package analysis
 
 import (
+	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 )
 
 func TestEngineSplit(t *testing.T) {
@@ -56,5 +59,65 @@ func TestEngineValidateExplainAndLimit(t *testing.T) {
 	}
 	if got := Engine.ResultLimit("SELECT 1; SELECT 2;", 10, ""); got != "WITH result AS (\nSELECT 1; SELECT 2\n) SELECT * FROM result LIMIT 10;" {
 		t.Fatalf("ResultLimit fallback = %q", got)
+	}
+}
+
+func cockroachSpanCatalog() analysis.Catalog {
+	schema := func(name string, tables ...string) *metadata.SchemaMetadata {
+		s := &metadata.SchemaMetadata{Name: name}
+		for _, table := range tables {
+			s.Tables = append(s.Tables, &metadata.TableMetadata{Name: table, Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "INT8"}}})
+		}
+		return s
+	}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", s1, public`, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t")}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "db" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func TestEngineQuerySpansPutASelectedSchemaBeforePublic(t *testing.T) {
+	for _, tc := range []struct {
+		schema, statement, want string
+	}{
+		{"", "SELECT id FROM t", "s1"},
+		{"public", "SELECT id FROM t", "public"},
+		{"s2", "SELECT id FROM t", "s2"},
+		{"s2", "SELECT id FROM p", "public"},
+	} {
+		spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: tc.schema, Catalog: cockroachSpanCatalog()}, []analysis.QuerySpanStatement{{Text: tc.statement}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		table := strings.TrimPrefix(tc.statement, "SELECT id FROM ")
+		if !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Schema: tc.want, Table: table, Column: "id"}] {
+			t.Fatalf("schema %q, %s: spans = %+v", tc.schema, tc.statement, spans[0])
+		}
+	}
+}
+
+func TestEngineQuerySpansNeedASyncedDefaultDatabase(t *testing.T) {
+	statements := []analysis.QuerySpanStatement{{Text: "SELECT 1"}}
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "other", Catalog: cockroachSpanCatalog()}, statements)
+	if err == nil || err.Error() != `database metadata for database "other" not found (database not synced)` {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db"}, statements); err == nil {
+		t.Fatal("a catalog without GetDatabase must fail")
+	}
+}
+
+func TestEngineQuerySpansPositionASyntaxErrorInItsStatement(t *testing.T) {
+	text := "SELECT 1;\nSELECT * FROM WHERE"
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: cockroachSpanCatalog()}, []analysis.QuerySpanStatement{{Text: text, Start: analysis.Position{Line: 5, Column: 3}}})
+	var syntaxErr *analysis.SyntaxError
+	if !errors.As(err, &syntaxErr) {
+		t.Fatalf("err = %v", err)
+	}
+	if syntaxErr.Position != analysis.PositionAt(text, strings.Index(text, "WHERE")) || syntaxErr.RawMessage != syntaxErr.Message || !strings.HasPrefix(err.Error(), "failed to get query span from statement: "+text+": ") {
+		t.Fatalf("err = %v at %+v", err, syntaxErr.Position)
 	}
 }
