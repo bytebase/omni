@@ -640,3 +640,52 @@ func TestResolveQuerySpanParameterizedView(t *testing.T) {
 		t.Errorf("reads %v, want %v", names(got.Results[0].SourceColumns), want)
 	}
 }
+
+// A chain of aliases each reading the one before fails past the memo's
+// bound instead of holding a growing set per alias.
+func TestResolveQuerySpanAliasChainBound(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("WITH c0 AS a0")
+	for i := 1; i < 4000; i++ {
+		fmt.Fprintf(&b, ", plus(a%d, c%d) AS a%d", i-1, i, i)
+	}
+	b.WriteString(" SELECT a3999 FROM shop.t")
+	start := time.Now()
+	_, err := ResolveQuerySpan(b.String(), ResolveOptions{DefaultDatabase: "shop"})
+	if err == nil || !strings.Contains(err.Error(), "too many to analyze") {
+		t.Fatalf("err %v, want the bound's", err)
+	}
+	if d := time.Since(start); d > 5*time.Second {
+		t.Errorf("took %v", d)
+	}
+}
+
+// untuple sees through parentheses.
+func TestResolveQuerySpanUntupleParentheses(t *testing.T) {
+	got, err := ResolveQuerySpan("SELECT untuple((tuple(email, id))), 42 FROM customers", ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 3 {
+		t.Errorf("results %+v, want three", got.Results)
+	}
+}
+
+// merge()'s _table is a column a name reads and * leaves out.
+func TestResolveQuerySpanMergeTableColumn(t *testing.T) {
+	opts := ResolveOptions{DefaultDatabase: "shop", Catalog: customersCatalog()}
+	got, err := ResolveQuerySpan("SELECT _table, email FROM merge('shop', '^customers$')", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NotFoundError != nil || len(got.Results) != 2 {
+		t.Fatalf("%+v", got)
+	}
+	got, err = ResolveQuerySpan("SELECT * FROM merge('shop', '^customers$')", opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Results) != 2 {
+		t.Errorf("* returns %+v, want id and email", got.Results)
+	}
+}

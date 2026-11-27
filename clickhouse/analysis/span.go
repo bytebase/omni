@@ -192,6 +192,9 @@ type spanColumn struct {
 	omitted bool
 	// alias is an ALIAS column's expression, which a read of it reads too.
 	alias string
+	// virtual marks a virtual column (merge's _table), which only a name
+	// reads.
+	virtual bool
 	// rel is the FROM relation the column was read from, if any.
 	rel *relation
 }
@@ -314,8 +317,10 @@ type spanResolver struct {
 	// resolved.
 	aliasMemo map[aliasUse]SourceColumnSet
 	skips     []any
-	// expansions counts alias expansions against maxExpansions.
-	expansions int
+	// expansions counts alias expansions against maxExpansions, and
+	// materialized the memo's sources against maxMaterialized.
+	expansions, materialized int
+	overBudget               bool
 	// aliasCols holds what each ALIAS column of a table reads.
 	aliasCols map[ColumnResource]SourceColumnSet
 	// err is why a view's definition could not be read: the span fails
@@ -886,7 +891,9 @@ func (r *spanResolver) merge(f *parser.FuncCallExpr, name string) *relation {
 		r.err = errors.Join(r.err, fmt.Errorf("merge() reads the tables of %s that match %q, which the catalog does not list", database, args[0]))
 		return nil
 	}
-	rel := &relation{name: name}
+	// _table is the merged table a row comes from: a name reads it, * does
+	// not, and it reads no column.
+	rel := &relation{name: name, columns: []spanColumn{{name: "_table", sources: SourceColumnSet{}, plain: true, virtual: true}}}
 	for _, table := range lister.TableNames() {
 		if !re.MatchString(table) {
 			continue
@@ -1037,6 +1044,7 @@ func (r *spanResolver) aliasColumn(database, table, column, expression string) S
 	}
 	if r.whole(mark) {
 		r.aliasCols[key] = out
+		r.remember(out)
 	}
 	return out
 }
@@ -1051,13 +1059,32 @@ const maxExpansions = 10000
 // maxExpansions.
 func (r *spanResolver) spend() bool {
 	r.expansions++
-	if r.expansions <= maxExpansions {
-		return true
+	if r.expansions > maxExpansions {
+		r.exhaust()
 	}
-	if r.expansions == maxExpansions+1 {
-		r.err = errors.Join(r.err, fmt.Errorf("the query expands its aliases more than %d times, too many to analyze", maxExpansions))
+	return !r.overBudget
+}
+
+// exhaust fails the span once a budget is spent; what is resolved after
+// it reads nothing, so the rest of the query costs little.
+func (r *spanResolver) exhaust() {
+	if !r.overBudget {
+		r.overBudget = true
+		r.err = errors.Join(r.err, fmt.Errorf("the query expands its aliases past %d expansions or %d remembered sources, too many to analyze", maxExpansions, maxMaterialized))
 	}
-	return false
+}
+
+// maxMaterialized bounds the sources the alias memo holds in all: a chain
+// of aliases each reading the one before (a1 = a0 + c1, ...) holds a
+// growing set per alias, quadratic in the chain.
+const maxMaterialized = 1 << 20
+
+// remember counts a memoized answer's sources against maxMaterialized.
+func (r *spanResolver) remember(s SourceColumnSet) {
+	r.materialized += len(s)
+	if r.materialized > maxMaterialized {
+		r.exhaust()
+	}
 }
 
 // whole reports whether what was resolved since mark is complete: no name
@@ -1142,7 +1169,7 @@ func (r *spanResolver) star(s *parser.StarExpr, sc *spanScope, ctes *cteBinding)
 			switch {
 			case c.star:
 				out = append(out, c)
-			case !c.hidden && (!c.omitted || c.alias != "" && r.starAlias || c.alias == "" && r.starMaterialized):
+			case !c.hidden && !c.virtual && (!c.omitted || c.alias != "" && r.starAlias || c.alias == "" && r.starMaterialized):
 				if c.omitted {
 					// An ALIAS or MATERIALIZED column a setting includes,
 					// read as a name reads it, and a column of this query's
@@ -1367,7 +1394,9 @@ func (r *spanResolver) untupled(e parser.Expr, sc *spanScope) ([]parser.Expr, bo
 	arg := f.Args[0]
 	for seen := map[parser.Expr]bool{}; !seen[arg]; {
 		seen[arg] = true
-		if parts, ok := identParts(arg); ok && r.isAlias(parts, sc) {
+		if p, ok := arg.(*parser.ParenExpr); ok {
+			arg = p.Expr
+		} else if parts, ok := identParts(arg); ok && r.isAlias(parts, sc) {
 			arg = r.aliasExpr(parts[0], sc)
 		}
 	}
@@ -1407,7 +1436,7 @@ func (r *spanResolver) matching(re *regexp.Regexp, sc *spanScope) []spanColumn {
 			continue
 		}
 		for _, c := range rel.columns {
-			if !c.hidden && !c.omitted && !c.star && re.MatchString(c.name) {
+			if !c.hidden && !c.omitted && !c.virtual && !c.star && re.MatchString(c.name) {
 				c.rel = rel
 				c.name = starName(c, sc)
 				out = append(out, c)
@@ -1490,6 +1519,7 @@ func (r *spanResolver) exprInto(dst SourceColumnSet, e parser.Expr, sc *spanScop
 				delete(r.resolving, lambda)
 				if r.whole(mark) {
 					r.aliasMemo[key] = body
+					r.remember(body)
 				}
 				addAll(dst, body)
 			}
@@ -1772,6 +1802,11 @@ func (r *spanResolver) alias(name string, scopes []*spanScope, sc *spanScope, ct
 				delete(r.resolving, e)
 				if r.whole(mark) {
 					r.aliasMemo[key] = out
+					r.remember(out)
+				}
+				if r.overBudget {
+					// The span has failed: carry nothing further up.
+					return SourceColumnSet{}, true
 				}
 				return out, true
 			}
