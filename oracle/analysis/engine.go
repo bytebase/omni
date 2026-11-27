@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle/ast"
 	"github.com/bytebase/omni/oracle/parser"
 )
@@ -103,6 +104,82 @@ func (engine) ResultLimit(statement string, limit int, engineVersion string) str
 		return RowNumResultLimit(statement, limit)
 	}
 	return rewritten
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement on the request's instance, the default
+// database being the schema of unqualified names. A parse error is wrapped
+// without a position.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	opts := ResolveOptions{Instance: request.Instance, DefaultDatabase: request.DefaultDatabase, Catalog: spanCatalog(ctx, request.Catalog)}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get query span from statement: %s: %w", statement.Text, err)
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+// spanCatalog reads each database of an instance once per script. A nil
+// lookup stays nil, which the resolver reports as an error.
+func spanCatalog(ctx context.Context, catalog analysis.Catalog) Catalog {
+	var c Catalog
+	if get := catalog.GetInstanceDatabase; get != nil {
+		databases := map[[2]string]Database{}
+		c.GetDatabase = func(instance, name string) (Database, error) {
+			key := [2]string{instance, name}
+			if database, ok := databases[key]; ok {
+				return database, nil
+			}
+			database, err := get(ctx, instance, name)
+			if err != nil {
+				return nil, err
+			}
+			databases[key] = catalogDatabase(database)
+			return databases[key], nil
+		}
+	}
+	if getLinked := catalog.GetLinkedDatabase; getLinked != nil {
+		c.GetLinkedDatabase = func(instance, link, schema string) (string, string, Database, error) {
+			database, err := getLinked(ctx, instance, link, schema)
+			if err != nil || database == nil {
+				return "", "", nil, err
+			}
+			return database.Instance, database.Name, catalogDatabase(database), nil
+		}
+	}
+	return c
+}
+
+// catalogDatabase is a synced database's Database, through the caller's name
+// matching, or nil for a database the caller has not synced.
+func catalogDatabase(database *analysis.Database) Database {
+	if database == nil {
+		return nil
+	}
+	return lookupDatabase{database.Lookup(true).Schema("")}
+}
+
+// lookupDatabase is a database's unnamed schema, where Oracle metadata keeps
+// its objects.
+type lookupDatabase struct{ schema *analysis.SchemaLookup }
+
+func (d lookupDatabase) HasSchema() bool { return d.schema != nil }
+
+func (d lookupDatabase) GetTable(name string) *metadata.TableMetadata { return d.schema.Table(name) }
+
+func (d lookupDatabase) GetView(name string) *metadata.ViewMetadata { return d.schema.View(name) }
+
+func (d lookupDatabase) GetMaterializedView(name string) *metadata.MaterializedViewMetadata {
+	return d.schema.MaterializedView(name)
+}
+
+func (d lookupDatabase) GetExternalTable(name string) *metadata.ExternalTableMetadata {
+	return d.schema.ExternalTable(name)
 }
 
 var _ analysis.ChangeExtractor = Engine

@@ -4,6 +4,9 @@ import "context"
 
 // QuerySpanRequest is the session a script's query spans are resolved in.
 type QuerySpanRequest struct {
+	// Instance names the connected instance to the catalog's per-instance
+	// lookups.
+	Instance        string
 	DefaultDatabase string
 	DefaultSchema   string
 	// IgnoreCaseSensitive compares identifiers case-insensitively whatever the

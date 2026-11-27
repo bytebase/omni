@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/redshift"
 	"github.com/bytebase/omni/redshift/parser"
 )
@@ -16,13 +18,14 @@ var Engine engine
 type engine struct{}
 
 var (
-	_ analysis.Splitter        = Engine
-	_ analysis.StatementRanger = Engine
-	_ analysis.Diagnoser       = Engine
-	_ analysis.QueryValidator  = Engine
-	_ analysis.Explainer       = Engine
-	_ analysis.ResultLimiter   = Engine
-	_ analysis.ChangeExtractor = Engine
+	_ analysis.Splitter          = Engine
+	_ analysis.StatementRanger   = Engine
+	_ analysis.Diagnoser         = Engine
+	_ analysis.QueryValidator    = Engine
+	_ analysis.Explainer         = Engine
+	_ analysis.ResultLimiter     = Engine
+	_ analysis.ChangeExtractor   = Engine
+	_ analysis.QuerySpanResolver = Engine
 )
 
 // Split cuts the script lexically; a segment's text ends at its own
@@ -97,4 +100,75 @@ func (engine) ExtractChanges(request analysis.ChangeRequest, _ []analysis.Parsed
 		changes.DMLStatements = append(changes.DMLStatements, analysis.DMLStatement{Text: text})
 	}
 	return changes, nil
+}
+
+// QuerySpans resolves each statement against the default database's search
+// path, or the default schema alone when one is set. A syntax error is
+// positioned in the script.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	if request.Catalog.GetDatabase == nil {
+		return nil, errors.New("the catalog cannot look databases up")
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := querySpan(ctx, request, statement)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement analysis.QuerySpanStatement) (*analysis.ResolvedSpan, error) {
+	database, err := request.Catalog.GetDatabase(ctx, request.DefaultDatabase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database metadata for database %q: %w", request.DefaultDatabase, err)
+	}
+	if database == nil {
+		return nil, fmt.Errorf("database metadata for database %q not found (database not synced)", request.DefaultDatabase)
+	}
+	searchPath := analysis.SearchPath(database.Metadata.GetSearchPath())
+	if request.DefaultSchema != "" {
+		searchPath = []string{request.DefaultSchema}
+	}
+	resolved, err := ResolveQuerySpan(statement.Text, ResolveOptions{
+		DefaultDatabase: request.DefaultDatabase,
+		SearchPath:      searchPath,
+		GetDatabaseMetadata: func(name string) (*metadata.DatabaseSchemaMetadata, error) {
+			database, err := request.Catalog.GetDatabase(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return database.Metadata, nil
+		},
+	})
+	if errors.Is(err, analysis.ErrMixUserSystemTables) {
+		return nil, err
+	}
+	if err != nil {
+		var parseErr *parser.ParseError
+		if errors.As(err, &parseErr) {
+			position := analysis.PositionAt(statement.Text, parseErr.Position).Shift(statement.Start)
+			err = &analysis.SyntaxError{
+				Position:   position,
+				Message:    fmt.Sprintf("Syntax error at line %d: %s", position.Line, parseErr.Message),
+				RawMessage: parseErr.Message,
+			}
+		}
+		return nil, fmt.Errorf("failed to get query span from statement: %s: %w", statement.Text, err)
+	}
+	span := &analysis.ResolvedSpan{
+		Type:             resolved.Type,
+		SourceColumns:    resolved.SourceColumns,
+		PredicateColumns: resolved.PredicateColumns,
+		Results:          resolved.Results,
+	}
+	errors.As(resolved.FunctionNotSupportedError, &span.FunctionNotSupportedError)
+	// A catalog error the resolver reports as not found, such as a missing
+	// column, is not a typed not-found error.
+	if !errors.As(resolved.NotFoundError, &span.NotFoundError) {
+		span.LookupError = resolved.NotFoundError
+	}
+	return span, nil
 }

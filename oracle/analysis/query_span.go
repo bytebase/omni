@@ -168,6 +168,9 @@ func (q *querySpanExtractor) getLinkedDatabaseMetadata(linkName string, schema s
 }
 
 func (q *querySpanExtractor) getDatabaseMetadata(schema string) (Database, error) {
+	if q.catalog.GetDatabase == nil {
+		return nil, errors.New("the catalog cannot look databases up")
+	}
 	meta, err := q.catalog.GetDatabase(q.instance, schema)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database metadata for schema: %s: %w", schema, err)
