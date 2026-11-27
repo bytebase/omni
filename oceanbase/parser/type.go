@@ -293,35 +293,38 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			return nil, err
 		}
 
-	// Blob types
+	// Blob types: blob_type_i opt_string_length_i_v2 (sql_parser_mysql_mode.y:6944)
+	// takes no BINARY and no character set. 4.3.5.6 answers 1064 for BLOB BINARY,
+	// TINYBLOB BINARY and BLOB(10) CHARACTER SET utf8mb4 (compat.tsv,
+	// suite:blob-type-attributes).
 	case kwBLOB:
 		dt.Name = "BLOB"
 		p.advance()
 		if err := p.parseOptionalLength(dt); err != nil {
 			return nil, err
 		}
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, false); err != nil {
 			return nil, err
 		}
 
 	case kwTINYBLOB:
 		dt.Name = "TINYBLOB"
 		p.advance()
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, false); err != nil {
 			return nil, err
 		}
 
 	case kwMEDIUMBLOB:
 		dt.Name = "MEDIUMBLOB"
 		p.advance()
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, false); err != nil {
 			return nil, err
 		}
 
 	case kwLONGBLOB:
 		dt.Name = "LONGBLOB"
 		p.advance()
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, false); err != nil {
 			return nil, err
 		}
 
@@ -405,7 +408,11 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		dt.Name = p.cur.Str
 		p.advance()
 
-	// NATIONAL CHAR / NATIONAL VARCHAR → utf8mb3 character set
+	// NATIONAL CHAR / NATIONAL VARCHAR → utf8mb3 character set. A national type
+	// takes opt_binary and no character set of its own (sql_parser_mysql_mode.y,
+	// lines 6602 to 6923): 4.3.5.6 parses NCHAR(1) BINARY and answers 1064 for
+	// NCHAR(1) CHARSET utf8mb4 and NATIONAL VARCHAR(1) CHARSET utf8mb4
+	// (compat.tsv, suite:national-type-charset).
 	case kwNATIONAL:
 		p.advance()
 		if p.cur.Type == kwCHAR || p.cur.Type == kwCHARACTER {
@@ -423,7 +430,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 					return nil, err
 				}
 			}
-			if err := p.parseCharsetCollate(dt); err != nil {
+			if err := p.parseTypeBinaryCollate(dt, true); err != nil {
 				return nil, err
 			}
 		} else if p.cur.Type == kwVARCHAR || p.cur.Type == kwVARCHARACTER {
@@ -433,7 +440,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 			if err := p.parseRequiredLength(dt); err != nil {
 				return nil, err
 			}
-			if err := p.parseCharsetCollate(dt); err != nil {
+			if err := p.parseTypeBinaryCollate(dt, true); err != nil {
 				return nil, err
 			}
 		} else {
@@ -462,7 +469,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 				return nil, err
 			}
 		}
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, true); err != nil {
 			return nil, err
 		}
 
@@ -474,7 +481,7 @@ func (p *Parser) parseDataType() (*nodes.DataType, error) {
 		if err := p.parseRequiredLength(dt); err != nil {
 			return nil, err
 		}
-		if err := p.parseCharsetCollate(dt); err != nil {
+		if err := p.parseTypeBinaryCollate(dt, true); err != nil {
 			return nil, err
 		}
 
@@ -823,6 +830,23 @@ func (p *Parser) parseCharsetCollate(dt *nodes.DataType) error {
 
 	// COLLATE collation_name
 	if _, ok := p.match(kwCOLLATE); ok {
+		if dt.Collate, err = p.parseCollationName(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// parseTypeBinaryCollate reads what a type with no character set of its own
+// takes after its length: BINARY where binary is set (a national type's
+// opt_binary), then a COLLATE, which a column also takes as an attribute.
+func (p *Parser) parseTypeBinaryCollate(dt *nodes.DataType, binary bool) error {
+	if binary && p.cur.Type == kwBINARY {
+		p.advance()
+		dt.Binary = true
+	}
+	if _, ok := p.match(kwCOLLATE); ok {
+		var err error
 		if dt.Collate, err = p.parseCollationName(); err != nil {
 			return err
 		}
