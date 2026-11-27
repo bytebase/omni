@@ -194,3 +194,62 @@ func TestEngineExtractChangesKeepATableWithoutAName(t *testing.T) {
 		t.Fatalf("changes = %+v, err = %v", changes, err)
 	}
 }
+
+func mysqlBackupCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}, {Name: "g", Type: "int", Generation: &metadata.GenerationMetadata{Expression: "a + 1"}}},
+			Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Expressions: []string{"id"}}},
+		}},
+	}}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"db"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name != "db" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: name, Metadata: db}, nil
+		},
+	}
+}
+
+func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
+	script := "SELECT 1;\nDELETE FROM t WHERE id = 1;\nDELETE FROM t WHERE id = 2;\nSELECT * FROM t;"
+	backups, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "db", BackupDatabase: "bbdataarchive", TablePrefix: "p", Catalog: mysqlBackupCatalog()}, script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The backup starts where its first statement's segment does, after the
+	// previous ";", and ends after its last statement's ";".
+	if len(backups) != 1 || backups[0].SourceTable != "t" || backups[0].Start != (analysis.Position{Line: 1, Column: 10}) || backups[0].End != (analysis.Position{Line: 3, Column: 28}) {
+		t.Fatalf("backups = %+v", backups)
+	}
+	sql, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
+		Script: script, SourceDatabase: "db", SourceTable: "t", BackupDatabase: "bbdataarchive", BackupTable: backups[0].BackupTable,
+		Start: backups[0].Start, End: backups[0].End, Catalog: mysqlBackupCatalog(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "/*\nOriginal SQL:\n\nDELETE FROM t WHERE id = 1;\nDELETE FROM t WHERE id = 2;\n*/\nINSERT INTO `db`.`t` (`id`, `a`) SELECT `id`, `a` FROM `bbdataarchive`.`" + backups[0].BackupTable + "`;"
+	if sql != want {
+		t.Fatalf("sql = %q", sql)
+	}
+}
+
+func TestEngineBackupsAndRestoreSQLNameADatabaseTheCatalogDoesNotList(t *testing.T) {
+	script := "DELETE FROM t;\nSELECT 1;"
+	_, err := Engine.Backups(context.Background(), analysis.BackupRequest{SourceDatabase: "missing", Catalog: mysqlBackupCatalog()}, script)
+	if err == nil || err.Error() != `failed to generate SQL for table missing.t: failed to classify columns: failed to get database metadata for Database "missing"` {
+		t.Fatalf("Backups err = %v", err)
+	}
+	request := analysis.RestoreRequest{Script: script, SourceDatabase: "missing", SourceTable: "t", Start: analysis.Position{Line: 1, Column: 1}, End: analysis.Position{Line: 1, Column: 15}, Catalog: mysqlBackupCatalog()}
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != `failed to classify columns for missing.t: failed to get database metadata for Database "missing"` {
+		t.Fatalf("RestoreSQL err = %v", err)
+	}
+	request.SourceDatabase, request.Start, request.End = "db", analysis.Position{Line: 2, Column: 1}, analysis.Position{Line: 2, Column: 10}
+	if _, err := Engine.RestoreSQL(context.Background(), request); err == nil || err.Error() != "no DML statement found in extracted SQL" {
+		t.Fatalf("RestoreSQL of a range past the DELETE: err = %v", err)
+	}
+}
