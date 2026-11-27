@@ -1,10 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mysql/ast"
 )
 
@@ -101,5 +103,53 @@ func TestEngineValidateExplainAndLimit(t *testing.T) {
 	}
 	if got := Engine.ResultLimit("SELECT 1; SELECT 2;", 10, ""); got != "SELECT * FROM (SELECT 1; SELECT 2) result LIMIT 10;" {
 		t.Fatalf("ResultLimit fallback = %q", got)
+	}
+}
+
+func mysqlSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+	}}}
+	return analysis.Catalog{
+		ListDatabaseNames: func(context.Context) ([]string, error) { return []string{"db"}, nil },
+		GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+			if name != "db" {
+				return nil, nil
+			}
+			return &analysis.Database{Name: "resolved", Metadata: db, ObjectCaseSensitive: true}, nil
+		},
+	}
+}
+
+func TestEngineQuerySpansResolveInTheDefaultDatabase(t *testing.T) {
+	request := analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: "s1", Catalog: mysqlSpanCatalog()}
+	spans, err := Engine.QuerySpans(context.Background(), request, []analysis.QuerySpanStatement{{Text: "SELECT id FROM t"}, {Text: "SELECT id FROM T"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(spans) != 2 || !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Table: "t", Column: "id"}] || spans[1].NotFoundError == nil {
+		t.Fatalf("spans = %+v", spans)
+	}
+	request.IgnoreCaseSensitive = true
+	spans, err = Engine.QuerySpans(context.Background(), request, []analysis.QuerySpanStatement{{Text: "SELECT id FROM T"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if spans[0].NotFoundError != nil || !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "db", Table: "t", Column: "id"}] {
+		t.Fatalf("ignoring case: spans = %+v", spans)
+	}
+}
+
+func TestEngineQuerySpansPositionASyntaxErrorInTheScript(t *testing.T) {
+	request := analysis.QuerySpanRequest{DefaultDatabase: "db", Catalog: mysqlSpanCatalog()}
+	for start, want := range map[analysis.Position]analysis.Position{
+		{Line: 3, Column: 5}: {Line: 3, Column: 14},
+		{}:                   {Line: 1, Column: 10},
+	} {
+		_, err := Engine.QuerySpans(context.Background(), request, []analysis.QuerySpanStatement{{Text: "SELECT * FORM t", Start: start}})
+		var syntaxErr *analysis.SyntaxError
+		if !errors.As(err, &syntaxErr) || syntaxErr.Position != want || err != error(syntaxErr) {
+			t.Fatalf("start %+v: err = %v", start, err)
+		}
 	}
 }

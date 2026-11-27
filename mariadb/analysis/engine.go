@@ -1,11 +1,13 @@
 package analysis
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/mariadb/parser"
+	"github.com/bytebase/omni/metadata"
 )
 
 // Engine is MariaDB's implementation of the omni/analysis capability interfaces.
@@ -120,4 +122,69 @@ func (engine) Explain(statement string, format analysis.ExplainFormat) (string, 
 
 func (engine) ResultLimit(statement string, limit int, _ string) string {
 	return StatementWithResultLimit(statement, limit)
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement in the default database. A syntax error
+// is positioned in the script; a statement given without its start, in its
+// own text.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	catalog := querySpanCatalog(ctx, request.Catalog)
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, ResolveOptions{
+			DefaultDatabase:     request.DefaultDatabase,
+			IgnoreCaseSensitive: request.IgnoreCaseSensitive,
+			Catalog:             catalog,
+		})
+		if err != nil {
+			start := statement.Start
+			if start == (analysis.Position{}) {
+				start = analysis.Position{Line: 1, Column: 1}
+			}
+			return nil, syntaxError(err, statement.Text, start)
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+// querySpanCatalog reads the request's catalog, each database through its
+// unnamed schema.
+func querySpanCatalog(ctx context.Context, catalog analysis.Catalog) Catalog {
+	var c Catalog
+	if list := catalog.ListDatabaseNames; list != nil {
+		c.ListDatabaseNames = func() ([]string, error) { return list(ctx) }
+	}
+	if get := catalog.GetDatabase; get != nil {
+		c.GetDatabase = func(name string) (Database, error) {
+			database, err := get(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return lookupDatabase{database}, nil
+		}
+	}
+	return c
+}
+
+// lookupDatabase is a synced database's Database, through the caller's name
+// matching.
+type lookupDatabase struct{ database *analysis.Database }
+
+func (d lookupDatabase) schema() *analysis.SchemaLookup { return d.database.Lookup(false).Schema("") }
+
+// Name is the name the metadata holds, not the one the catalog resolved.
+func (d lookupDatabase) Name() string             { return d.database.Metadata.GetName() }
+func (d lookupDatabase) HasSchema() bool          { return d.schema() != nil }
+func (d lookupDatabase) ListTableNames() []string { return d.schema().ListTableNames() }
+func (d lookupDatabase) ListViewNames() []string  { return d.schema().ListViewNames() }
+
+func (d lookupDatabase) GetTable(name string) *metadata.TableMetadata {
+	return d.schema().Table(name)
+}
+
+func (d lookupDatabase) GetView(name string) *metadata.ViewMetadata {
+	return d.schema().View(name)
 }

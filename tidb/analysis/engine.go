@@ -2,10 +2,12 @@ package analysis
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/tidb/ast"
 	"github.com/bytebase/omni/tidb/parser"
 )
@@ -132,4 +134,51 @@ func (engine) Explain(statement string, format analysis.ExplainFormat) (string, 
 
 func (engine) ResultLimit(statement string, limit int, _ string) string {
 	return StatementWithResultLimit(statement, limit)
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement in the default database, matching names
+// as TiDB does whatever IgnoreCaseSensitive asks. A parse error is the
+// parser's own, unpositioned in the script.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	var catalog Catalog
+	if get := request.Catalog.GetDatabase; get != nil {
+		catalog.GetDatabase = func(name string) (Database, error) {
+			database, err := get(ctx, name)
+			if err != nil || database == nil {
+				return nil, err
+			}
+			return lookupDatabase{database}, nil
+		}
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, ResolveOptions{DefaultDatabase: request.DefaultDatabase, Catalog: catalog})
+		if err != nil {
+			return nil, fmt.Errorf("failed to get query span from statement: %s: %w", statement.Text, err)
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+// lookupDatabase is a synced database's Database, through the caller's name
+// matching.
+type lookupDatabase struct{ database *analysis.Database }
+
+func (d lookupDatabase) schema() *analysis.SchemaLookup { return d.database.Lookup(false).Schema("") }
+
+// Name is the name the metadata holds, not the one the catalog resolved.
+func (d lookupDatabase) Name() string             { return d.database.Metadata.GetName() }
+func (d lookupDatabase) HasSchema() bool          { return d.schema() != nil }
+func (d lookupDatabase) ListTableNames() []string { return d.schema().ListTableNames() }
+func (d lookupDatabase) ListViewNames() []string  { return d.schema().ListViewNames() }
+
+func (d lookupDatabase) GetTable(name string) *metadata.TableMetadata {
+	return d.schema().Table(name)
+}
+
+func (d lookupDatabase) GetView(name string) *metadata.ViewMetadata {
+	return d.schema().View(name)
 }
