@@ -233,15 +233,16 @@ func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
 	}}
 	// The second UPDATE of t changes the primary key, so UQ_T_B keys the
 	// MERGE, and t1's column is no column of t.
-	request.Script = "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t1 SET z = 1;\nUPDATE x SET id = 5 FROM t AS x WHERE x.id = 2;"
-	request.Start, request.End = analysis.Position{Line: 1, Column: 0}, analysis.Position{Line: 3, Column: 47}
+	// A is a, as the case-insensitive collation reads it.
+	request.Script = "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE t1 SET z = 1;\nUPDATE x SET id = 5 FROM t AS x WHERE x.id = 2;\nUPDATE t SET A = 2;"
+	request.Start, request.End = analysis.Position{Line: 1, Column: 0}, analysis.Position{Line: 4, Column: 19}
 	sql, err := Engine.RestoreSQL(context.Background(), request)
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := "MERGE INTO [db].[dbo].[t] AS t\nUSING [bbdataarchive].[dbo].[b] AS b\n  ON t.[b] = b.[b]\n" +
 		"WHEN MATCHED THEN\n  UPDATE SET t.[a] = b.[a], t.[id] = b.[id]\nWHEN NOT MATCHED THEN\n INSERT ([id], [a], [b]) VALUES (b.[id], b.[a], b.[b]);"
-	if !strings.HasSuffix(sql, "\n*/\n"+want) {
+	if !strings.Contains(sql, "UPDATE t SET A = 2;\n*/\n") || !strings.HasSuffix(sql, "\n*/\n"+want) {
 		t.Fatalf("sql = %s", sql)
 	}
 }

@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -150,6 +149,7 @@ func (g *generator) generate(nodes []ast.Node) (string, error) {
 		return "", fmt.Errorf("no DML statement to restore")
 	}
 	var updateColumns []string
+	seen := make(map[string]bool)
 	hasUpdate := false
 	for _, node := range nodes {
 		switch n := node.(type) {
@@ -157,7 +157,8 @@ func (g *generator) generate(nodes []ast.Node) (string, error) {
 		case *ast.UpdateStmt:
 			hasUpdate = true
 			for _, column := range updateSetColumns(n.SetClause) {
-				if !slices.Contains(updateColumns, column) {
+				if name := g.tableColumn(column); !seen[name] {
+					seen[name] = true
 					updateColumns = append(updateColumns, column)
 				}
 			}
@@ -169,6 +170,25 @@ func (g *generator) generate(nodes []ast.Node) (string, error) {
 		return g.generateDelete()
 	}
 	return g.generateUpdate(updateColumns)
+}
+
+// tableColumn returns the table's column that name, a SET column, assigns:
+// the one spelled the same, or else the one equal but for case, which is what
+// a case-insensitive collation assigns. A name of no column is returned as is.
+func (g *generator) tableColumn(name string) string {
+	folded := ""
+	for _, column := range g.table.GetColumns() {
+		if column.Name == name {
+			return name
+		}
+		if folded == "" && strings.EqualFold(column.Name, name) {
+			folded = column.Name
+		}
+	}
+	if folded != "" {
+		return folded
+	}
+	return name
 }
 
 func (g *generator) generateDelete() (string, error) {

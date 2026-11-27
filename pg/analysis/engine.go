@@ -381,9 +381,18 @@ func (engine) RestoreSQL(ctx context.Context, request analysis.RestoreRequest) (
 	if err != nil {
 		return "", err
 	}
+	database, err := request.Catalog.GetDatabase(ctx, request.SourceDatabase)
+	if err != nil || database == nil {
+		return "", fmt.Errorf("failed to get database metadata for %s: %v", request.SourceDatabase, err)
+	}
+	lookup := database.Lookup(true)
+	onTable := tableDMLs(stmts, analysis.SearchPath(database.Metadata.GetSearchPath()), func(searchPath []string, name string) string {
+		schema, _ := lookup.SearchRelation(searchPath, name)
+		return schema
+	}, table.Schema, request.SourceTable)
 	var nodes []ast.Node
 	for _, dml := range dmls {
-		if changesTable(dml.Node, table.Schema, request.SourceTable) {
+		if onTable[dml.Node] {
 			nodes = append(nodes, dml.Node)
 		}
 	}

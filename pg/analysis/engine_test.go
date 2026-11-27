@@ -242,33 +242,33 @@ func TestEngineBackupsRoundTripThroughRestoreSQL(t *testing.T) {
 }
 
 func TestEngineRestoreSQLCoversEveryUpdateOfTheTable(t *testing.T) {
-	db := &metadata.DatabaseSchemaMetadata{Name: "db", Schemas: []*metadata.SchemaMetadata{{
-		Name: "public",
-		Tables: []*metadata.TableMetadata{{
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: "public", Schemas: []*metadata.SchemaMetadata{
+		{Name: "public", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "z", Type: "int"}}}}},
+		{Name: "s1", Tables: []*metadata.TableMetadata{{
 			Name:    "t",
 			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}, {Name: "a", Type: "int"}, {Name: "b", Type: "int"}},
 			Indexes: []*metadata.IndexMetadata{
 				{Name: "t_pk", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}},
 				{Name: "t_b_key", Unique: true, IsConstraint: true, Expressions: []string{"b"}},
 			},
-		}},
-	}}}
+		}}},
+	}}
 	catalog := analysis.Catalog{GetDatabase: func(context.Context, string) (*analysis.Database, error) {
 		return &analysis.Database{Name: "db", Metadata: db, ObjectCaseSensitive: true}, nil
 	}}
-	// The second UPDATE of t changes the primary key, so the conflict key is
-	// t_b_key, and u's column is no column of t.
-	script := "UPDATE t SET a = 1 WHERE id = 1;\nUPDATE u SET z = 1;\nUPDATE t SET id = 5 WHERE id = 2;"
+	// The second UPDATE of s1.t changes the primary key, so the conflict key
+	// is t_b_key. The unqualified t is public.t, whose column is no column of
+	// s1.t, and u resolves to no table.
+	script := "UPDATE s1.t SET a = 1 WHERE id = 1;\nUPDATE t SET z = 1;\nUPDATE u SET z = 1;\nUPDATE s1.t SET id = 5 WHERE id = 2;"
 	sql, err := Engine.RestoreSQL(context.Background(), analysis.RestoreRequest{
-		Script: script, SourceDatabase: "db", SourceTable: "t", BackupSchema: "bbdataarchive", BackupTable: "b",
-		Start: analysis.Position{Line: 1, Column: 0}, End: analysis.Position{Line: 3, Column: 33}, Catalog: catalog,
+		Script: script, SourceDatabase: "db", SourceSchema: "s1", SourceTable: "t", BackupSchema: "bbdataarchive", BackupTable: "b",
+		Start: analysis.Position{Line: 1, Column: 0}, End: analysis.Position{Line: 4, Column: 36}, Catalog: catalog,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "/*\nOriginal SQL:\nUPDATE t SET a = 1 WHERE id = 1;\nUPDATE u SET z = 1;\nUPDATE t SET id = 5 WHERE id = 2\n*/\n" +
-		`INSERT INTO "public"."t" ("id", "a", "b") SELECT "id", "a", "b" FROM "bbdataarchive"."b" ON CONFLICT ON CONSTRAINT "t_b_key" DO UPDATE SET "a" = EXCLUDED."a", "id" = EXCLUDED."id";`
-	if sql != want {
+	want := `INSERT INTO "s1"."t" ("id", "a", "b") SELECT "id", "a", "b" FROM "bbdataarchive"."b" ON CONFLICT ON CONSTRAINT "t_b_key" DO UPDATE SET "a" = EXCLUDED."a", "id" = EXCLUDED."id";`
+	if !strings.HasSuffix(sql, "\n*/\n"+want) {
 		t.Fatalf("sql = %q", sql)
 	}
 }

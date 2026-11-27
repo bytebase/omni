@@ -54,18 +54,36 @@ func BackedUpDMLs(stmts []omnipg.Statement) []BackedUpDML {
 	return dmls
 }
 
-// changesTable reports whether node, an UPDATE or DELETE, changes table in
-// schema. An unqualified table matches by name.
-func changesTable(node ast.Node, schema, table string) bool {
-	var relation *ast.RangeVar
-	switch n := node.(type) {
-	case *ast.UpdateStmt:
-		relation = n.Relation
-	case *ast.DeleteStmt:
-		relation = n.Relation
-	default:
+// tableDMLs returns the UPDATE and DELETE statements of stmts that change
+// schema.table. As a backup does, an unqualified table resolves along
+// searchPath, which a SET search_path in the script replaces; one that does
+// not resolve changes no table.
+func tableDMLs(stmts []omnipg.Statement, searchPath []string, searchRelation func(searchPath []string, name string) string, schema, table string) map[ast.Node]bool {
+	result := make(map[ast.Node]bool)
+	for _, stmt := range stmts {
+		if stmt.Empty() {
+			continue
+		}
+		var relation *ast.RangeVar
+		switch n := stmt.AST.(type) {
+		case *ast.VariableSetStmt:
+			if newSearchPath := setSearchPath(n); len(newSearchPath) > 0 {
+				searchPath = newSearchPath
+			}
+			continue
+		case *ast.UpdateStmt:
+			relation = n.Relation
+		case *ast.DeleteStmt:
+			relation = n.Relation
+		default:
+			continue
+		}
+		target, err := extractTableReferenceFromRangeVar(relation, searchRelation, searchPath)
+		if err == nil && target != nil && target.Schema == schema && target.Table == table {
+			result[stmt.AST] = true
+		}
 	}
-	return relation != nil && relation.Relname == table && (relation.Schemaname == "" || relation.Schemaname == schema)
+	return result
 }
 
 // RestoreSQL returns the statement that restores, from its backup table, the
