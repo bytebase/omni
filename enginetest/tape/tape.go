@@ -23,6 +23,7 @@ package tape
 import (
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -341,7 +342,27 @@ func (f *fileState) write() error {
 	if err := os.MkdirAll(filepath.Dir(f.path), 0o755); err != nil {
 		return err
 	}
+	if err := writeModuleStub(filepath.Dir(f.path)); err != nil {
+		return err
+	}
 	return os.WriteFile(f.path, []byte(out.encode()), 0o644)
+}
+
+// moduleStub makes a tapes directory a module of its own, which leaves it out
+// of the github.com/bytebase/omni module zip: Go refuses to download a module
+// whose files pass 500 MB, and the tapes are most of omni's.
+const moduleStub = `// Test recordings that no package builds from: this go.mod keeps them out
+// of the github.com/bytebase/omni module zip, which Go caps at 500 MB.
+module tapes
+`
+
+// writeModuleStub writes dir's go.mod unless it has one.
+func writeModuleStub(dir string) error {
+	path := filepath.Join(dir, "go.mod")
+	if _, err := os.Stat(path); err == nil || !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	return os.WriteFile(path, []byte(moduleStub), 0o644)
 }
 
 // Live skips t outside a recording (OMNI_RECORD=1), including in replay and

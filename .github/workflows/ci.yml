@@ -55,6 +55,11 @@ jobs:
       - name: Build
         run: go build ./...
 
+      # Go refuses to download a module whose files pass 500 MB, so a module
+      # over budget cannot be pinned by Bytebase.
+      - name: Module stays downloadable
+        run: scripts/module-size.sh
+
       # A document's recording command must name a real test: a -run pattern
       # that matches nothing exits 0, records nothing, and reads as a pass in a
       # file meant to be executed later. It runs here, not under affected
