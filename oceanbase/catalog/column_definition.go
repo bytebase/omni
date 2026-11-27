@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"fmt"
 	"math/big"
 	"regexp"
 	"strings"
@@ -32,6 +33,9 @@ func checkColumnDefinitionMode(colDef *nodes.ColumnDef, isView bool) error {
 			return err
 		}
 	}
+	if err := checkBlobCollation(colDef); err != nil {
+		return err
+	}
 	defaults := []nodes.ExprNode{colDef.DefaultValue}
 	references := false
 	for _, cc := range colDef.Constraints {
@@ -61,6 +65,30 @@ func checkColumnDefinitionMode(colDef *nodes.ColumnDef, isView bool) error {
 	}
 	if colDef.TypeName.HasSRID && !isSpatialTypeName(normalizedColumnDataType(colDef.TypeName)) {
 		return &Error{Code: 1221, SQLState: "HY000", Message: "Incorrect usage of srid."}
+	}
+	return nil
+}
+
+// checkBlobCollation refuses a collation on a BLOB column, whose character set
+// is binary: 4.3.5.6 answers 1253 for ALTER TABLE a ADD c BLOB COLLATE
+// utf8mb4_bin, before a duplicate name (1060) and a view's 1347
+// (testdata/simulate.tsv, suite:blob-type-attributes).
+func checkBlobCollation(colDef *nodes.ColumnDef) error {
+	switch strings.ToLower(normalizedColumnDataType(colDef.TypeName)) {
+	case "tinyblob", "blob", "mediumblob", "longblob":
+	default:
+		return nil
+	}
+	collations := []string{colDef.TypeName.Collate}
+	for _, cc := range colDef.Constraints {
+		if cc.Type == nodes.ColConstrCollate {
+			collations = append(collations, cc.Name)
+		}
+	}
+	for _, coll := range collations {
+		if coll != "" && !strings.EqualFold(coll, "binary") {
+			return &Error{Code: 1253, SQLState: "42000", Message: fmt.Sprintf("COLLATION '%s' is not valid for CHARACTER SET 'binary'", coll)}
+		}
 	}
 	return nil
 }

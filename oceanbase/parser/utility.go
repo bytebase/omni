@@ -158,7 +158,7 @@ var analyzeStatisticsForms = func() sysPat {
 //
 // Ref: https://dev.mysql.com/doc/refman/8.0/en/optimize-table.html
 //
-//	OPTIMIZE [NO_WRITE_TO_BINLOG | LOCAL] TABLE tbl_name [, tbl_name] ...
+//	OPTIMIZE TABLE tbl_name [, tbl_name] ...
 func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 	start := p.pos()
 	p.advance() // consume OPTIMIZE
@@ -188,15 +188,10 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		return stmt, nil
 	}
 
-	if p.cur.Type == kwLOCAL {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	} else if p.cur.Type == kwNO_WRITE_TO_BINLOG {
-		stmt.NoWriteToBinlog = true
-		p.advance()
-	}
-
-	// TABLE is required: `OPTIMIZE a` is a 1064.
+	// OPTIMIZE TABLE table_list (optimize_stmt, line 20219) takes no MySQL
+	// NO_WRITE_TO_BINLOG or LOCAL: 4.3.5.6 answers 1064 for OPTIMIZE LOCAL
+	// TABLE a and OPTIMIZE NO_WRITE_TO_BINLOG TABLE a, so NoWriteToBinlog is
+	// never set. TABLE is required: `OPTIMIZE a` is a 1064.
 	if _, err := p.expect(kwTABLE); err != nil {
 		return nil, err
 	}

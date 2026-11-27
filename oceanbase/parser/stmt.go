@@ -930,6 +930,14 @@ func (p *Parser) parseDefinerValue(program bool) (string, error) {
 		return "CURRENT_USER()", nil
 	}
 
+	// CURRENT_USER names a user whole and takes no host: 4.3.5.6 answers 1064
+	// at the @ of CURRENT_USER@localhost and CURRENT_USER@'%' before a
+	// procedure, function, trigger or event, and takes CURRENT_USER and
+	// CURRENT_USER() there (TestDefinerHostFormsOceanBaseOracle).
+	if isCurUser {
+		return user, nil
+	}
+
 	// Handle @host: the lexer scans @host as a single tokIDENT with Str="@host",
 	// or for quoted form 'user'@'host' the @ is also part of a variable token.
 	// Check for tokIDENT starting with "@".

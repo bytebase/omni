@@ -23486,3 +23486,24 @@ accept	accept	engine	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCA
 reject	reject	engine	suite:load-data-charset	LOAD DATA INFILE 's' INTO TABLE a CHARSET utf8mb4
 reject	reject	engine	suite:load-data-charset	LOAD DATA INFILE 's' INTO TABLE a CHARSET DEFAULT
 accept	accept	engine	suite:external-partition	ALTER EXTERNAL TABLE a ADD PARTITION(a @@global.autocommit) LOCATION 's'
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) CHARACTER SET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NATIONAL CHAR(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NATIONAL CHARACTER(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NATIONAL VARCHAR(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NCHAR VARCHAR(1) CHARSET utf8mb4
+reject	reject	engine	suite:national-type-charset	ALTER TABLE a ADD c NATIONAL CHARACTER VARYING(1) CHARSET utf8mb4
+accept	accept	engine	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+accept	accept	engine	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+accept	accept	engine	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB BINARY
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB CHARSET utf8mb4
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB(10) CHARACTER SET utf8mb4
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c TINYBLOB BINARY
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c MEDIUMBLOB CHARSET utf8mb4
+reject	reject	engine	suite:blob-type-attributes	ALTER TABLE a ADD c LONGBLOB CHARSET binary
+accept	accept	engine	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
+accept	accept	engine	suite:optimize	OPTIMIZE TABLE a, b
+reject	reject	engine	suite:optimize	OPTIMIZE NO_WRITE_TO_BINLOG TABLE a
+reject	reject	engine	suite:optimize	OPTIMIZE LOCAL TABLE a

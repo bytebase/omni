@@ -79,6 +79,28 @@
 < error
 | 1064 42000 …near '@%' at line 1
 > exec
+| CREATE DEFINER = CURRENT_USER@localhost TRIGGER h23 BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1
+< error
+| 1064 42000 …near '@localhost' at line 1
+> exec
+| CREATE DEFINER = CURRENT_USER@localhost PROCEDURE h24() SELECT 1
+< error
+| 1064 42000 …near '@localhost' at line 1
+> exec
+| CREATE DEFINER = CURRENT_USER@'%' FUNCTION h25() RETURNS INT DETERMINISTIC RETURN 1
+< error
+| 1064 42000 …near '@'%'' at line 1
+> exec
+| CREATE DEFINER = CURRENT_USER @localhost EVENT h26 ON SCHEDULE EVERY 1 DAY DISABLE DO SELECT 1
+< error
+| 1064 42000 …near '@localhost' at line 1
+> exec
+| CREATE DEFINER = CURRENT_USER PROCEDURE h27() SELECT 1
+< ok 0 0
+> exec
+| CREATE DEFINER = CURRENT_USER() PROCEDURE h28() SELECT 1
+< ok 0 0
+> exec
 | CREATE ALGORITHM = UNDEFINED DEFINER = root@% SQL SECURITY DEFINER VIEW h21 AS SELECT 1
 < error
 | 1064 42000 …near '% SQL SECURITY DEFINER VIEW h21 AS SELECT 1' at line 1

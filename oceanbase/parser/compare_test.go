@@ -10145,8 +10145,6 @@ func TestParseOptimizeTable(t *testing.T) {
 		"OPTIMIZE TABLE t1",
 		"OPTIMIZE TABLE t1, t2",
 		"OPTIMIZE TABLE db1.t1",
-		"OPTIMIZE LOCAL TABLE t1",
-		"OPTIMIZE NO_WRITE_TO_BINLOG TABLE t1",
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
@@ -11411,19 +11409,14 @@ func TestReviewBatch111_AnalyzeTableHistogramBuckets(t *testing.T) {
 	}
 }
 
-func TestReviewBatch111_OptimizeTableNoWriteToBinlog(t *testing.T) {
-	result := ParseAndCheck(t, "OPTIMIZE NO_WRITE_TO_BINLOG TABLE t1")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":no_write_to_binlog true") {
-		t.Errorf("expected :no_write_to_binlog true, got %s", s)
-	}
-}
-
-func TestReviewBatch111_OptimizeTableLocal(t *testing.T) {
-	result := ParseAndCheck(t, "OPTIMIZE LOCAL TABLE t1, t2")
-	s := ast.NodeToString(result.Items[0])
-	if !strings.Contains(s, ":no_write_to_binlog true") {
-		t.Errorf("expected :no_write_to_binlog true, got %s", s)
+// TestReviewBatch111_OptimizeTableRefusesModifiers holds OPTIMIZE to OceanBase's
+// optimize_stmt, which takes no NO_WRITE_TO_BINLOG or LOCAL (compat.tsv,
+// suite:optimize).
+func TestReviewBatch111_OptimizeTableRefusesModifiers(t *testing.T) {
+	for _, sql := range []string{"OPTIMIZE NO_WRITE_TO_BINLOG TABLE t1", "OPTIMIZE LOCAL TABLE t1, t2"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
 	}
 }
 

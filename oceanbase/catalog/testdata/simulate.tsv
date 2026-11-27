@@ -926,6 +926,10 @@ ok:845bd94b8700	ok:845bd94b8700	engine	one_table@missing	drop_view_stmt/DROP_VIE
 1146	1146	engine	one_table@missing	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1146	1146	engine	one_table@missing	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1146	1146	engine	one_table@missing	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+1146	1146	engine	one_table@missing	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+1146	1146	engine	one_table@missing	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+1146	1146	engine	one_table@missing	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1146	1146	engine	one_table@missing	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	one_table@table	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	one_table@table	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	one_table@table	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -1852,6 +1856,10 @@ ok:7ed82b4befd0	ok:7ed82b4befd0	engine	one_table@table	suite:string-length	ALTER
 ok:c69cd6ca0ee3	ok:c69cd6ca0ee3	engine	one_table@table	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 ok:f4692f929084	ok:f4692f929084	engine	one_table@table	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	one_table@table	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+1060	1060	engine	one_table@table	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+1060	1060	engine	one_table@table	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+1060	1060	engine	one_table@table	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	one_table@table	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	one_table@column	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	one_table@column	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	one_table@column	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -2778,6 +2786,10 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	opt_empty_table_list/tab
 1060	1060	engine	one_table@column	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1060	1060	engine	one_table@column	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	one_table@column	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+ok:3c7f0d04a0ff	ok:3c7f0d04a0ff	engine	one_table@column	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+ok:a0f530246721	ok:a0f530246721	engine	one_table@column	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+ok:3c7f0d04a0ff	ok:3c7f0d04a0ff	engine	one_table@column	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	one_table@column	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	one_table@index	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	one_table@index	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	one_table@index	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -3704,6 +3716,10 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	opt_empty_table_list/tabl
 1060	1060	engine	one_table@index	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1060	1060	engine	one_table@index	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	one_table@index	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+ok:07ed89741492	ok:07ed89741492	engine	one_table@index	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+ok:f45562e69e01	ok:f45562e69e01	engine	one_table@index	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+ok:07ed89741492	ok:07ed89741492	engine	one_table@index	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	one_table@index	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	objects@view	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	objects@view	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	objects@view	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -4630,6 +4646,10 @@ ok:db27b86eeee3	ok:db27b86eeee3	engine	objects@view	drop_view_stmt/DROP_VIEW_opt
 1347	1347	engine	objects@view	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1347	1347	engine	objects@view	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	objects@view	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+1347	1347	engine	objects@view	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+1347	1347	engine	objects@view	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+1347	1347	engine	objects@view	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	objects@view	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	objects@partitioned	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	objects@partitioned	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	objects@partitioned	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -5556,6 +5576,10 @@ ok:cecf87adda72	ok:cecf87adda72	engine	objects@partitioned	opt_empty_table_list/
 1060	1060	engine	objects@partitioned	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1060	1060	engine	objects@partitioned	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	objects@partitioned	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+ok:b4bd0ade8b3a	ok:b4bd0ade8b3a	engine	objects@partitioned	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+ok:111b9937b8a0	ok:111b9937b8a0	engine	objects@partitioned	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+ok:b4bd0ade8b3a	ok:b4bd0ade8b3a	engine	objects@partitioned	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	objects@partitioned	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 1054	1054	engine	objects@fk	stmt/create_table_stmt	CREATE TABLE a SELECT a
 1054	1054	engine	objects@fk	stmt/create_table_stmt!insert	CREATE TABLE a SELECT a zzz
 1066	1066	engine	objects@fk	stmt/create_table_like_stmt	CREATE TABLE a LIKE a
@@ -6482,6 +6506,10 @@ ok:d26f0cf738d7	ok:d26f0cf738d7	engine	objects@fk	opt_empty_table_list/table_lis
 1060	1060	engine	objects@fk	suite:string-length	ALTER TABLE a ADD a TEXT(1.5)
 1060	1060	engine	objects@fk	suite:string-length	ALTER TABLE a ADD a NVARCHAR(1.5)
 1294	1294	engine	objects@fk	suite:on-update	ALTER TABLE a ADD b DATETIME ON UPDATE LOCALTIME(3)
+ok:a3030d2d13c4	ok:a3030d2d13c4	engine	objects@fk	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) BINARY
+ok:39b7e8dbcf1c	ok:39b7e8dbcf1c	engine	objects@fk	suite:national-type-charset	ALTER TABLE a ADD c NVARCHAR(1) BINARY
+ok:a3030d2d13c4	ok:a3030d2d13c4	engine	objects@fk	suite:national-type-charset	ALTER TABLE a ADD c NCHAR(1) COLLATE utf8mb4_bin
+1253	1253	engine	objects@fk	suite:blob-type-attributes	ALTER TABLE a ADD c BLOB COLLATE utf8mb4_bin
 3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts, DROP COLUMN ends
 3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN ends, DROP COLUMN starts
 3959	3959	engine	features@check	check:drop	ALTER TABLE bookings DROP COLUMN starts
