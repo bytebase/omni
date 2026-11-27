@@ -1,10 +1,14 @@
 package analysis
 
 import (
+	"context"
+	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/spanner/ast"
+	"github.com/bytebase/omni/spanner/parser"
 )
 
 func TestEngineSplitEndsAtTheFollowingSemicolon(t *testing.T) {
@@ -58,5 +62,53 @@ func TestEngineValidateAndLimit(t *testing.T) {
 	}
 	if got := Engine.ResultLimit("SELECT 1 FOR UPDATE", 10, ""); got != "SELECT 1 FOR UPDATE" {
 		t.Fatalf("ResultLimit(FOR UPDATE) = %q", got)
+	}
+}
+
+func spannerSpanCatalog() analysis.Catalog {
+	db := &metadata.DatabaseSchemaMetadata{Name: "ds", Schemas: []*metadata.SchemaMetadata{
+		{Name: "s1", Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "id"}}}}},
+	}}
+	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
+		if name != "ds" {
+			return nil, nil
+		}
+		return &analysis.Database{Name: name, Metadata: db, ObjectCaseSensitive: true}, nil
+	}}
+}
+
+func TestEngineQuerySpansResolveSchemasInTheDefaultDatabase(t *testing.T) {
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "ds", Catalog: spannerSpanCatalog()}, []analysis.QuerySpanStatement{
+		{Text: "SELECT id FROM other.s1.t WHERE id = 1"}, {Text: "SELECT * FROM INFORMATION_SCHEMA.TABLES"}, {Text: "SET x = 1"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !spans[0].Results[0].SourceColumns[analysis.ColumnResource{Database: "ds", Schema: "s1", Table: "t", Column: "id"}] || spans[0].PredicateColumns != nil {
+		t.Fatalf("span = %+v", spans[0])
+	}
+	if spans[1].Type != analysis.SelectInfoSchema || len(spans[1].SourceColumns) != 0 {
+		t.Fatalf("system span = %+v", spans[1])
+	}
+	if spans[2].Type != analysis.Select {
+		t.Fatalf("SET type = %v", spans[2].Type)
+	}
+}
+
+func TestEngineQuerySpansWithoutAGetterReportTheDatabaseNotFound(t *testing.T) {
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "ds"}, []analysis.QuerySpanStatement{{Text: "SELECT id FROM t"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if notFound := spans[0].NotFoundError; notFound == nil || *notFound.Database != "ds" {
+		t.Fatalf("NotFoundError = %+v", notFound)
+	}
+}
+
+func TestEngineQuerySpansReturnTheParserErrorAsIs(t *testing.T) {
+	_, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "ds", Catalog: spannerSpanCatalog()}, []analysis.QuerySpanStatement{{Text: "SELECT * FROM", Start: analysis.Position{Line: 5, Column: 1}}})
+	var parseErr *parser.ParseError
+	if !errors.As(err, &parseErr) || err != error(parseErr) {
+		t.Fatalf("err = %#v", err)
 	}
 }

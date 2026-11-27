@@ -1,9 +1,12 @@
 package analysis
 
 import (
+	"context"
+	"errors"
 	"strings"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/spanner/diagnostics"
 	"github.com/bytebase/omni/spanner/parser"
 )
@@ -93,4 +96,41 @@ func (engine) ValidateQuery(script string) (bool, bool, error) {
 
 func (engine) ResultLimit(statement string, limit int, _ string) string {
 	return RewriteResultLimit(statement, limit)
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement in the default database; the default
+// schema and IgnoreCaseSensitive are not read. A statement's predicate columns
+// are not reported. A syntax error is the parser's own.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	load := request.Catalog.MetadataLoader()
+	options := ResolveOptions{
+		DefaultDatabase: request.DefaultDatabase,
+		// Named schemas under the one database (a written database is
+		// ignored), an empty span for a query reading only system tables, SET
+		// classified as a select, and a JOIN USING key named in its metadata case.
+		IgnoreWrittenDatabase:  true,
+		SchemaScopedMetadata:   true,
+		SystemOnlyEmptySpan:    true,
+		SetStatementIsSelect:   true,
+		CanonicalBaseFieldName: true,
+		GetDatabaseMetadata: func(database string) (*metadata.DatabaseSchemaMetadata, error) {
+			if load == nil {
+				return nil, &ResourceNotFoundError{Database: &database}
+			}
+			return load(ctx, database)
+		},
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, options)
+		if err != nil {
+			return nil, err
+		}
+		resolved := &analysis.ResolvedSpan{Type: span.Type, SourceColumns: span.SourceColumns, Results: span.Results}
+		errors.As(span.NotFoundError, &resolved.NotFoundError)
+		spans = append(spans, resolved)
+	}
+	return spans, nil
 }

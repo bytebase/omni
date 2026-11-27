@@ -1,9 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"errors"
+	"fmt"
 
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/parser"
 )
 
@@ -107,4 +110,38 @@ func (engine) Explain(statement string, format analysis.ExplainFormat) (string, 
 		return "", syntaxError(statement, err, analysis.Position{Line: 1, Column: 1})
 	}
 	return explain, err
+}
+
+var _ analysis.QuerySpanResolver = Engine
+
+// QuerySpans resolves each statement in the default catalog and schema. A
+// syntax error is the parser's own, positioned in its statement's text.
+func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
+	options := ResolveOptions{
+		DefaultDatabase:     request.DefaultDatabase,
+		DefaultSchema:       request.DefaultSchema,
+		IgnoreCaseSensitive: request.IgnoreCaseSensitive,
+	}
+	if list := request.Catalog.ListDatabaseNames; list != nil {
+		options.ListDatabases = func() ([]string, error) { return list(ctx) }
+	}
+	if load := request.Catalog.MetadataLoader(); load != nil {
+		options.GetDatabaseMetadata = func(name string) (*metadata.DatabaseSchemaMetadata, error) { return load(ctx, name) }
+	}
+	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
+	for _, statement := range statements {
+		span, err := ResolveQuerySpan(statement.Text, options)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get query span from statement: %s: %w", statement.Text, err)
+		}
+		resolved := &analysis.ResolvedSpan{
+			Type:             span.Type,
+			SourceColumns:    span.SourceColumns,
+			Results:          span.Results,
+			PredicateColumns: span.PredicateColumns,
+		}
+		errors.As(span.NotFoundError, &resolved.NotFoundError)
+		spans = append(spans, resolved)
+	}
+	return spans, nil
 }
