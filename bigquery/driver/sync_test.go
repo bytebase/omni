@@ -95,6 +95,34 @@ func TestConvertYesNo(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestDecodeColumnRow covers the seven INFORMATION_SCHEMA.COLUMNS values the
+// client returns, including a NULL ordinal_position for a pseudo-column.
+func TestDecodeColumnRow(t *testing.T) {
+	row, err := decodeColumnRow([]bigquery.Value{
+		"customers", "id", int64(1), "NO", "INT64", nil, nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, columnRow{
+		TableName:       "customers",
+		ColumnName:      "id",
+		OrdinalPosition: bigquery.NullInt64{Int64: 1, Valid: true},
+		IsNullable:      "NO",
+		DataType:        "INT64",
+	}, row)
+
+	row, err = decodeColumnRow([]bigquery.Value{
+		"partitioned", "_PARTITIONTIME", nil, "NO", "TIMESTAMP", nil, nil,
+	})
+	require.NoError(t, err)
+	require.Equal(t, "partitioned", row.TableName)
+	require.Equal(t, "_PARTITIONTIME", row.ColumnName)
+	require.False(t, row.OrdinalPosition.Valid)
+
+	_, err = decodeColumnRow([]bigquery.Value{"only", "six", int64(1), "YES", "STRING", nil})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "want 7")
+}
+
 // TestSyncDatabaseWithoutADataset pins that a driver open on no dataset reports
 // the contract's not-found instead of asking the service about an empty name.
 func TestSyncDatabaseWithoutADataset(t *testing.T) {

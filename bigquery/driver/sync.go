@@ -74,6 +74,9 @@ type columnRow struct {
 // columns reads every column of every table in the dataset, grouped by table
 // name and ordered by table and position.
 func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMetadata, error) {
+	// is_hidden = 'NO' drops pseudo-columns such as _PARTITIONTIME /
+	// _PARTITIONDATE at the service; those rows also state a NULL
+	// ordinal_position, which the loop below skips as a second guard.
 	statement := fmt.Sprintf(`
 		SELECT
 			table_name,
@@ -83,7 +86,9 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 			data_type,
 			collation_name,
 			column_default
-		FROM %s.INFORMATION_SCHEMA.COLUMNS ORDER BY table_name, ordinal_position;`, quoteIdentifier(d.databaseName))
+		FROM %s.INFORMATION_SCHEMA.COLUMNS
+		WHERE is_hidden = 'NO'
+		ORDER BY table_name, ordinal_position;`, quoteIdentifier(d.databaseName))
 	it, err := d.client.Read(ctx, d.databaseName, statement)
 	if err != nil {
 		return nil, err
