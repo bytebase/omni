@@ -1,6 +1,10 @@
 package analysis
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/pg/ast"
+)
 
 func SearchPathForSelectedSchema(selectedSchema string, defaultSearchPath []string) []string {
 	if selectedSchema == "" {
@@ -38,4 +42,110 @@ func SplitSearchPath(statement string) (string, string) {
 		return "", statement
 	}
 	return setup, rest
+}
+
+// searchPathTracker replays the search path changes of a script's statements
+// in order: SET, RESET, DISCARD ALL and the transactions and savepoints that
+// scope them.
+type searchPathTracker struct {
+	initial []string
+	// current is the search path the next statement runs under.
+	current []string
+	// session leaves out SET LOCAL, which lasts until the transaction ends, and
+	// transaction is the session search path that ROLLBACK restores.
+	session, transaction []string
+	inTransaction        bool
+	// savepoints are the open savepoints, innermost last.
+	savepoints []savepointSearchPath
+}
+
+// savepointSearchPath is the state ROLLBACK TO a savepoint restores.
+type savepointSearchPath struct {
+	name             string
+	current, session []string
+}
+
+// newSearchPathTracker starts from initial, or public when it is empty.
+func newSearchPathTracker(initial []string) *searchPathTracker {
+	if len(initial) == 0 {
+		initial = []string{"public"}
+	}
+	return &searchPathTracker{initial: initial, current: initial, session: initial, transaction: initial}
+}
+
+// apply records the search path change node makes, if any.
+func (t *searchPathTracker) apply(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.TransactionStmt:
+		switch n.Kind {
+		case ast.TRANS_STMT_BEGIN, ast.TRANS_STMT_START:
+			// A BEGIN inside a transaction only warns.
+			if !t.inTransaction {
+				t.transaction, t.inTransaction = t.session, true
+			}
+		case ast.TRANS_STMT_COMMIT, ast.TRANS_STMT_ROLLBACK:
+			// A ROLLBACK outside a transaction only warns.
+			if n.Kind == ast.TRANS_STMT_ROLLBACK && t.inTransaction {
+				t.session = t.transaction
+			}
+			// COMMIT AND CHAIN and ROLLBACK AND CHAIN start the next transaction from here.
+			t.current, t.transaction, t.inTransaction = t.session, t.session, n.Chain
+			t.savepoints = nil
+		case ast.TRANS_STMT_SAVEPOINT:
+			if t.inTransaction {
+				t.savepoints = append(t.savepoints, savepointSearchPath{name: n.Savepoint, current: t.current, session: t.session})
+			}
+		case ast.TRANS_STMT_RELEASE:
+			// RELEASE keeps the changes made after the savepoint and drops it and the ones after it.
+			if i := t.savepoint(n.Savepoint); i >= 0 {
+				t.savepoints = t.savepoints[:i]
+			}
+		case ast.TRANS_STMT_ROLLBACK_TO:
+			// ROLLBACK TO keeps the savepoint and drops the ones after it.
+			if i := t.savepoint(n.Savepoint); i >= 0 {
+				t.current, t.session = t.savepoints[i].current, t.savepoints[i].session
+				t.savepoints = t.savepoints[:i+1]
+			}
+		default:
+		}
+
+	case *ast.DiscardStmt:
+		if n.Target == ast.DISCARD_ALL {
+			t.current, t.session = t.initial, t.initial
+		}
+
+	case *ast.VariableSetStmt:
+		var searchPath []string
+		if n.Kind == ast.VAR_RESET_ALL || (strings.EqualFold(n.Name, "search_path") && (n.Kind == ast.VAR_RESET || n.Kind == ast.VAR_SET_DEFAULT)) {
+			searchPath = t.initial
+		} else if strings.EqualFold(n.Name, "search_path") && n.Kind == ast.VAR_SET_CURRENT {
+			// SET ... FROM CURRENT makes the current search path, which a SET LOCAL may have set, the session's.
+			searchPath = t.current
+		} else if strings.EqualFold(n.Name, "search_path") && n.Args != nil {
+			for _, arg := range n.Args.Items {
+				if ac, ok := arg.(*ast.A_Const); ok {
+					if s, ok := ac.Val.(*ast.String); ok {
+						searchPath = append(searchPath, s.Str)
+					}
+				}
+			}
+		}
+		if len(searchPath) > 0 {
+			t.current = searchPath
+			if !n.IsLocal {
+				t.session = searchPath
+			}
+		}
+	default:
+	}
+}
+
+// savepoint returns the index of the innermost open savepoint named name, or -1.
+func (t *searchPathTracker) savepoint(name string) int {
+	for i := len(t.savepoints) - 1; i >= 0; i-- {
+		if t.savepoints[i].name == name {
+			return i
+		}
+	}
+	return -1
 }

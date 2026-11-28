@@ -50,6 +50,9 @@ type querySpanExtractor struct {
 	searchPath      []string
 	// throughViews is ResolveOptions.ThroughViews.
 	throughViews bool
+	// scriptSearchPath, when set, records the search path change of each
+	// statement resolved, for the script's next statement.
+	scriptSearchPath *searchPathTracker
 	// metaCache is a lazy-load cache for database metadata.
 	// Use getDatabaseMetadata() instead of accessing directly.
 	metaCache     map[string]Database
@@ -244,6 +247,9 @@ func (e *querySpanExtractor) getQuerySpan(ctx context.Context, stmt string) (*Re
 	}
 	if len(stmts) != 1 {
 		return nil, fmt.Errorf("expected exactly 1 statement, got %d", len(stmts))
+	}
+	if e.scriptSearchPath != nil {
+		e.scriptSearchPath.apply(stmts[0].AST)
 	}
 
 	// Step 2: Extract access tables (non-fatal on error — some statement

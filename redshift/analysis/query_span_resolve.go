@@ -17,6 +17,9 @@ type querySpanResolver struct {
 	defaultDatabase string
 	searchPath      []string
 	opts            ResolveOptions
+	// scriptSearchPath, when set, records the search path change of the
+	// statement resolved, for the script's next statement.
+	scriptSearchPath *scriptSearchPath
 
 	// functionProjectionCache memoises a SELECT's function-source projection
 	// within one span, so a derived or scalar subquery reached by more than one
@@ -75,6 +78,9 @@ func (q *querySpanResolver) getQuerySpanWithFunctionStack(statement string, func
 		return q.getUnloadQuerySpan(unload, functionStack)
 	}
 	if _, ok := node.(*ast.VariableSetStmt); ok {
+		if q.scriptSearchPath != nil {
+			q.scriptSearchPath.apply(node)
+		}
 		return emptyQuerySpan(queryType), nil
 	}
 	if queryType != Select {

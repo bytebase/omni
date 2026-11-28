@@ -168,10 +168,13 @@ func insertValuesRowCount(n *ast.InsertStmt) (int, bool) {
 	return 0, false
 }
 
-// searchPathFromSet returns the schemas a SET search_path names, skipping "$user", or none for RESET
-// or SET ... TO DEFAULT, which restore the starting search path. ok is false for any other statement.
-// Like redshift.ExtractChangedResources, unqualified names resolve to the first schema.
+// searchPathFromSet returns the schemas a SET search_path names, skipping "$user", or none for RESET,
+// RESET ALL or SET ... TO DEFAULT, which restore the starting search path. ok is false for any other
+// statement. Like redshift.ExtractChangedResources, unqualified names resolve to the first schema.
 func searchPathFromSet(n *ast.VariableSetStmt) ([]string, bool) {
+	if n.Kind == ast.VAR_RESET_ALL {
+		return nil, true
+	}
 	if !strings.EqualFold(n.Name, "search_path") {
 		return nil, false
 	}
@@ -194,6 +197,26 @@ func searchPathFromSet(n *ast.VariableSetStmt) ([]string, bool) {
 		schemas = append(schemas, s.Str)
 	}
 	return schemas, len(schemas) > 0
+}
+
+// scriptSearchPath is the search path a script's next statement resolves under.
+// Like ExtractChangedResources, it does not scope SET LOCAL to its transaction.
+type scriptSearchPath struct {
+	initial, current []string
+}
+
+// apply records the search path change node makes, if any.
+func (p *scriptSearchPath) apply(node ast.Node) {
+	set, ok := node.(*ast.VariableSetStmt)
+	if !ok {
+		return
+	}
+	if schemas, ok := searchPathFromSet(set); ok {
+		p.current = p.initial
+		if len(schemas) > 0 {
+			p.current = schemas
+		}
+	}
 }
 
 // searchPathPrefix starts the statement withSearchPath puts before a DML statement.

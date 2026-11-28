@@ -42,7 +42,7 @@ type ChangeMetadata interface {
 
 // ExtractChangedResources returns the tables a script writes and the DML
 // statements to estimate, replaying the search path changes it makes: SET,
-// RESET, DISCARD ALL and the transactions that scope SET LOCAL. database is
+// RESET, DISCARD ALL and the transactions and savepoints that scope them. database is
 // the current database and searchPath the initial search path; an empty one
 // means public. EXPLAIN ANALYZE counts as the statement it runs.
 func ExtractChangedResources(stmts []ChangeStatement, database string, searchPath []string, metadata ChangeMetadata) Changes {
@@ -51,11 +51,7 @@ func ExtractChangedResources(stmts []ChangeStatement, database string, searchPat
 		searchPath = []string{"public"}
 	}
 
-	initialSearchPath := searchPath
-	// sessionSearchPath leaves out SET LOCAL, which lasts until the transaction ends, and
-	// transactionSearchPath is the session search path that ROLLBACK restores.
-	sessionSearchPath, transactionSearchPath := searchPath, searchPath
-	inTransaction := false
+	paths := newSearchPathTracker(searchPath)
 	sampleDML := func(text string) {
 		changes.DMLCount++
 		text = strings.TrimSpace(text)
@@ -64,7 +60,7 @@ func ExtractChangedResources(stmts []ChangeStatement, database string, searchPat
 		}
 		statement := DMLStatement{Text: text}
 		// The EXPLAIN connection starts with the initial search path, so a changed one is replayed.
-		if !slices.Equal(searchPath, initialSearchPath) {
+		if !slices.Equal(searchPath, paths.initial) {
 			statement.SearchPath = searchPath
 		}
 		changes.DMLStatements = append(changes.DMLStatements, statement)
@@ -91,52 +87,10 @@ func ExtractChangedResources(stmts []ChangeStatement, database string, searchPat
 		}
 		node, text := UnwrapExplainAnalyze(stmt.Node, stmt.Text)
 
+		paths.apply(node)
+		searchPath = paths.current
+
 		switch n := node.(type) {
-		case *ast.TransactionStmt:
-			switch n.Kind {
-			case ast.TRANS_STMT_BEGIN, ast.TRANS_STMT_START:
-				// A BEGIN inside a transaction only warns.
-				if !inTransaction {
-					transactionSearchPath, inTransaction = sessionSearchPath, true
-				}
-			case ast.TRANS_STMT_COMMIT, ast.TRANS_STMT_ROLLBACK:
-				// A ROLLBACK outside a transaction only warns.
-				if n.Kind == ast.TRANS_STMT_ROLLBACK && inTransaction {
-					sessionSearchPath = transactionSearchPath
-				}
-				// COMMIT AND CHAIN and ROLLBACK AND CHAIN start the next transaction from here.
-				searchPath, transactionSearchPath, inTransaction = sessionSearchPath, sessionSearchPath, n.Chain
-			default:
-			}
-
-		case *ast.DiscardStmt:
-			if n.Target == ast.DISCARD_ALL {
-				searchPath, sessionSearchPath = initialSearchPath, initialSearchPath
-			}
-
-		case *ast.VariableSetStmt:
-			var newSearchPath []string
-			if n.Kind == ast.VAR_RESET_ALL || (strings.EqualFold(n.Name, "search_path") && (n.Kind == ast.VAR_RESET || n.Kind == ast.VAR_SET_DEFAULT)) {
-				newSearchPath = initialSearchPath
-			} else if strings.EqualFold(n.Name, "search_path") && n.Kind == ast.VAR_SET_CURRENT {
-				// SET ... FROM CURRENT makes the current search path, which a SET LOCAL may have set, the session's.
-				newSearchPath = searchPath
-			} else if strings.EqualFold(n.Name, "search_path") && n.Args != nil {
-				for _, arg := range n.Args.Items {
-					if ac, ok := arg.(*ast.A_Const); ok {
-						if s, ok := ac.Val.(*ast.String); ok {
-							newSearchPath = append(newSearchPath, s.Str)
-						}
-					}
-				}
-			}
-			if len(newSearchPath) > 0 {
-				searchPath = newSearchPath
-				if !n.IsLocal {
-					sessionSearchPath = newSearchPath
-				}
-			}
-
 		case *ast.CreateStmt:
 			if n.Relation != nil {
 				db, schema, table := extractNewRangeVarNames(n.Relation, database, searchPath, metadata)
