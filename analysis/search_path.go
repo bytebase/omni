@@ -3,29 +3,17 @@ package analysis
 import "strings"
 
 // SearchPath returns the schemas a PostgreSQL-compatible search_path setting
-// names, in order: each entry unquoted (a doubled quote undone) or
-// lower-cased, with $user, system schemas and empty entries left out.
+// names, in order, as SearchPathEntries reads them, with $user and system
+// schemas left out.
 func SearchPath(setting string) []string {
 	var named []string
 	configured := 0
-	for _, token := range splitSearchPath(setting) {
-		token = strings.TrimSpace(token)
-		if token == "" {
-			continue
-		}
-		schema := strings.ToLower(token)
-		switch {
-		case len(token) >= 2 && token[0] == '"' && token[len(token)-1] == '"':
-			schema = strings.ReplaceAll(token[1:len(token)-1], `""`, `"`)
-		case len(token) >= 2 && token[0] == '\'' && token[len(token)-1] == '\'':
-			schema = strings.ReplaceAll(token[1:len(token)-1], `''`, `'`)
-		default:
-		}
+	for _, schema := range SearchPathEntries(setting) {
 		if schema == "$user" {
 			configured++
 			continue
 		}
-		if schema == "" || isSystemSearchPathSchema(schema) {
+		if isSystemSearchPathSchema(schema) {
 			continue
 		}
 		configured++
@@ -37,6 +25,28 @@ func SearchPath(setting string) []string {
 		return []string{}
 	}
 	return named
+}
+
+// SearchPathEntries returns the entries of a PostgreSQL-compatible
+// search_path setting, in order: each unquoted (a doubled quote undone) or
+// lower-cased, with empty entries left out. It returns nil when none remain.
+func SearchPathEntries(setting string) []string {
+	var entries []string
+	for _, token := range splitSearchPath(setting) {
+		token = strings.TrimSpace(token)
+		schema := strings.ToLower(token)
+		switch {
+		case len(token) >= 2 && token[0] == '"' && token[len(token)-1] == '"':
+			schema = strings.ReplaceAll(token[1:len(token)-1], `""`, `"`)
+		case len(token) >= 2 && token[0] == '\'' && token[len(token)-1] == '\'':
+			schema = strings.ReplaceAll(token[1:len(token)-1], `''`, `'`)
+		default:
+		}
+		if schema != "" {
+			entries = append(entries, schema)
+		}
+	}
+	return entries
 }
 
 // splitSearchPath splits a search_path setting at the commas outside quotes.

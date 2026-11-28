@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"context"
-	"strings"
 
 	"github.com/bytebase/omni/analysis"
 	"github.com/bytebase/omni/metadata"
@@ -28,53 +27,9 @@ func databaseMetadata(database *analysis.Database) *metadata.DatabaseSchemaMetad
 	return database.Metadata
 }
 
-// migrationSearchPath returns the schemas the database's search_path setting
-// names, in order: each entry unquoted (a doubled quote undone) or lower-cased,
-// with $user and system schemas kept, since pg_catalog's position decides
-// whether a user schema shadows a built-in. It returns nil when none remain.
+// migrationSearchPath returns the database's search_path entries with $user
+// and system schemas kept, since pg_catalog's position decides whether a user
+// schema shadows a built-in.
 func migrationSearchPath(database *analysis.Database) []string {
-	var searchPath []string
-	for _, token := range splitSearchPathSetting(databaseMetadata(database).GetSearchPath()) {
-		token = strings.TrimSpace(token)
-		schema := strings.ToLower(token)
-		switch {
-		case len(token) >= 2 && token[0] == '"' && token[len(token)-1] == '"':
-			schema = strings.ReplaceAll(token[1:len(token)-1], `""`, `"`)
-		case len(token) >= 2 && token[0] == '\'' && token[len(token)-1] == '\'':
-			schema = strings.ReplaceAll(token[1:len(token)-1], `''`, `'`)
-		default:
-		}
-		if schema != "" {
-			searchPath = append(searchPath, schema)
-		}
-	}
-	return searchPath
-}
-
-// splitSearchPathSetting splits a search_path setting at the commas outside
-// quotes.
-func splitSearchPathSetting(setting string) []string {
-	var parts []string
-	start := 0
-	var quote byte
-	for i := 0; i < len(setting); i++ {
-		switch {
-		case quote != 0:
-			if setting[i] != quote {
-				continue
-			}
-			if i+1 < len(setting) && setting[i+1] == quote {
-				i++
-				continue
-			}
-			quote = 0
-		case setting[i] == '"' || setting[i] == '\'':
-			quote = setting[i]
-		case setting[i] == ',':
-			parts = append(parts, setting[start:i])
-			start = i + 1
-		default:
-		}
-	}
-	return append(parts, setting[start:])
+	return analysis.SearchPathEntries(databaseMetadata(database).GetSearchPath())
 }
