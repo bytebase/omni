@@ -27,9 +27,11 @@ func (engine) ExtractMetadata(_ context.Context, script string) (*metadata.Datab
 	return GetDatabaseMetadata(script)
 }
 
-// MetadataMigration diffs the two snapshots after reconcileSkipDump. Names
-// compare as written when either side is case-sensitive. SkipSchemas is
-// ignored: SQL Server keeps no backup schema in the database.
+// MetadataMigration diffs the two snapshots after reconcileSkipDump, which
+// compares names as written when either side is case-sensitive. Diff itself
+// still matches names ignoring case, so two names that differ only by case
+// are one object to it. SkipSchemas is ignored: SQL Server keeps no backup
+// schema in the database.
 func (engine) MetadataMigration(ctx context.Context, request omnianalysis.MetadataMigrationRequest) (string, error) {
 	caseSensitive := objectCaseSensitive(request.From) || objectCaseSensitive(request.To)
 	oldMeta, newMeta := reconcileSkipDump(databaseMetadata(request.From), databaseMetadata(request.To), caseSensitive)

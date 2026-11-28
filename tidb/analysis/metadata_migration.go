@@ -57,7 +57,8 @@ func (engine) ExtractMetadata(ctx context.Context, script string) (*metadata.Dat
 // exportCurrentDatabase returns the database the script left selected. The
 // scratch database is returned schema-relative: unnamed, and with its
 // qualifier off view bodies. A database the script names keeps its
-// qualifiers, as information_schema.VIEWS syncs them.
+// qualifiers, as information_schema.VIEWS syncs them. The qualifier is removed
+// as text, so the same text inside a literal or an alias goes too.
 func exportCurrentDatabase(c analysis.MySQLScriptCatalog) *metadata.DatabaseSchemaMetadata {
 	database := c.CurrentDatabase()
 	meta := c.DatabaseMetadata(database)

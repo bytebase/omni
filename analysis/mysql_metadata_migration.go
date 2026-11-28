@@ -203,7 +203,8 @@ func snapshotObject(meta *metadata.DatabaseSchemaMetadata, key string) proto.Mes
 // for an object named like the database. It copies #, "-- " and /*...*/
 // comments whole too, since routine bodies are emitted verbatim and a quote
 // in a comment would otherwise open a phantom literal; the inside of an
-// executable /*!...*/ comment is live SQL and is scanned.
+// executable /*!...*/ comment is live SQL and is scanned. A table alias named
+// like the database loses its qualifier too.
 func stripMigrationDatabase(sql string) string {
 	quoted := "`" + mysqlMigrationDatabase + "`"
 	if !strings.Contains(sql, quoted+".") {
