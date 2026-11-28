@@ -1,9 +1,12 @@
 package analysis
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
+	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/tidb/parser"
 )
 
@@ -210,5 +213,91 @@ func TestIsCreateTableAs(t *testing.T) {
 				t.Errorf("IsCreateTableAs(%q) = %v, want %v", tt.sql, got, tt.want)
 			}
 		})
+	}
+}
+
+// parseTiDBForWalkThrough parses each segment as Bytebase does for TiDB,
+// giving each node its segment's text.
+func parseTiDBForWalkThrough(t *testing.T, script string) []analysis.ParsedStatement {
+	t.Helper()
+	var statements []analysis.ParsedStatement
+	for _, segment := range Engine.Split(script) {
+		if segment.Empty {
+			continue
+		}
+		list, err := parser.Parse(segment.Text)
+		if err != nil {
+			t.Fatalf("Parse(%q): %v", segment.Text, err)
+		}
+		for _, node := range list.Items {
+			statements = append(statements, analysis.ParsedStatement{Statement: segment, Node: node})
+		}
+	}
+	return statements
+}
+
+func walkThroughTiDB(t *testing.T, caseSensitive bool, script string, statements []analysis.ParsedStatement) analysis.WalkThroughResult {
+	t.Helper()
+	database := &analysis.Database{
+		Name: "test",
+		Metadata: &metadata.DatabaseSchemaMetadata{Name: "test", Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{Name: "t1", Columns: []*metadata.ColumnMetadata{{Name: "a", Type: "int", Nullable: true}}}},
+		}}},
+		ObjectCaseSensitive: caseSensitive,
+	}
+	return Engine.WalkThrough(context.Background(), analysis.WalkThroughRequest{Database: database, Script: script}, statements)
+}
+
+func TestEngineWalkThroughWordsErrorsAsTiDBAtTheirStatement(t *testing.T) {
+	tests := []struct {
+		script  string
+		code    analysis.WalkThroughCode
+		content string
+	}{
+		{"ALTER TABLE t1 DROP INDEX nope;", analysis.WalkThroughIndexNotExists, "Index `nope` does not exist"},
+		{"ALTER TABLE t1 DROP COLUMN nope;", analysis.WalkThroughColumnNotExists, "Column `nope` does not exist"},
+		{"CREATE INDEX i ON t1 (nope);", analysis.WalkThroughColumnNotExists, "Column `nope` does not exist"},
+		{"CREATE TABLE t2 (a BLOB DEFAULT 'x');", analysis.WalkThroughInvalidColumnDefault, "BLOB, TEXT or JSON column `a` can't have a default value"},
+		{"CREATE TABLE t2 (a INT PRIMARY KEY, b INT PRIMARY KEY);", analysis.WalkThroughPrimaryKeyExists, "Multiple primary key defined"},
+		{"CREATE TABLE t2 (a INT AUTO_INCREMENT, b INT AUTO_INCREMENT);", analysis.WalkThroughAutoIncrementExists, "There can be only one auto column and it must be defined as a key"},
+		{"CREATE TABLE t2 (a INT ON UPDATE NOW());", analysis.WalkThroughOnUpdateColumnNotDatetimeOrTimestamp, "Column `a` use ON UPDATE but is not DATETIME or TIMESTAMP"},
+	}
+	for _, tt := range tests {
+		// A statement the catalog skips comes first, so the finding's index is
+		// the statement's, not the line's.
+		script := "SELECT 1;\n" + tt.script
+		got := walkThroughTiDB(t, true, script, parseTiDBForWalkThrough(t, script))
+		want := &analysis.WalkThroughFinding{Code: tt.code, Error: true, Title: tt.content, Content: tt.content, Statement: 1}
+		if !reflect.DeepEqual(got.Finding, want) {
+			t.Errorf("%s: finding = %+v, want %+v", tt.script, got.Finding, want)
+		}
+	}
+}
+
+func TestEngineWalkThroughRunsOnlyTiDBStatements(t *testing.T) {
+	script := "CREATE TABLE t2 (a INT);\nDROP TABLE missing;"
+	statements := parseTiDBForWalkThrough(t, script)
+	statements = append([]analysis.ParsedStatement{{Statement: analysis.Statement{Text: "DROP TABLE t1;"}, Node: "foreign"}}, statements...)
+	got := walkThroughTiDB(t, true, script, statements)
+	want := &analysis.WalkThroughFinding{Code: analysis.WalkThroughTableNotExists, Error: true, Title: "Table `missing` does not exist", Content: "Table `missing` does not exist", Statement: 2}
+	if !reflect.DeepEqual(got.Finding, want) {
+		t.Fatalf("finding = %+v, want %+v", got.Finding, want)
+	}
+	if got := walkThroughTiDB(t, true, script, nil); got.Finding != nil || got.Database != nil {
+		t.Fatalf("no statements = %+v", got)
+	}
+}
+
+func TestEngineWalkThroughKeepsTheDatabasesCaseSensitivity(t *testing.T) {
+	for _, caseSensitive := range []bool{true, false} {
+		script := "CREATE TABLE t2 (a INT); RENAME TABLE t1 TO other.t1;"
+		got := walkThroughTiDB(t, caseSensitive, script, parseTiDBForWalkThrough(t, script))
+		if got.Finding != nil || got.Database == nil || got.Database.ObjectCaseSensitive != caseSensitive {
+			t.Fatalf("case-sensitive %v: WalkThrough = %+v", caseSensitive, got)
+		}
+		tables := got.Database.Metadata.GetSchemas()[0].GetTables()
+		if len(tables) != 1 || tables[0].GetName() != "t2" {
+			t.Fatalf("tables = %v", tables)
+		}
 	}
 }

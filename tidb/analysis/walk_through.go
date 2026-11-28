@@ -1,8 +1,14 @@
 package analysis
 
 import (
+	"context"
+	"errors"
+	"strings"
+
 	"github.com/bytebase/omni/analysis"
+	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/tidb/ast"
+	"github.com/bytebase/omni/tidb/catalog"
 	"github.com/bytebase/omni/tidb/parser"
 )
 
@@ -242,4 +248,72 @@ func IsCreateTableAs(statement string) bool {
 			atParenStart = false
 		}
 	}
+}
+
+var _ analysis.WalkThrougher = Engine
+
+var walkThrough = analysis.MySQLWalkThrough{
+	Classify: func(node any) (WalkThroughStatement, bool) {
+		n, ok := node.(ast.Node)
+		if !ok {
+			return WalkThroughStatement{}, false
+		}
+		return ClassifyWalkThroughStatement(n), true
+	},
+	ExecScript:          walkThroughScript,
+	NewCatalog:          func() analysis.MySQLCatalog { return walkThroughCatalog{catalog.New()} },
+	ErrorNumber:         catalogErrorNumber,
+	TrackBatchTables:    true,
+	TiDBErrors:          true,
+	KeepCaseSensitivity: true,
+}
+
+// WalkThrough runs the statements on a catalog loaded with the database's
+// schema, after the checks omni/analysis.MySQLWalkThrough documents.
+func (engine) WalkThrough(ctx context.Context, request analysis.WalkThroughRequest, statements []analysis.ParsedStatement) analysis.WalkThroughResult {
+	return walkThrough.WalkThrough(ctx, request, statements)
+}
+
+// walkThroughScript joins the texts of the TiDB statements, each ended by one
+// ";", and returns the index of the statement each executed one came from.
+func walkThroughScript(statements []analysis.ParsedStatement) (string, []int) {
+	var b strings.Builder
+	indexes := make([]int, 0, len(statements))
+	for i, statement := range statements {
+		text := strings.TrimSpace(statement.Text)
+		if _, ok := statement.Node.(ast.Node); !ok || text == "" {
+			continue
+		}
+		b.WriteString(strings.TrimRight(text, ";"))
+		b.WriteString(";\n")
+		indexes = append(indexes, i)
+	}
+	return b.String(), indexes
+}
+
+type walkThroughCatalog struct{ *catalog.Catalog }
+
+func (c walkThroughCatalog) Load(ctx context.Context, database *metadata.DatabaseSchemaMetadata) error {
+	_, err := c.LoadMetadata(ctx, database)
+	return err
+}
+
+func (c walkThroughCatalog) Run(script string) ([]analysis.CatalogResult, error) {
+	results, err := c.Exec(script, &catalog.ExecOptions{ContinueOnError: true})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]analysis.CatalogResult, len(results))
+	for i, r := range results {
+		out[i] = analysis.CatalogResult{Index: r.Index, Line: r.Line, Error: r.Error}
+	}
+	return out, nil
+}
+
+func catalogErrorNumber(err error) (int, string, bool) {
+	var catalogErr *catalog.Error
+	if !errors.As(err, &catalogErr) {
+		return 0, "", false
+	}
+	return catalogErr.Code, catalogErr.Message, true
 }
