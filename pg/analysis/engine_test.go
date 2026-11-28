@@ -100,6 +100,10 @@ func TestEngineValidateExplainAndLimit(t *testing.T) {
 }
 
 func spanEngineCatalog() analysis.Catalog {
+	return spanEngineCatalogWithSearchPath(`"$user", public`)
+}
+
+func spanEngineCatalogWithSearchPath(searchPath string) analysis.Catalog {
 	schema := func(name string, tables ...string) *metadata.SchemaMetadata {
 		s := &metadata.SchemaMetadata{Name: name}
 		for _, table := range tables {
@@ -107,7 +111,7 @@ func spanEngineCatalog() analysis.Catalog {
 		}
 		return s
 	}
-	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", public`, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t"), schema("Mixed", "t")}}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: searchPath, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t"), schema("Mixed", "t")}}
 	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
 		if name != "db" {
 			return nil, nil
@@ -132,12 +136,14 @@ func TestEngineQuerySpansResolveAlongTheSelectedSchema(t *testing.T) {
 func TestEngineQuerySpansCarryTheSearchPathAcrossTheScript(t *testing.T) {
 	for _, tc := range []struct {
 		name, schema string
+		noSyncedPath bool
 		script       []string
 		wantSchema   string
 		wantTable    string
 	}{
 		{name: "SET", script: []string{"SET search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
 		{name: "SET with =", script: []string{"SET search_path = s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "RESET without a synced path", noSyncedPath: true, script: []string{"SET search_path TO s2", "RESET search_path", "SELECT id FROM t"}, wantSchema: "public"},
 		{name: "SET SESSION", script: []string{"SET SESSION search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
 		{name: "a later SET wins", script: []string{"SET search_path TO s2", "SET search_path TO s1", "SELECT id FROM t"}, wantSchema: "s1"},
 		{name: "RESET", script: []string{"SET search_path TO s2", "RESET search_path", "SELECT id FROM t"}, wantSchema: "public"},
@@ -148,6 +154,10 @@ func TestEngineQuerySpansCarryTheSearchPathAcrossTheScript(t *testing.T) {
 		{name: "SET LOCAL in a transaction", script: []string{"BEGIN", "SET LOCAL search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
 		{name: "SET LOCAL ends with its transaction", script: []string{"BEGIN", "SET LOCAL search_path TO s2", "COMMIT", "SELECT id FROM t"}, wantSchema: "public"},
 		{name: "ROLLBACK undoes a SET", script: []string{"BEGIN", "SET search_path TO s2", "ROLLBACK", "SELECT id FROM t"}, wantSchema: "public"},
+		{name: "ROLLBACK TO undoes a SET after the savepoint", script: []string{"BEGIN", "SAVEPOINT p", "SET search_path TO s2", "ROLLBACK TO p", "SELECT id FROM t"}, wantSchema: "public"},
+		{name: "ROLLBACK TO keeps a SET before the savepoint", script: []string{"BEGIN", "SET search_path TO s2", "SAVEPOINT p", "SET search_path TO s1", "ROLLBACK TO p", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "ROLLBACK TO the outer savepoint", script: []string{"BEGIN", "SAVEPOINT p", "SAVEPOINT q", "SET search_path TO s2", "ROLLBACK TO p", "SELECT id FROM t"}, wantSchema: "public"},
+		{name: "RELEASE keeps a SET and the savepoint is gone", script: []string{"BEGIN", "SAVEPOINT p", "SET search_path TO s2", "RELEASE p", "ROLLBACK TO p", "SELECT id FROM t"}, wantSchema: "s2"},
 		{name: "a SET replaces the selected schema", schema: "s1", script: []string{"SET search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
 		{name: "RESET restores the selected schema", schema: "s1", script: []string{"SET search_path TO s2", "RESET search_path", "SELECT id FROM t"}, wantSchema: "s1"},
 		{name: "a quoted schema", script: []string{`SET search_path TO "Mixed"`, "SELECT id FROM t"}, wantSchema: "Mixed"},
@@ -159,7 +169,11 @@ func TestEngineQuerySpansCarryTheSearchPathAcrossTheScript(t *testing.T) {
 			for _, text := range tc.script {
 				statements = append(statements, analysis.QuerySpanStatement{Text: text})
 			}
-			spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: tc.schema, Catalog: spanEngineCatalog()}, statements)
+			catalog := spanEngineCatalog()
+			if tc.noSyncedPath {
+				catalog = spanEngineCatalogWithSearchPath("")
+			}
+			spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: tc.schema, Catalog: catalog}, statements)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -45,7 +45,8 @@ func SplitSearchPath(statement string) (string, string) {
 }
 
 // searchPathTracker replays the search path changes of a script's statements
-// in order: SET, RESET, DISCARD ALL and the transactions that scope SET LOCAL.
+// in order: SET, RESET, DISCARD ALL and the transactions and savepoints that
+// scope them.
 type searchPathTracker struct {
 	initial []string
 	// current is the search path the next statement runs under.
@@ -54,9 +55,21 @@ type searchPathTracker struct {
 	// transaction is the session search path that ROLLBACK restores.
 	session, transaction []string
 	inTransaction        bool
+	// savepoints are the open savepoints, innermost last.
+	savepoints []savepointSearchPath
 }
 
+// savepointSearchPath is the state ROLLBACK TO a savepoint restores.
+type savepointSearchPath struct {
+	name             string
+	current, session []string
+}
+
+// newSearchPathTracker starts from initial, or public when it is empty.
 func newSearchPathTracker(initial []string) *searchPathTracker {
+	if len(initial) == 0 {
+		initial = []string{"public"}
+	}
 	return &searchPathTracker{initial: initial, current: initial, session: initial, transaction: initial}
 }
 
@@ -77,6 +90,22 @@ func (t *searchPathTracker) apply(node ast.Node) {
 			}
 			// COMMIT AND CHAIN and ROLLBACK AND CHAIN start the next transaction from here.
 			t.current, t.transaction, t.inTransaction = t.session, t.session, n.Chain
+			t.savepoints = nil
+		case ast.TRANS_STMT_SAVEPOINT:
+			if t.inTransaction {
+				t.savepoints = append(t.savepoints, savepointSearchPath{name: n.Savepoint, current: t.current, session: t.session})
+			}
+		case ast.TRANS_STMT_RELEASE:
+			// RELEASE keeps the changes made after the savepoint and drops it and the ones after it.
+			if i := t.savepoint(n.Savepoint); i >= 0 {
+				t.savepoints = t.savepoints[:i]
+			}
+		case ast.TRANS_STMT_ROLLBACK_TO:
+			// ROLLBACK TO keeps the savepoint and drops the ones after it.
+			if i := t.savepoint(n.Savepoint); i >= 0 {
+				t.current, t.session = t.savepoints[i].current, t.savepoints[i].session
+				t.savepoints = t.savepoints[:i+1]
+			}
 		default:
 		}
 
@@ -109,4 +138,14 @@ func (t *searchPathTracker) apply(node ast.Node) {
 		}
 	default:
 	}
+}
+
+// savepoint returns the index of the innermost open savepoint named name, or -1.
+func (t *searchPathTracker) savepoint(name string) int {
+	for i := len(t.savepoints) - 1; i >= 0; i-- {
+		if t.savepoints[i].name == name {
+			return i
+		}
+	}
+	return -1
 }

@@ -42,7 +42,7 @@ type ChangeMetadata interface {
 
 // ExtractChangedResources returns the tables a script writes and the DML
 // statements to estimate, replaying the search path changes it makes: SET,
-// RESET, DISCARD ALL and the transactions that scope SET LOCAL. database is
+// RESET, DISCARD ALL and the transactions and savepoints that scope them. database is
 // the current database and searchPath the initial search path; an empty one
 // means public. EXPLAIN ANALYZE counts as the statement it runs.
 func ExtractChangedResources(stmts []ChangeStatement, database string, searchPath []string, metadata ChangeMetadata) Changes {
