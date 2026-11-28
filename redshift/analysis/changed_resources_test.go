@@ -116,6 +116,22 @@ UPDATE t SET c = 2;`,
 			dmlCount: 2,
 		},
 		{
+			name: "reset_all_restores_the_search_path",
+			statement: `SET search_path TO analytics;
+UPDATE t SET c = 1;
+RESET ALL;
+UPDATE t SET c = 2;`,
+			tables: []table{
+				{database: "db", schema: "analytics", name: "t"},
+				{database: "db", schema: "public", name: "t"},
+			},
+			dmlStatements: []string{
+				"SET LOCAL search_path TO \"analytics\";\nUPDATE t SET c = 1;",
+				"UPDATE t SET c = 2;",
+			},
+			dmlCount: 2,
+		},
+		{
 			name: "comment_before_semicolon_between_ddl_and_dml",
 			statement: `ALTER TABLE a ADD COLUMN c INT /* note */;
 INSERT INTO b VALUES (1);

@@ -183,6 +183,9 @@ func nameParts(node ast.Node) []string {
 }
 
 func searchPathFromSet(stmt *ast.VariableSetStmt, defaultSchema string) (string, bool) {
+	if stmt.Kind == ast.VAR_RESET_ALL {
+		return defaultSchema, true
+	}
 	if !strings.EqualFold(stmt.Name, "search_path") {
 		return "", false
 	}

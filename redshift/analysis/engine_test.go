@@ -104,7 +104,7 @@ func redshiftSpanCatalog() analysis.Catalog {
 		}
 		return s
 	}
-	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", s1, public`, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t")}}
+	db := &metadata.DatabaseSchemaMetadata{Name: "db", SearchPath: `"$user", s1, public`, Schemas: []*metadata.SchemaMetadata{schema("public", "t", "p"), schema("s1", "t"), schema("s2", "t"), schema("Mixed", "t")}}
 	return analysis.Catalog{GetDatabase: func(_ context.Context, name string) (*analysis.Database, error) {
 		if name != "db" {
 			return nil, nil
@@ -131,6 +131,50 @@ func TestEngineQuerySpansReplaceTheSearchPathWithASelectedSchema(t *testing.T) {
 	}
 	if span := redshiftQuerySpan(t, "s2", "SELECT id FROM p"); span.NotFoundError == nil {
 		t.Fatalf("a selected schema must not fall back to public: span = %+v", span)
+	}
+}
+
+func TestEngineQuerySpansCarryTheSearchPathAcrossTheScript(t *testing.T) {
+	for _, tc := range []struct {
+		name, schema string
+		script       []string
+		wantSchema   string
+		wantTable    string
+	}{
+		{name: "SET", script: []string{"SET search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "SET with =", script: []string{"SET search_path = s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "SET SESSION", script: []string{"SET SESSION search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "SET LOCAL", script: []string{"SET LOCAL search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "a later SET wins", script: []string{"SET search_path TO s2", "SET search_path TO public", "SELECT id FROM t"}, wantSchema: "public"},
+		{name: "RESET", script: []string{"SET search_path TO s2", "RESET search_path", "SELECT id FROM t"}, wantSchema: "s1"},
+		{name: "RESET ALL", script: []string{"SET search_path TO s2", "RESET ALL", "SELECT id FROM t"}, wantSchema: "s1"},
+		{name: "SET TO DEFAULT", script: []string{"SET search_path TO s2", "SET search_path TO DEFAULT", "SELECT id FROM t"}, wantSchema: "s1"},
+		{name: "another setting", script: []string{"SET search_path TO s2", "RESET statement_timeout", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "a SET replaces the selected schema", schema: "public", script: []string{"SET search_path TO s2", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "RESET restores the selected schema", schema: "public", script: []string{"SET search_path TO s2", "RESET search_path", "SELECT id FROM t"}, wantSchema: "public"},
+		{name: "a quoted schema", script: []string{`SET search_path TO "Mixed"`, "SELECT id FROM t"}, wantSchema: "Mixed"},
+		{name: "a quoted $user", script: []string{`SET search_path TO "$user", s2`, "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "the first schema of many", script: []string{"SET search_path TO s2, public", "SELECT id FROM t"}, wantSchema: "s2"},
+		{name: "a later schema of many", script: []string{"SET search_path TO s2, public", "SELECT id FROM p"}, wantSchema: "public", wantTable: "p"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var statements []analysis.QuerySpanStatement
+			for _, text := range tc.script {
+				statements = append(statements, analysis.QuerySpanStatement{Text: text})
+			}
+			spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{DefaultDatabase: "db", DefaultSchema: tc.schema, Catalog: redshiftSpanCatalog()}, statements)
+			if err != nil {
+				t.Fatal(err)
+			}
+			table := tc.wantTable
+			if table == "" {
+				table = "t"
+			}
+			want := analysis.ColumnSet{{Database: "db", Schema: tc.wantSchema, Table: table, Column: "id"}: true}
+			if got := spans[len(spans)-1]; len(got.Results) != 1 || !reflect.DeepEqual(got.Results[0].SourceColumns, want) {
+				t.Fatalf("span = %+v, want source %v", got, want)
+			}
+		})
 	}
 }
 

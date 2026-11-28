@@ -166,24 +166,17 @@ func (engine) ResultLimit(statement string, limit int, _ string) string {
 var _ analysis.QuerySpanResolver = Engine
 
 // QuerySpans resolves each statement against the default database's search
-// path, narrowed to the default schema when one is set. A syntax error is
-// positioned in its statement's own text.
+// path, narrowed to the default schema when one is set, and then as the
+// script's earlier statements changed it. A syntax error is positioned in its
+// statement's own text.
 func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
 	if request.Catalog.GetDatabase == nil {
 		return nil, errors.New("the catalog cannot look databases up")
 	}
 	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
-	for _, statement := range statements {
-		span, err := querySpan(ctx, request, statement.Text)
-		if err != nil {
-			return nil, err
-		}
-		spans = append(spans, span)
+	if len(statements) == 0 {
+		return spans, nil
 	}
-	return spans, nil
-}
-
-func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement string) (*analysis.ResolvedSpan, error) {
 	database, err := request.Catalog.GetDatabase(ctx, request.DefaultDatabase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database metadata for database %q: %w", request.DefaultDatabase, err)
@@ -195,17 +188,27 @@ func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement
 	if request.DefaultSchema != "" {
 		searchPath = SearchPathForSelectedSchema(request.DefaultSchema, searchPath)
 	}
-	span, err := ResolveQuerySpan(ctx, statement, ResolveOptions{
-		DefaultDatabase: request.DefaultDatabase,
-		SearchPath:      searchPath,
-		Catalog: Catalog{GetDatabase: func(name string) (Database, error) {
-			database, err := request.Catalog.GetDatabase(ctx, name)
-			if err != nil || database == nil {
-				return nil, err
-			}
-			return lookupDatabase{database.Lookup(true)}, nil
-		}},
-	})
+	scriptSearchPath := newSearchPathTracker(searchPath)
+	for _, statement := range statements {
+		span, err := querySpan(ctx, request, statement.Text, scriptSearchPath)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement string, scriptSearchPath *searchPathTracker) (*analysis.ResolvedSpan, error) {
+	e := newQuerySpanExtractor(request.DefaultDatabase, scriptSearchPath.current, Catalog{GetDatabase: func(name string) (Database, error) {
+		database, err := request.Catalog.GetDatabase(ctx, name)
+		if err != nil || database == nil {
+			return nil, err
+		}
+		return lookupDatabase{database.Lookup(true)}, nil
+	}})
+	e.scriptSearchPath = scriptSearchPath
+	span, err := e.getQuerySpan(ctx, statement)
 	if err != nil {
 		var syntaxErr *SyntaxError
 		if errors.As(err, &syntaxErr) {

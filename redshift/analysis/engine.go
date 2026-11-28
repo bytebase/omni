@@ -103,24 +103,16 @@ func (engine) ExtractChanges(request analysis.ChangeRequest, _ []analysis.Parsed
 }
 
 // QuerySpans resolves each statement against the default database's search
-// path, or the default schema alone when one is set. A syntax error is
-// positioned in the script.
+// path, or the default schema alone when one is set, and then as the script's
+// earlier statements changed it. A syntax error is positioned in the script.
 func (engine) QuerySpans(ctx context.Context, request analysis.QuerySpanRequest, statements []analysis.QuerySpanStatement) ([]*analysis.ResolvedSpan, error) {
 	if request.Catalog.GetDatabase == nil {
 		return nil, errors.New("the catalog cannot look databases up")
 	}
 	spans := make([]*analysis.ResolvedSpan, 0, len(statements))
-	for _, statement := range statements {
-		span, err := querySpan(ctx, request, statement)
-		if err != nil {
-			return nil, err
-		}
-		spans = append(spans, span)
+	if len(statements) == 0 {
+		return spans, nil
 	}
-	return spans, nil
-}
-
-func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement analysis.QuerySpanStatement) (*analysis.ResolvedSpan, error) {
 	database, err := request.Catalog.GetDatabase(ctx, request.DefaultDatabase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get database metadata for database %q: %w", request.DefaultDatabase, err)
@@ -132,9 +124,21 @@ func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement
 	if request.DefaultSchema != "" {
 		searchPath = []string{request.DefaultSchema}
 	}
-	resolved, err := ResolveQuerySpan(statement.Text, ResolveOptions{
+	script := &scriptSearchPath{initial: searchPath, current: searchPath}
+	for _, statement := range statements {
+		span, err := querySpan(ctx, request, statement, script)
+		if err != nil {
+			return nil, err
+		}
+		spans = append(spans, span)
+	}
+	return spans, nil
+}
+
+func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement analysis.QuerySpanStatement, script *scriptSearchPath) (*analysis.ResolvedSpan, error) {
+	opts := ResolveOptions{
 		DefaultDatabase: request.DefaultDatabase,
-		SearchPath:      searchPath,
+		SearchPath:      script.current,
 		GetDatabaseMetadata: func(name string) (*metadata.DatabaseSchemaMetadata, error) {
 			database, err := request.Catalog.GetDatabase(ctx, name)
 			if err != nil || database == nil {
@@ -142,7 +146,10 @@ func querySpan(ctx context.Context, request analysis.QuerySpanRequest, statement
 			}
 			return database.Metadata, nil
 		},
-	})
+	}
+	resolver := newQuerySpanResolver(opts.DefaultDatabase, opts.SearchPath, opts)
+	resolver.scriptSearchPath = script
+	resolved, err := resolver.getQuerySpan(statement.Text)
 	if errors.Is(err, analysis.ErrMixUserSystemTables) {
 		return nil, err
 	}
