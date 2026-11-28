@@ -361,3 +361,110 @@ func TestEngineQuerySpansWithoutADatabaseLookupFailCleanly(t *testing.T) {
 		t.Fatalf("a statement that reads no table needs no lookup: %v", err)
 	}
 }
+
+// oracleSynonymCatalog has APP, with its private synonyms and the instance's
+// public ones, and OTHER on the connected instance i.
+func oracleSynonymCatalog(objectCaseSensitive bool) analysis.Catalog {
+	databases := map[string]*metadata.DatabaseSchemaMetadata{
+		"APP": {
+			Name: "APP",
+			Schemas: []*metadata.SchemaMetadata{{
+				Tables: []*metadata.TableMetadata{{Name: "T", Columns: []*metadata.ColumnMetadata{{Name: "A"}}}},
+				Views:  []*metadata.ViewMetadata{{Name: "V", Definition: "SELECT A FROM T"}},
+				Synonyms: []*metadata.SynonymMetadata{
+					{Name: "S", TargetSchema: "APP", TargetName: "T"},
+					{Name: "SV", TargetSchema: "APP", TargetName: "V"},
+					{Name: "GONE", TargetSchema: "APP", TargetName: "NOPE"},
+					{Name: "T", TargetSchema: "OTHER", TargetName: "U"},
+				},
+			}},
+			PublicSynonyms: []*metadata.SynonymMetadata{{Name: "PUB", TargetSchema: "OTHER", TargetName: "U"}},
+		},
+		"OTHER": {Name: "OTHER", Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{Name: "U", Columns: []*metadata.ColumnMetadata{{Name: "C"}}}},
+		}}},
+	}
+	return analysis.Catalog{
+		GetInstanceDatabase: func(_ context.Context, instance, name string) (*analysis.Database, error) {
+			if m := databases[name]; instance == "i" && m != nil {
+				return &analysis.Database{Name: name, Metadata: m, ObjectCaseSensitive: objectCaseSensitive}, nil
+			}
+			return nil, nil
+		},
+	}
+}
+
+func oracleSynonymSpan(t *testing.T, objectCaseSensitive bool, text string) *analysis.ResolvedSpan {
+	t.Helper()
+	spans, err := Engine.QuerySpans(context.Background(), analysis.QuerySpanRequest{Instance: "i", DefaultDatabase: "APP", Catalog: oracleSynonymCatalog(objectCaseSensitive)}, []analysis.QuerySpanStatement{{Text: text}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return spans[0]
+}
+
+func TestEngineQuerySpansResolveAPrivateSynonymToItsTable(t *testing.T) {
+	for _, text := range []string{"SELECT A FROM S", "SELECT A FROM APP.S", "SELECT S.A FROM S"} {
+		span := oracleSynonymSpan(t, true, text)
+		if span.NotFoundError != nil {
+			t.Fatalf("%s: not found = %v", text, span.NotFoundError)
+		}
+		if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Database: "APP", Table: "T"}: true}) {
+			t.Fatalf("%s: source columns = %v", text, span.SourceColumns)
+		}
+		if len(span.Results) != 1 || !reflect.DeepEqual(span.Results[0].SourceColumns, analysis.ColumnSet{{Database: "APP", Table: "T", Column: "A"}: true}) {
+			t.Fatalf("%s: results = %+v", text, span.Results)
+		}
+	}
+}
+
+func TestEngineQuerySpansResolveAPublicSynonymToATableInAnotherSchema(t *testing.T) {
+	span := oracleSynonymSpan(t, true, "SELECT C FROM PUB")
+	if span.NotFoundError != nil {
+		t.Fatalf("not found = %v", span.NotFoundError)
+	}
+	if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Database: "OTHER", Table: "U"}: true}) {
+		t.Fatalf("source columns = %v", span.SourceColumns)
+	}
+	if len(span.Results) != 1 || !reflect.DeepEqual(span.Results[0].SourceColumns, analysis.ColumnSet{{Database: "OTHER", Table: "U", Column: "C"}: true}) {
+		t.Fatalf("results = %+v", span.Results)
+	}
+	// A public synonym answers an unqualified name only.
+	if oracleSynonymSpan(t, true, "SELECT C FROM APP.PUB").NotFoundError == nil {
+		t.Fatal("APP.PUB resolved through the public synonym")
+	}
+}
+
+func TestEngineQuerySpansResolveASynonymToAView(t *testing.T) {
+	span := oracleSynonymSpan(t, true, "SELECT A FROM SV")
+	if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Database: "APP", Table: "V"}: true, {Database: "APP", Table: "T"}: true}) {
+		t.Fatalf("source columns = %v", span.SourceColumns)
+	}
+	if len(span.Results) != 1 || !reflect.DeepEqual(span.Results[0].SourceColumns, analysis.ColumnSet{{Database: "APP", Table: "T", Column: "A"}: true}) {
+		t.Fatalf("results = %+v", span.Results)
+	}
+}
+
+func TestEngineQuerySpansReportASynonymWhoseTargetIsMissing(t *testing.T) {
+	span := oracleSynonymSpan(t, true, "SELECT A FROM GONE")
+	if span.NotFoundError == nil || *span.NotFoundError.Table != "GONE" {
+		t.Fatalf("not found = %v", span.NotFoundError)
+	}
+}
+
+func TestEngineQuerySpansPreferATableToASynonymOfItsName(t *testing.T) {
+	span := oracleSynonymSpan(t, true, "SELECT A FROM T")
+	if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Database: "APP", Table: "T"}: true}) {
+		t.Fatalf("source columns = %v", span.SourceColumns)
+	}
+}
+
+func TestEngineQuerySpansMatchSynonymsAsTheDatabaseMatchesTables(t *testing.T) {
+	span := oracleSynonymSpan(t, false, `SELECT C FROM "pub"`)
+	if !reflect.DeepEqual(span.SourceColumns, analysis.ColumnSet{{Database: "OTHER", Table: "U"}: true}) {
+		t.Fatalf("case-insensitive source columns = %v", span.SourceColumns)
+	}
+	if oracleSynonymSpan(t, true, `SELECT C FROM "pub"`).NotFoundError == nil {
+		t.Fatal(`"pub" resolved in a case-sensitive database`)
+	}
+}

@@ -161,12 +161,53 @@ func catalogDatabase(database *analysis.Database) Database {
 	if database == nil {
 		return nil
 	}
-	return lookupDatabase{database.Lookup(true).Schema("")}
+	schema := database.Lookup(true).Schema("")
+	d := lookupDatabase{
+		schema:         schema,
+		caseSensitive:  database.ObjectCaseSensitive,
+		publicSynonyms: synonymsByName(database.Metadata.GetPublicSynonyms(), database.ObjectCaseSensitive),
+	}
+	if schema != nil {
+		d.synonyms = synonymsByName(schema.Proto().GetSynonyms(), database.ObjectCaseSensitive)
+	}
+	return d
 }
 
 // lookupDatabase is a database's unnamed schema, where Oracle metadata keeps
-// its objects.
-type lookupDatabase struct{ schema *analysis.SchemaLookup }
+// its objects, with its synonyms and the instance's public synonyms.
+type lookupDatabase struct {
+	schema                   *analysis.SchemaLookup
+	caseSensitive            bool
+	synonyms, publicSynonyms map[string]*metadata.SynonymMetadata
+}
+
+// synonymsByName keys synonyms as analysis.Lookup keys tables, which has no
+// synonym lookup: by name as written in a case-sensitive database and
+// lower-cased otherwise, the later of two sharing a key winning.
+func synonymsByName(synonyms []*metadata.SynonymMetadata, caseSensitive bool) map[string]*metadata.SynonymMetadata {
+	byName := make(map[string]*metadata.SynonymMetadata, len(synonyms))
+	for _, synonym := range synonyms {
+		byName[synonymKey(synonym.GetName(), caseSensitive)] = synonym
+	}
+	return byName
+}
+
+func synonymKey(name string, caseSensitive bool) string {
+	if caseSensitive {
+		return name
+	}
+	return strings.ToLower(name)
+}
+
+var _ SynonymDatabase = lookupDatabase{}
+
+func (d lookupDatabase) GetSynonym(name string) *metadata.SynonymMetadata {
+	return d.synonyms[synonymKey(name, d.caseSensitive)]
+}
+
+func (d lookupDatabase) GetPublicSynonym(name string) *metadata.SynonymMetadata {
+	return d.publicSynonyms[synonymKey(name, d.caseSensitive)]
+}
 
 func (d lookupDatabase) HasSchema() bool { return d.schema != nil }
 
