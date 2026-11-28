@@ -27,16 +27,20 @@ func (engine) ExtractMetadata(_ context.Context, script string) (*metadata.Datab
 	return GetDatabaseMetadata(script)
 }
 
-// MetadataMigration diffs the two snapshots after reconcileSkipDump, which
-// compares names as written when either side is case-sensitive. Diff itself
-// still matches names ignoring case, so two names that differ only by case
-// are one object to it.
+// MetadataMigration diffs the two snapshots after reconcileSkipDump. Diff and
+// GenerateMigration match names ignoring case, so when either side is
+// case-sensitive it refuses names that differ only by case, within a snapshot
+// or as a rename between them, rather than merge them into one object.
 func (engine) MetadataMigration(ctx context.Context, request omnianalysis.MetadataMigrationRequest) (string, error) {
+	fromMeta := omnianalysis.WithoutSchemas(databaseMetadata(request.From), request.SkipSchemas)
+	toMeta := omnianalysis.WithoutSchemas(databaseMetadata(request.To), request.SkipSchemas)
 	caseSensitive := objectCaseSensitive(request.From) || objectCaseSensitive(request.To)
-	oldMeta, newMeta := reconcileSkipDump(
-		omnianalysis.WithoutSchemas(databaseMetadata(request.From), request.SkipSchemas),
-		omnianalysis.WithoutSchemas(databaseMetadata(request.To), request.SkipSchemas),
-		caseSensitive)
+	if caseSensitive {
+		if err := rejectCaseOnlyIdentities(fromMeta, toMeta); err != nil {
+			return "", err
+		}
+	}
+	oldMeta, newMeta := reconcileSkipDump(fromMeta, toMeta, caseSensitive)
 	from := New()
 	if err := from.LoadMetadata(ctx, oldMeta); err != nil {
 		return "", fmt.Errorf("failed to load source schema: %w", err)
@@ -50,6 +54,74 @@ func (engine) MetadataMigration(ctx context.Context, request omnianalysis.Metada
 		return "", nil
 	}
 	return GenerateMigration(from, to, diff).SQL(), nil
+}
+
+// rejectCaseOnlyIdentities refuses two schema, object, column, index or check
+// constraint names that differ only by case, in one snapshot or as a rename
+// between the snapshots.
+func rejectCaseOnlyIdentities(oldMeta, newMeta *metadata.DatabaseSchemaMetadata) error {
+	folded := make([]map[string]string, 2)
+	for i, meta := range []*metadata.DatabaseSchemaMetadata{oldMeta, newMeta} {
+		folded[i] = make(map[string]string)
+		for _, id := range identities(meta) {
+			fold := strings.ToLower(id.key)
+			if previous, ok := folded[i][fold]; ok && previous != id.name {
+				return fmt.Errorf("case-sensitive database has %q and %q, which the catalog cannot distinguish", previous, id.name)
+			}
+			folded[i][fold] = id.name
+		}
+	}
+	for _, id := range identities(newMeta) {
+		if previous, ok := folded[0][strings.ToLower(id.key)]; ok && previous != id.name {
+			return fmt.Errorf("case-only rename %q to %q is not supported by the catalog diff", previous, id.name)
+		}
+	}
+	return nil
+}
+
+type identity struct {
+	// key is name's kind and path. Two identities whose keys fold alike are
+	// one object to the catalog.
+	key, name string
+}
+
+// identities lists the names Diff and GenerateMigration match ignoring case.
+// Tables, views, functions, procedures and sequences share a schema's object
+// namespace.
+func identities(meta *metadata.DatabaseSchemaMetadata) []identity {
+	var ids []identity
+	add := func(kind string, path ...string) {
+		ids = append(ids, identity{key: kind + "\x00" + strings.Join(path, "\x00"), name: strings.Join(path, ".")})
+	}
+	for _, schema := range meta.GetSchemas() {
+		s := schema.GetName()
+		add("schema", s)
+		for _, table := range schema.GetTables() {
+			add("object", s, table.GetName())
+			for _, column := range table.GetColumns() {
+				add("column", s, table.GetName(), column.GetName())
+			}
+			for _, index := range table.GetIndexes() {
+				add("index", s, table.GetName(), index.GetName())
+			}
+			for _, check := range table.GetCheckConstraints() {
+				add("check", s, table.GetName(), check.GetName())
+			}
+		}
+		for _, view := range schema.GetViews() {
+			add("object", s, view.GetName())
+		}
+		for _, function := range schema.GetFunctions() {
+			add("object", s, function.GetName())
+		}
+		for _, procedure := range schema.GetProcedures() {
+			add("object", s, procedure.GetName())
+		}
+		for _, sequence := range schema.GetSequences() {
+			add("object", s, sequence.GetName())
+		}
+	}
+	return ids
 }
 
 func databaseMetadata(database *omnianalysis.Database) *metadata.DatabaseSchemaMetadata {

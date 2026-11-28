@@ -66,3 +66,22 @@ func TestEngineExtractMetadataTiDB(t *testing.T) {
 		t.Fatalf("selected view definition = %q", definition)
 	}
 }
+
+func TestEngineExtractMetadataTiDBKeepsTextNamedLikeTheScratchDatabase(t *testing.T) {
+	for _, tc := range []struct{ view, want string }{
+		{
+			"SELECT _bytebase_schema_scratch.id, '`_bytebase_schema_scratch`.x' AS s FROM t AS _bytebase_schema_scratch",
+			"SELECT `_bytebase_schema_scratch`.`id` AS `id`,_UTF8MB4'`_bytebase_schema_scratch`.x' AS `s` FROM `t` AS `_bytebase_schema_scratch`",
+		},
+		// The script never spells the name; the stored literal does.
+		{"SELECT '`_byt\\ebase_schema_scratch`.x' AS s FROM t", "SELECT _UTF8MB4'`_bytebase_schema_scratch`.x' AS `s` FROM `t`"},
+	} {
+		meta, err := Engine.ExtractMetadata(context.Background(), "CREATE TABLE t (id INT PRIMARY KEY);\nCREATE VIEW v AS "+tc.view+";")
+		if err != nil || meta.GetName() != "" || len(meta.GetSchemas()) != 1 || len(meta.GetSchemas()[0].GetViews()) != 1 {
+			t.Fatalf("scratch database = %v, %v", meta, err)
+		}
+		if definition := meta.GetSchemas()[0].GetViews()[0].GetDefinition(); definition != tc.want {
+			t.Errorf("view definition = %q, want %q", definition, tc.want)
+		}
+	}
+}
