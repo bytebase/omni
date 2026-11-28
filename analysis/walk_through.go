@@ -143,8 +143,9 @@ type WalkThroughFinding struct {
 
 // WalkThroughResult is a walk-through's outcome.
 type WalkThroughResult struct {
-	// Database is the schema after the script, or nil when the script leaves it
-	// unchanged or a finding stopped the simulation.
+	// Database is the catalog's schema after the script, or nil when a finding
+	// stopped the simulation. An engine may also return nil when the script
+	// leaves the schema unchanged.
 	Database *Database
 	Finding  *WalkThroughFinding
 }
