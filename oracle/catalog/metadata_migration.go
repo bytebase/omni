@@ -26,11 +26,11 @@ var (
 // MetadataMigration loads both snapshots and renders the migration between
 // them, ending a non-empty migration with a newline.
 func (engine) MetadataMigration(ctx context.Context, request analysis.MetadataMigrationRequest) (string, error) {
-	from, err := loadMigrationSnapshot(ctx, request.From)
+	from, err := loadMigrationSnapshot(ctx, request.From, request.SkipSchemas)
 	if err != nil {
 		return "", fmt.Errorf("failed to load source schema: %w", err)
 	}
-	to, err := loadMigrationSnapshot(ctx, request.To)
+	to, err := loadMigrationSnapshot(ctx, request.To, request.SkipSchemas)
 	if err != nil {
 		return "", fmt.Errorf("failed to load target schema: %w", err)
 	}
@@ -51,13 +51,13 @@ func (engine) ExtractMetadata(_ context.Context, script string) (*metadatapb.Dat
 	return GetDatabaseMetadata(script)
 }
 
-func loadMigrationSnapshot(ctx context.Context, database *analysis.Database) (*Catalog, error) {
+func loadMigrationSnapshot(ctx context.Context, database *analysis.Database, skipSchemas []string) (*Catalog, error) {
 	meta := &metadatapb.DatabaseSchemaMetadata{}
 	if database != nil && database.Metadata != nil {
 		meta = database.Metadata
 	}
 	c := New()
-	if _, err := c.LoadMetadata(ctx, stripUnrenderedFacts(meta)); err != nil {
+	if _, err := c.LoadMetadata(ctx, stripUnrenderedFacts(analysis.WithoutSchemas(meta, skipSchemas))); err != nil {
 		return nil, err
 	}
 	return c, nil

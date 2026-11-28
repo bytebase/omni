@@ -78,3 +78,21 @@ func TestEngineExtractMetadataOracle(t *testing.T) {
 		t.Fatalf("extracted = %v, %v", meta, err)
 	}
 }
+
+func TestEngineMetadataMigrationOracleSkipSchemas(t *testing.T) {
+	source := oracleOneTable()
+	source.Schemas = append(source.Schemas, &metadatapb.SchemaMetadata{Name: "ARCHIVE", Tables: []*metadatapb.TableMetadata{{
+		Name:    "OLD",
+		Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER"}},
+	}}})
+	request := analysis.MetadataMigrationRequest{From: &analysis.Database{Metadata: source}, To: &analysis.Database{Metadata: oracleOneTable()}}
+
+	sql, err := Engine.MetadataMigration(context.Background(), request)
+	if err != nil || !strings.Contains(sql, `"ARCHIVE"`) {
+		t.Fatalf("unskipped = %q, %v", sql, err)
+	}
+	request.SkipSchemas = []string{"ARCHIVE"}
+	if sql, err := Engine.MetadataMigration(context.Background(), request); err != nil || sql != "" {
+		t.Fatalf("skipped = %q, %v", sql, err)
+	}
+}

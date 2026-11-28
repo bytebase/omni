@@ -90,3 +90,19 @@ func TestMSSQLReconcileSkipDump(t *testing.T) {
 	require.Equal(t, "t", reconciled.Schemas[0].Tables[0].Name)
 	require.Equal(t, "T", reconciled.Schemas[0].Tables[1].Name)
 }
+
+func TestMSSQLEngineMetadataMigrationSkipSchemas(t *testing.T) {
+	ctx := context.Background()
+	source := mssqlSnapshot(false,
+		&metadata.SchemaMetadata{Name: "dbo", Tables: []*metadata.TableMetadata{mssqlTable("t", false, "int")}},
+		&metadata.SchemaMetadata{Name: "archive", Tables: []*metadata.TableMetadata{mssqlTable("old", false, "int")}})
+	target := mssqlSnapshot(false, &metadata.SchemaMetadata{Name: "dbo", Tables: []*metadata.TableMetadata{mssqlTable("t", false, "int")}})
+
+	migration, err := Engine.MetadataMigration(ctx, omnianalysis.MetadataMigrationRequest{From: source, To: target})
+	require.NoError(t, err)
+	require.Contains(t, migration, "[archive]")
+
+	migration, err = Engine.MetadataMigration(ctx, omnianalysis.MetadataMigrationRequest{From: source, To: target, SkipSchemas: []string{"archive"}})
+	require.NoError(t, err)
+	require.Empty(t, migration)
+}

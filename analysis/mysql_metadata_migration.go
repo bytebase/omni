@@ -36,7 +36,8 @@ type MySQLMetadataMigration[C any] struct {
 // An object a load could not install as defined is safe to leave only when it
 // is the same on both sides, so a migration that changes one is refused.
 func (m MySQLMetadataMigration[C]) MetadataMigration(ctx context.Context, request MetadataMigrationRequest) (string, error) {
-	fromMeta, toMeta := migrationSnapshot(request.From), migrationSnapshot(request.To)
+	fromMeta := WithoutSchemas(migrationSnapshot(request.From), request.SkipSchemas)
+	toMeta := WithoutSchemas(migrationSnapshot(request.To), request.SkipSchemas)
 	fromCaseSensitive := request.From != nil && request.From.ObjectCaseSensitive
 	toCaseSensitive := request.To != nil && request.To.ObjectCaseSensitive
 	if err := rejectCaseOnlyIdentities(fromMeta, toMeta, fromCaseSensitive, toCaseSensitive); err != nil {

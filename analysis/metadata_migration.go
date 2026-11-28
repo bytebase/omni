@@ -2,6 +2,9 @@ package analysis
 
 import (
 	"context"
+	"slices"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/metadata"
 )
@@ -27,4 +30,18 @@ type MetadataMigrator interface {
 // MetadataExtractor builds the metadata a schema's DDL text defines.
 type MetadataExtractor interface {
 	ExtractMetadata(ctx context.Context, script string) (*metadata.DatabaseSchemaMetadata, error)
+}
+
+// WithoutSchemas returns meta without the named schemas, for an engine whose
+// catalog has no option to skip them. It returns meta itself when names is
+// empty.
+func WithoutSchemas(meta *metadata.DatabaseSchemaMetadata, names []string) *metadata.DatabaseSchemaMetadata {
+	if meta == nil || len(names) == 0 {
+		return meta
+	}
+	out := proto.CloneOf(meta)
+	out.Schemas = slices.DeleteFunc(out.Schemas, func(schema *metadata.SchemaMetadata) bool {
+		return slices.Contains(names, schema.GetName())
+	})
+	return out
 }
