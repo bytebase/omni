@@ -95,6 +95,40 @@ func TestMySQLMetadataMigrationWithAFakeCatalog(t *testing.T) {
 	}
 }
 
+func TestMySQLMetadataMigrationKeepsAnAliasNamedLikeTheDatabase(t *testing.T) {
+	var loaded []string
+	m := MySQLMetadataMigration[string]{
+		Load: func(_ context.Context, _ *metadata.DatabaseSchemaMetadata, database string) (string, []map[string]error, error) {
+			loaded = append(loaded, database)
+			return database, nil, nil
+		},
+		Migration: func(_, to string) string {
+			return "CREATE VIEW `" + to + "`.`v` AS select `bbcatalog`.`id` AS `id` from `" + to + "`.`t` `bbcatalog`"
+		},
+	}
+	snapshot := func(definition string) *Database {
+		return &Database{Metadata: &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Views: []*metadata.ViewMetadata{{Name: "v", Definition: definition}},
+		}}}}
+	}
+	for _, tc := range []struct{ fromDefinition, database string }{
+		{"select 1", "bbcatalog_1"},
+		{"select 1 from `BBCATALOG_1`", "bbcatalog_2"},
+	} {
+		loaded = nil
+		sql, err := m.MetadataMigration(context.Background(), MetadataMigrationRequest{
+			From: snapshot(tc.fromDefinition),
+			To:   snapshot("select `bbcatalog`.`id` AS `id` from `t` `bbcatalog`"),
+		})
+		if want := "CREATE VIEW `v` AS select `bbcatalog`.`id` AS `id` from `t` `bbcatalog`"; sql != want || err != nil {
+			t.Errorf("migration = %q, %v, want %q", sql, err, want)
+		}
+		if want := []string{tc.database, tc.database}; !reflect.DeepEqual(loaded, want) {
+			t.Errorf("loaded under %q, want %q", loaded, want)
+		}
+	}
+}
+
 func TestStripMigrationDatabase(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"ALTER TABLE `t` ADD COLUMN `b` int", "ALTER TABLE `t` ADD COLUMN `b` int"},
@@ -107,7 +141,7 @@ func TestStripMigrationDatabase(t *testing.T) {
 		{"SELECT 1--`bbcatalog`.`t`", "SELECT 1--`t`"},
 		{"SELECT `bbcatalog`.x, `bbcatalog`.`t", "SELECT `bbcatalog`.x, `t"},
 	} {
-		if got := stripMigrationDatabase(tc.in); got != tc.want {
+		if got := stripMigrationDatabase(tc.in, "bbcatalog"); got != tc.want {
 			t.Errorf("stripMigrationDatabase(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
