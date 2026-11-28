@@ -15,7 +15,7 @@ import (
 // mysqlMigrationDatabase names the database both snapshots of a MySQL-family
 // migration load under, so that snapshots of differently named databases
 // compare object by object. The generated DDL then qualifies objects with it,
-// and stripMigrationDatabase removes that qualifier: the migration runs in a
+// and StripMySQLDatabaseQualifier removes that qualifier: the migration runs in a
 // connection already scoped to the target database. migrationDatabase picks
 // the name for each migration.
 const mysqlMigrationDatabase = "bbcatalog"
@@ -57,7 +57,7 @@ func (m MySQLMetadataMigration[C]) MetadataMigration(ctx context.Context, reques
 	if err := unloadableChanges(fromMeta, toMeta, slices.Concat(fromProblems, toProblems)); err != nil {
 		return "", err
 	}
-	return stripMigrationDatabase(m.Migration(from, to), database), nil
+	return StripMySQLDatabaseQualifier(m.Migration(from, to), database), nil
 }
 
 // migrationDatabase returns mysqlMigrationDatabase, or that name with the
@@ -65,12 +65,12 @@ func (m MySQLMetadataMigration[C]) MetadataMigration(ctx context.Context, reques
 // case. Every qualifier of that name in the generated DDL is then one the load
 // added, never an alias of a view or routine body.
 func migrationDatabase(fromMeta, toMeta *metadata.DatabaseSchemaMetadata) string {
-	return nameAbsentFrom(mysqlMigrationDatabase, prototext.Format(fromMeta)+prototext.Format(toMeta))
+	return NameAbsentFrom(mysqlMigrationDatabase, prototext.Format(fromMeta)+prototext.Format(toMeta))
 }
 
-// nameAbsentFrom returns base, or base with the first numeric suffix, that
+// NameAbsentFrom returns base, or base with the first numeric suffix, that
 // text does not contain in any letter case. base is lower case.
-func nameAbsentFrom(base, text string) string {
+func NameAbsentFrom(base, text string) string {
 	text = strings.ToLower(text)
 	name := base
 	for i := 1; strings.Contains(text, name); i++ {
@@ -220,14 +220,14 @@ func snapshotObject(meta *metadata.DatabaseSchemaMetadata, key string) proto.Mes
 	return nil
 }
 
-// stripMigrationDatabase removes the database qualifier from generated DDL.
-// The scan copies string literals and the identifier after a removed qualifier
+// StripMySQLDatabaseQualifier removes the qualifier naming database from
+// MySQL-family SQL. The scan copies string literals and the identifier after a removed qualifier
 // whole, so only qualifiers in identifier position go, even for an object
 // named like the database. It copies #, "-- " and /*...*/ comments whole too,
 // since routine bodies are emitted verbatim and a quote in a comment would
 // otherwise open a phantom literal; the inside of an executable /*!...*/
 // comment is live SQL and is scanned.
-func stripMigrationDatabase(sql, database string) string {
+func StripMySQLDatabaseQualifier(sql, database string) string {
 	quoted := "`" + database + "`"
 	if !strings.Contains(sql, quoted+".") {
 		return sql

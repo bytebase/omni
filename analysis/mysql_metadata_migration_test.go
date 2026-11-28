@@ -129,7 +129,7 @@ func TestMySQLMetadataMigrationKeepsAnAliasNamedLikeTheDatabase(t *testing.T) {
 	}
 }
 
-func TestStripMigrationDatabase(t *testing.T) {
+func TestStripMySQLDatabaseQualifier(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{"ALTER TABLE `t` ADD COLUMN `b` int", "ALTER TABLE `t` ADD COLUMN `b` int"},
 		{"CREATE VIEW `bbcatalog`.`v` AS select `bbcatalog`.`t`.`a` from `bbcatalog`.`t`", "CREATE VIEW `v` AS select `t`.`a` from `t`"},
@@ -141,8 +141,8 @@ func TestStripMigrationDatabase(t *testing.T) {
 		{"SELECT 1--`bbcatalog`.`t`", "SELECT 1--`t`"},
 		{"SELECT `bbcatalog`.x, `bbcatalog`.`t", "SELECT `bbcatalog`.x, `t"},
 	} {
-		if got := stripMigrationDatabase(tc.in, "bbcatalog"); got != tc.want {
-			t.Errorf("stripMigrationDatabase(%q) = %q, want %q", tc.in, got, tc.want)
+		if got := StripMySQLDatabaseQualifier(tc.in, "bbcatalog"); got != tc.want {
+			t.Errorf("StripMySQLDatabaseQualifier(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
